@@ -100,8 +100,13 @@ public sealed class InterviewRunner
                 continue;
             }
 
+            counters.IntervieweeTurns++;
             var masked = MaskReply(raw, topic, transcript, counters, turn, out var guardOk, out var namesPerson);
-            if (!guardOk) return Discard(InterviewOutcome.PiiGuardFailed, "pii_guard_failed", counters, session, aiDisclosed);
+            if (!guardOk)
+            {
+                counters.InterviewerTurns = machine.InterviewerTurns;
+                return Discard(InterviewOutcome.PiiGuardFailed, "pii_guard_failed", counters, session, aiDisclosed);
+            }
 
             polarity.TryGetValue(topic ?? default, out var previous);
             var signals = ReplyAnalyzer.Analyze(masked, _protocol.Limits, namesPerson, topic is null ? 0 : previous);
@@ -117,6 +122,7 @@ public sealed class InterviewRunner
             _options.Logger?.LogDebug("Turn {Index}: {Kind} -> {Next}", machine.InterviewerTurns, signals.Withdrawal ? "withdrawal" : "reply", step.Kind);
         }
 
+        counters.InterviewerTurns = machine.InterviewerTurns;
         if (step.Kind == TurnKind.Stop)
         {
             // Consent withdrawn, refused or never given (or nobody there): the transcript is discarded, no record exists.
@@ -259,7 +265,7 @@ public sealed class InterviewRunner
         {
             session?.SetTag(Attr.Outcome, "extraction_failed");
             session.Set(Attr.Submittable, false);
-            return new InterviewResult(InterviewOutcome.ExtractionFailed, "extraction_invalid", transcript, null, null, null, Diagnostics(c, aiDisclosed, transcript));
+            return new InterviewResult(InterviewOutcome.ExtractionFailed, "extraction_invalid", transcript, null, null, null, Diagnostics(c, aiDisclosed));
         }
 
         var elapsed = _options.Clock.GetElapsedTime(started);
@@ -287,7 +293,7 @@ public sealed class InterviewRunner
             span.Set(Attr.RecordValid, validation.IsValid).SetCodes(Attr.ErrorCodes, validation.Errors.Select(e => e.Code));
         }
 
-        var result = new InterviewResult(InterviewOutcome.Completed, endReason, transcript, record, json, validation, Diagnostics(c, aiDisclosed, transcript));
+        var result = new InterviewResult(InterviewOutcome.Completed, endReason, transcript, record, json, validation, Diagnostics(c, aiDisclosed));
         session?.SetTag(Attr.Outcome, "completed");
         session?.SetTag(Attr.EndReason, endReason);
         session.Set(Attr.Turns, transcript.Turns.Count).Set(Attr.ModelCalls, _meter.Calls).Set(Attr.TopicsCovered, report.TopicsCovered).Set(Attr.AiDisclosed, aiDisclosed).Set(Attr.Submittable, result.Submittable);
@@ -295,8 +301,8 @@ public sealed class InterviewRunner
         return result;
     }
 
-    private RunDiagnostics Diagnostics(Counters c, bool aiDisclosed, Transcript? transcript = null) => new(
-        transcript?.Turns.Count(t => t.Speaker == Speaker.Interviewer) ?? 0, transcript?.IntervieweeTurns ?? 0, _meter.Calls, _meter.Tokens,
+    private RunDiagnostics Diagnostics(Counters c, bool aiDisclosed) => new(
+        c.InterviewerTurns, c.IntervieweeTurns, _meter.Calls, _meter.Tokens,
         c.Probes, c.Clarifications, c.Redirects, c.QuestionsRejected, c.NamesMasked, c.InjectionTurns, c.ExtractionAttempts,
         c.QuotesChecked, c.QuotesDropped, c.Forced, c.Covered, aiDisclosed);
 
@@ -308,7 +314,7 @@ public sealed class InterviewRunner
 
     private sealed class Counters
     {
-        public int Probes, Clarifications, Redirects, QuestionsRejected, NamesMasked, InjectionTurns, ExtractionAttempts, QuotesChecked, QuotesDropped, Forced, Covered;
+        public int InterviewerTurns, IntervieweeTurns, Probes, Clarifications, Redirects, QuestionsRejected, NamesMasked, InjectionTurns, ExtractionAttempts, QuotesChecked, QuotesDropped, Forced, Covered;
     }
 }
 

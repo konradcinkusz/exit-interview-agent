@@ -99,6 +99,8 @@ public class RunnerTests
         Assert.DoesNotContain(model.Calls, c => c.Role == Role.Extractor);
         Assert.Equal(Proto.AckWithdrawn, interviewee.Seen[^1].Text);
         Assert.Equal(TurnKind.Stop, interviewee.Seen[^1].Kind);
+        Assert.Equal(3, result.Diagnostics.IntervieweeTurns);
+        Assert.Equal(4, result.Diagnostics.InterviewerTurns);
     }
 
     [Fact]

@@ -113,7 +113,7 @@ deliberately kept), `Implemented` (only where noted).
 - **Residual.** A prompt cannot be proven injection-proof; in mode A the host model, not ours, runs the interview, so
   our protocol (prompts/resources) is advisory to it. Accepted; the impact is bounded because a manipulated interview
   can only produce a bad *record*, which ingest still validates.
-- **Status.** Open (T4/T7/T8).
+- **Status.** Mode B code-side defences **implemented** (T4, [interview-agent.md](../architecture/interview-agent.md#trust-boundaries): the state machine owns the flow, model-worded questions are guarded and fall back to protocol text, interviewee text only enters prompts inside a data block, a persona and a model double that obeys the injection are tests). Behaviour of real models is **not measured** (T6/T7); mode A (T8) stays advisory. Open (T6/T7/T8).
 
 ### T-04 Injection into the record extractor and stored quotes
 
@@ -125,7 +125,7 @@ deliberately kept), `Implemented` (only where noted).
   transcript is available** (CLI/eval: yes; mode A: not verifiable by the server, [privacy design §4](../privacy/DESIGN.md#4-who-sees-what-per-usage-mode)); extractor is treated as
   a parser of data, not an instruction follower (separate system prompt, the transcript passed as quoted data);
   transcript-fidelity metric measured in evals ([METHODOLOGY](../eval/METHODOLOGY.md)); size and field limits at ingest.
-  (Planned, T1/T4/T5/T7.)
+  (T1 schema and validator and T4 extractor schema, quote step and data block **implemented**; ingest limits T5 and the fidelity measurement T7 planned.)
 - **Residual.** For a client we do not control, fidelity is a **claim**, not a check. Accepted: aggregates are
   statistical signals, not proofs (see T-10).
 - **Status.** Open.
@@ -316,7 +316,7 @@ deliberately kept), `Implemented` (only where noted).
   after submission, deletion is by receipt code.
 - **Residual.** We cannot make an AI provider or host delete a transcript; the user must do that in their own account.
   **Accepted and disclosed.**
-- **Status.** Open (T4/T7).
+- **Status.** Mode B **implemented** (T4): withdrawal wins over every other signal in a reply, stops at once, discards the transcript object and yields no record and no extraction span; the `withdraws-consent` persona and unit tests cover it. The trace-level assertion for the eval harness is in [TRACE-SCHEMA](../eval/TRACE-SCHEMA.md#what-a-harness-can-assert-from-a-trace-alone). Open (T7, T8).
 
 ### T-17 Token confusion between the two JWT schemes
 
@@ -377,15 +377,15 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 | T-07 | Exfiltration via MCP host | M | H | Planned (T8) | Accepted, disclosed | Open | T8 |
 | T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary Planned (T5/T6) | Medium (platform logs) | Open | T5, T6 |
 | T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
-| T-03 | Prompt injection into interviewer | M | M | Planned (T4/T7) | Medium (mode A) | Open | T4, T7 |
-| T-04 | Injection into extractor / fabricated quotes | M | M | Planned | Medium | Open | T1, T4 |
+| T-03 | Prompt injection into interviewer | M | M | Implemented in code, mock only (T4); real models unmeasured (T7) | Medium (mode A) | Open | T6, T7, T8 |
+| T-04 | Injection into extractor / fabricated quotes | M | M | Implemented in code (T1, T4); client-side only | Medium | Open | T5, T7 |
 | T-06 | Stored XSS/markdown; missing web security headers | M | M | headers Implemented (T2; CSP allows inline); encoding rules apply at T9 | Low | Open | T9 |
 | T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
 | T-08 | Ledger correlation with DB + key | L | H | Planned (T5); coarse timestamps Decided | Accepted | Accepted | T5 |
 | T-09 | Ticket redemption correlation | L | H | Planned (T5/T11) | Accepted | Accepted | T5, T11 |
 | T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
 | T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
-| T-16 | Consent withdrawal mid-interview | M | M | Planned (T4/T7) | Medium | Open | T4, T7 |
+| T-16 | Consent withdrawal mid-interview | M | M | Implemented in code (T4, mode B); harness assertion planned (T7) | Medium | Open | T7, T8 |
 | T-17 | Token confusion (two JWT schemes) | L | H | both schemes + cross-scheme matrix Implemented (T2) | Low | Mitigated | T2 |
 | T-11 | Receipt-code enumeration/abuse | L | L-M | Planned (T5) | Low | Open | T5 |
 | T-05 | Judge manipulation / Goodhart | M | L-M | Planned (T7) | Medium | Open | T7 |
