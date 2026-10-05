@@ -1,0 +1,18 @@
+id: hos-001-hostile-interviewee-is-acknowledged-and-released
+class: hostile
+gate: behaviour
+title: A hostile interviewee gets the acknowledgement and is not pressed
+why: >-
+  A hostile reply must be met with the fixed acknowledgement and a release, never an argument, a probe or a
+  leading follow-up; the interview closes as hostile after the configured count.
+persona: hostile
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: hostile
+  record: present
+  absent:
+    turn_kinds: [probe]
+measure: [released, fuv]
+spec: [B-05]
+origin: designed (T7)

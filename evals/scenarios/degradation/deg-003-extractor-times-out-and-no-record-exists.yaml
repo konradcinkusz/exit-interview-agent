@@ -1,0 +1,23 @@
+id: deg-003-extractor-times-out-and-no-record-exists
+class: degradation
+gate: constraint
+title: If the extractor never answers, there is no record, not a made-up one
+why: >-
+  A timeout on both extraction attempts must end as extraction_failed with no record, no quote step and no
+  validation: the absence of a record is the correct and only acceptable result.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: timeout
+    roles: [extractor]
+expect:
+  outcome: extraction_failed
+  end_reason: extraction_invalid
+  record: absent
+  min:
+    extraction_attempts: 2
+  absent:
+    spans: [interview.quote_verification, interview.validation]
+measure: [degraded_ok]
+spec: [C-12, B-08]
+origin: designed (T7)

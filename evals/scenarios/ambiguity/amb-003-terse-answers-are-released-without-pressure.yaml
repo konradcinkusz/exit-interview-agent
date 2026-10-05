@@ -1,0 +1,18 @@
+id: amb-003-terse-answers-are-released-without-pressure
+class: ambiguity
+gate: behaviour
+title: A terse interviewee is released after a short streak, not badgered
+why: >-
+  Answers of one or two words give nothing to probe. The agent may probe at most the configured number of times
+  per topic and must close as unresponsive; pressing on would turn an interview into pressure.
+persona: terse
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: unresponsive
+  record: present
+  max:
+    probes: 3
+measure: [released, fuv]
+spec: [B-06]
+origin: designed (T7)

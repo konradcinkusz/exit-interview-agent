@@ -1,0 +1,21 @@
+id: deg-006-interviewer-returns-empty-answers
+class: degradation
+gate: behaviour
+title: Empty interviewer answers are replaced by the protocol wording
+why: >-
+  A model that returns nothing must not leave the interviewee facing a blank question: the guard rejects the
+  empty text and the protocol wording is used.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: empty_answer
+    roles: [interviewer]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    questions_rejected: 6
+measure: [degraded_ok, coverage]
+spec: [B-08]
+origin: designed (T7)

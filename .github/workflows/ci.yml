@@ -46,6 +46,46 @@ jobs:
       - name: Kernel size ceiling (P2)
         run: scripts/check-kernel-size.sh
 
+  evals:
+    name: "eval harness (offline, mock profile): validate, gate, deterministic report"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet build src/ExitInterviewAgent.Eval -c Release -warnaserror
+      # No model, no network, no credential: Layer 2 and the real-model profiles report skipped:*, and say so in the report.
+      - name: Scenarios validate against the schema, the corpus rules and the spec
+        run: dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- validate
+      - name: "Gate (constraints at 100%, behaviours against evals/baseline.json; fails the build on regression)"
+        run: dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- gate
+      - name: Conformance report, twice, byte-identical
+        run: |
+          dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- run --profile mock --deterministic --out report/a
+          dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- run --profile mock --deterministic --out report/b
+          cmp report/a/report.json report/b/report.json
+          cp report/a/report.md report/report.md
+          dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- calibrate --out report
+      - name: Regenerating the baseline needs a justification line in the PR description
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+        run: scripts/check-baseline-justification.sh "origin/${BASE_REF}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: |
+            report/report.md
+            report/a/report.json
+            report/calibration.md
+          if-no-files-found: ignore
+          retention-days: 7
+
   cli:
     name: exit-interview binaries (${{ matrix.rid }})
     runs-on: ubuntu-latest

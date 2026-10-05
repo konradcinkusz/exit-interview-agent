@@ -1,0 +1,23 @@
+id: deg-009-extractor-returns-an-empty-answer
+class: degradation
+gate: constraint
+title: An extractor that returns nothing leaves no record
+why: >-
+  An empty extraction is not a record of nothing; it is a failure and must end as extraction_failed with no
+  record, no quote step and no validation.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: empty_answer
+    roles: [extractor]
+expect:
+  outcome: extraction_failed
+  end_reason: extraction_invalid
+  record: absent
+  min:
+    extraction_attempts: 2
+  absent:
+    spans: [interview.quote_verification, interview.validation]
+measure: [degraded_ok]
+spec: [C-12, B-08]
+origin: designed (T7)
