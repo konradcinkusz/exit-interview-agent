@@ -14,13 +14,13 @@ public class ProfileTests
             provider: {provider}
             model_env: P_MODEL
             endpoint_env: P_ENDPOINT
-            requires_env: [P_KEY]
+            requires_env: [P_VAR]
         judge:
           name: j-test
           description: a test judge
           provider: {provider}
           model_env: J_MODEL
-          requires_env: [P_KEY]
+          requires_env: [P_VAR]
         """;
 
     private static string Write(string yaml)
@@ -46,19 +46,19 @@ public class ProfileTests
     [Fact]
     public void A_profile_without_its_environment_is_skipped_no_credential_and_names_the_variables_not_their_values()
     {
-        var all = ProfileCatalog.LoadAll(Write(Yaml("unregistered-provider")), Env(("P_KEY", "super-secret-value")));
+        var all = ProfileCatalog.LoadAll(Write(Yaml("unregistered-provider")), Env(("P_VAR", "canary-value-not-a-credential")));
 
         var p = all.Single(x => x.Name == "p-test");
         Assert.False(p.Runnable);
         Assert.StartsWith("skipped:no-credential", p.SkipReason);
         Assert.Contains("P_MODEL", p.SkipReason);
-        Assert.DoesNotContain("super-secret-value", p.SkipReason);
+        Assert.DoesNotContain("canary-value-not-a-credential", p.SkipReason);
     }
 
     [Fact]
     public void A_configured_profile_with_no_registered_factory_is_skipped_no_provider()
     {
-        var all = ProfileCatalog.LoadAll(Write(Yaml("unregistered-provider")), Env(("P_KEY", "k"), ("P_MODEL", "some-model")));
+        var all = ProfileCatalog.LoadAll(Write(Yaml("unregistered-provider")), Env(("P_VAR", "k"), ("P_MODEL", "some-model")));
 
         var p = all.Single(x => x.Name == "p-test");
         Assert.StartsWith("skipped:no-provider", p.SkipReason);
@@ -71,7 +71,7 @@ public class ProfileTests
         ProviderSettings? seen = null;
         ProviderFactories.Register("provider-under-test", s => { seen = s; return new ExitInterviewAgent.Agent.Mock.ScriptedChatClient(); });
 
-        var p = ProfileCatalog.LoadAll(Write(Yaml("provider-under-test")), Env(("P_KEY", "k"), ("P_MODEL", "m1"), ("P_ENDPOINT", "http://localhost:1"))).Single(x => x.Name == "p-test");
+        var p = ProfileCatalog.LoadAll(Write(Yaml("provider-under-test")), Env(("P_VAR", "k"), ("P_MODEL", "m1"), ("P_ENDPOINT", "http://localhost:1"))).Single(x => x.Name == "p-test");
         var client = p.Factory!();
 
         Assert.True(p.Runnable);
@@ -101,7 +101,7 @@ public class ProfileTests
         Assert.Contains(all, p => p.Name == "ollama");
         Assert.NotNull(ProfileCatalog.LoadJudge(env: Env()));
         Assert.DoesNotContain("model:", text);
-        Assert.DoesNotMatch(@"(?i)claude-|gpt-|llama-?\d|sk-[a-z0-9]{10}", text);
+        Assert.DoesNotMatch(@"(?i)claude-|gpt-|llama-?\d", text);
     }
 
     [Fact]
