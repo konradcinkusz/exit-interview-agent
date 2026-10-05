@@ -72,7 +72,7 @@ public sealed class EmailScrubbingTests(ServiceFactory factory) : IClassFixture<
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
             factory.NewMcpToken().With(t => t.Email = Email).Build());
 
-        await client.GetAsync("/mcp/_probe");
+        await client.SendAsync(McpWire.ListTools());
 
         Assert.DoesNotContain("jane.doe", string.Join('\n', capture.Lines));
     }

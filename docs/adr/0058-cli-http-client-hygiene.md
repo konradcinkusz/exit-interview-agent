@@ -26,4 +26,4 @@ All of it is in `SubmissionClient`; each point has a test, and the first two are
 
 - A hostile or mistaken address can see the secret only if the user types that address and it is `https` (or loopback): the CLI cannot be bounced to a third host and cannot be downgraded.
 - `HTTPS_PROXY` and the system proxy settings are honoured by the platform default; a proxy that terminates TLS sees the secret. That is the user's chosen network, named here, not a CLI behaviour.
-- A timeout leaves the outcome unknown ([OP-19](../OPEN-PROBLEMS.md)).
+- A timeout leaves the outcome unknown ([OP-20](../OPEN-PROBLEMS.md)).

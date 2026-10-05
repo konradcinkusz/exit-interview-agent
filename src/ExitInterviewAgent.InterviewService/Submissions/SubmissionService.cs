@@ -47,44 +47,62 @@ public sealed class SubmissionService(
             : await RunAsync(recordJson, peek.Sub, peek, ct));
     }
 
-    private async Task<SubmissionOutcome> RunAsync(ReadOnlyMemory<byte> body, string sub, TicketPeek? ticket, CancellationToken ct)
+    /// <summary>
+    /// Dry run for the MCP validate tool: the same stateless checks as a real submission (size, schema, PII re-scan, AI
+    /// disclosure), in the same order, and nothing else. No verifier call, no ledger read, no write, no metric: the answer
+    /// cannot reveal whether the account already submitted. Null means "would pass these checks".
+    /// </summary>
+    public async Task<Rejection?> CheckAsync(ReadOnlyMemory<byte> recordJson, CancellationToken ct) =>
+        (await PrecheckAsync(recordJson, ct)).Rejection;
+
+    private async Task<(Rejection? Rejection, InterviewRecord? Record)> PrecheckAsync(ReadOnlyMemory<byte> body, CancellationToken ct)
     {
         if (body.Length > RecordLimits.Default.MaxPayloadBytes)
         {
-            return SubmissionOutcome.Reject(SubmissionCodes.PayloadTooLarge);
+            return (Rejection.Of(SubmissionCodes.PayloadTooLarge), null);
         }
 
         var validation = validator.Validate(body.Span);
         if (!validation.IsValid)
         {
-            return SubmissionOutcome.Reject(new Rejection(
+            return (new Rejection(
                 validation.Errors.FirstOrDefault()?.Code ?? "SCHEMA_VIOLATION",
-                [.. validation.Errors.Select(e => new FieldError(e.Code, e.Path))], []));
+                [.. validation.Errors.Select(e => new FieldError(e.Code, e.Path))], []), null);
         }
         var record = validation.Record!;
 
         var scan = await ScanAsync(record, ct);
         if (scan.Failed)
         {
-            return SubmissionOutcome.Reject(SubmissionCodes.PiiCheckFailed);
+            return (Rejection.Of(SubmissionCodes.PiiCheckFailed), null);
         }
         if (scan.Kinds.Count > 0)
         {
-            return SubmissionOutcome.Reject(new Rejection(SubmissionCodes.PiiDetected, [], [.. scan.Kinds.Select(k => k.ToString())]));
+            return (new Rejection(SubmissionCodes.PiiDetected, [], [.. scan.Kinds.Select(k => k.ToString())]), null);
         }
 
         if (!record.Interview.AiDisclosed)
         {
-            return SubmissionOutcome.Reject(new Rejection(SubmissionCodes.AiNotDisclosed, [new FieldError(SubmissionCodes.AiNotDisclosed, "/interview/aiDisclosed")], []));
+            return (new Rejection(SubmissionCodes.AiNotDisclosed, [new FieldError(SubmissionCodes.AiNotDisclosed, "/interview/aiDisclosed")], []), null);
+        }
+        return (null, record);
+    }
+
+    private async Task<SubmissionOutcome> RunAsync(ReadOnlyMemory<byte> body, string sub, TicketPeek? ticket, CancellationToken ct)
+    {
+        var (rejection, record) = await PrecheckAsync(body, ct);
+        if (rejection is not null)
+        {
+            return SubmissionOutcome.Reject(rejection);
         }
 
-        var level = await VerifyAsync(sub, record.EmployerRef, ct);
+        var level = await VerifyAsync(sub, record!.EmployerRef, ct);
         if (level == VerificationLevel.Unverified && options.Value.Verification.RejectUnverified)
         {
             return SubmissionOutcome.Reject(SubmissionCodes.EmploymentNotVerified);
         }
 
-        return await PersistAsync(record, sub, ticket, level, ct);
+        return await PersistAsync(record!, sub, ticket, level, ct);
     }
 
     /// <summary>Whatever the scanner does, an error is a failed check and the submission is refused (fail closed). The exception is dropped, not logged.</summary>

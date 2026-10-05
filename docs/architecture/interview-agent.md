@@ -8,7 +8,7 @@ in [`../eval/TRACE-SCHEMA.md`](../eval/TRACE-SCHEMA.md); the record it produces 
 
 ## What it is
 
-The core of mode B (the CLI) and the reference implementation of the protocol that mode A (MCP, T8) will expose as prompts and
+The core of mode B (the CLI) and the reference implementation of the protocol that mode A (MCP, T8, [mcp.md](mcp.md)) exposes as prompts and
 resources. It runs one structured exit interview, masks what the interviewee says on arrival, and, if the interviewee consented
 throughout, turns the masked transcript into a validated `InterviewRecord`. It does **not** submit anything (the CLI's `submit` does, [cli-submission](cli-submission.md)), call a real model
 (T6) or touch the network.

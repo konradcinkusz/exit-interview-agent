@@ -54,8 +54,7 @@ With both set the AppHost configures one authservice client (`claude-exit-interv
 `https://claude.ai/api/mcp/auth_callback`, scopes `interview:submit offline_access`, `AllowedResources` = `Mcp:ResourceUrl`) and gives
 interview-service `Mcp__Issuer` / `Mcp__Resource`. Then, in Claude: Settings → Connectors → Add custom connector with `Mcp:ResourceUrl`,
 **Advanced settings**: client id `claude-exit-interview-dev` and the client secret (the Aspire dashboard shows the `authservice-mcp-client-secret`
-parameter; `scripts/setup.*` stores it in user-secrets). The MCP transport itself arrives with T8; until then the connector can complete the
-sign-in but has no tools.
+parameter; `scripts/setup.*` stores it in user-secrets). The MCP transport is Implemented (T8); the full runbook, with every step marked verified or not, is [`../docs/guides/connect-claude.md`](../docs/guides/connect-claude.md).
 
 | Dev-only secret (user-secrets key) | What | Made by |
 |---|---|---|

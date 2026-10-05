@@ -113,7 +113,7 @@ deliberately kept), `Implemented` (only where noted).
 - **Residual.** A prompt cannot be proven injection-proof; in mode A the host model, not ours, runs the interview, so
   our protocol (prompts/resources) is advisory to it. Accepted; the impact is bounded because a manipulated interview
   can only produce a bad *record*, which ingest still validates.
-- **Status.** Mode B code-side defences **implemented** (T4, [interview-agent.md](../architecture/interview-agent.md#trust-boundaries): the state machine owns the flow, model-worded questions are guarded and fall back to protocol text, interviewee text only enters prompts inside a data block, a persona and a model double that obeys the injection are tests). Behaviour of real models is **not measured** (T6/T7); mode A (T8) stays advisory. Open (T6/T7/T8).
+- **Status.** Mode B code-side defences **implemented** (T4, [interview-agent.md](../architecture/interview-agent.md#trust-boundaries): the state machine owns the flow, model-worded questions are guarded and fall back to protocol text, interviewee text only enters prompts inside a data block, a persona and a model double that obeys the injection are tests). Behaviour of real models is **not measured** (T6/T7); mode A (T8, [mcp.md](../architecture/mcp.md)) stays advisory: the prompt states that interviewee text is data and each required behaviour is a named test on the prompt text, which proves the instruction is present, **not** that a host follows it. Open (T6/T7).
 
 ### T-04 Injection into the record extractor and stored quotes
 
@@ -180,9 +180,11 @@ deliberately kept), `Implemented` (only where noted).
   users' data, strict scope enforcement (`iss`, `aud` = MCP resource URI, scope; [brief §4](../architecture/PROJECT-BRIEF.md)); no reliance on MCP sampling (brief §4); the
   user is told at connection time that the **host sees the whole transcript** and which hosts are supported (T9/T8 copy).
 - **Residual.** We cannot control the host, its other connectors, or its retention. Mode A has the weakest privacy
-  guarantee of the three modes, by construction; **the README and the connect screen must say so** (Planned, T8/T9).
+  guarantee of the three modes, by construction; **the README and the connect screen must say so** (README Implemented, T8; connect screen Planned, T9).
   **Likelihood medium, impact high; accepted and disclosed.**
-- **Status.** Open (T8).
+- **Status.** Server side **Implemented and tested (T8, [mcp.md](../architecture/mcp.md), ADR-0042..0046)**: two tools whose only argument is the record (a `transcript` field is rejected `UNKNOWN_FIELD`, tested), descriptions and
+  prompt text pinned by a reviewed snapshot, results that never contain submitted text, no sampling, elicitation or roots (metadata scan, stateless), per-tool scope, Origin allow-list. The prompt tells the host not to send the conversation
+  to any other tool; **whether a host obeys is not measured**. Not run: a real Claude client. Open (accepted, disclosed).
 
 ### T-08 Ledger correlation (operator with DB access, with or without the HMAC key)
 
@@ -339,7 +341,11 @@ deliberately kept), `Implemented` (only where noted).
 - **Residual.** Platform-level logs (proxy, load balancer, database slow-query logs) are outside application control.
   **Likelihood medium, impact high.**
 - **Provider side (T6, Implemented, [ADR-0035](../adr/0035-provider-telemetry-and-export.md)):** the canary test is extended to every provider client (Anthropic, OpenAI-compatible, Ollama) and plants the interviewee's marker, the API key, a response header, a base-URL path and an error body that echoes the request; none appears in any activity of any source, metric label, log line or exception, and each case proves it has power. There is no switch that records prompt or completion text. The scan can fail (a test shows a deliberately leaking span is caught). **Not covered:** a real provider's behaviour (no live call was made).
-- **Status.** Mitigated for the submission, ticket and receipt paths (T5) and for the model-call side (T6, against fakes: no live provider call was made); Open for platform logs.
+  **Implemented (T8, `McpCanaryTests`, ADR-0043):** the same capture over the MCP path (record text, employer, unknown argument names, prompt arguments, resource URI, tool, prompt and method names, a custom header, `Origin`, the token subject, a malformed
+  body, a verifier exception, and the receipt code) found three leaks in the SDK that were fixed: full outgoing messages (receipt code) at Trace, client-chosen names in log lines, and the same names in metric and span tags. Fixes: SDK log floor at Information
+  (config cannot lower it), `McpBodyScrubber` (unknown method, tool, prompt, URI replaced by constants before the SDK reads the body). Each fix is shown to be needed (the test fails without it). **Not covered:** the connecting application's `clientInfo` name and version
+  (Information logs), chosen by the application.
+- **Status.** Mitigated for the submission, ticket, receipt and MCP paths (T5, T8) and for the model-call side (T6, against fakes: no live provider call was made); Open for platform logs.
 
 ### T-16 Consent withdrawal mid-interview
 
@@ -350,6 +356,8 @@ deliberately kept), `Implemented` (only where noted).
   Layer 1 **constraint** scenario (no submission event may follow a withdrawal event) (Planned, T7); `submit` requires an
   explicit user confirmation step that the user can decline; the CLI discards the in-memory transcript on withdrawal;
   after submission, deletion is by receipt code.
+- **Mode A (T8).** The prompt instructs: stop at once on withdrawal (also inside a longer message), discard everything, build no record, call no tools; show the full record and obtain an explicit yes before `submit_interview_record` (tested as text, ADR-0045).
+  The server cannot tell whether consent was given or withdrawn: a host that submits anyway produces a valid-looking record. **Not measured** for any host.
 - **Residual.** We cannot make an AI provider or host delete a transcript; the user must do that in their own account.
   **Accepted and disclosed.**
 - **Status.** Mode B **implemented** (T4): withdrawal wins over every other signal in a reply, stops at once, discards the transcript object and yields no record and no extraction span; the `withdraws-consent` persona and unit tests cover it. The trace-level assertion for the eval harness is in [TRACE-SCHEMA](../eval/TRACE-SCHEMA.md#what-a-harness-can-assert-from-a-trace-alone). Open (T7, T8).
@@ -413,10 +421,10 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 | T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | ledger, domain rate and size limits, validation, PII re-scan Implemented (T5); verification is a mock | **High**, unsolved | Open | open problem |
 | T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Decided (ADR-0019) | Medium-high | Open | T10 |
 | T-02 | Re-identification from quotes/episodes | M | H | Planned (T1/T5) + Proposal (no quote display) | Medium | Open | T1, T10 |
-| T-07 | Exfiltration via MCP host | M | H | Planned (T8) | Accepted, disclosed | Open | T8 |
-| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5); model-call side Planned (T6); CLI submission paths: canary tests for ticket, receipt code, quote text and server address Implemented (T11) | Medium (platform logs) | Mitigated (T5), Open (T6) | T6 |
+| T-07 | Exfiltration via MCP host | M | H | server side Implemented (T8); host behaviour unmeasured, no live Claude run | Accepted, disclosed | Open | T7 |
+| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5, extended to MCP in T8); model-call side Planned (T6); CLI submission paths: canary tests for ticket, receipt code, quote text and server address Implemented (T11) | Medium (platform logs) | Mitigated (T5, T8), Open (T6) | T6 |
 | T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
-| T-03 | Prompt injection into interviewer | M | M | Implemented in code, mock only (T4); real models unmeasured (T7) | Medium (mode A) | Open | T6, T7, T8 |
+| T-03 | Prompt injection into interviewer | M | M | Implemented in code, mock only (T4); real models unmeasured (T7); mode A advisory (T8) | Medium (mode A) | Open | T6, T7 |
 | T-04 | Injection into extractor / fabricated quotes | M | M | Implemented in code (T1, T4); client-side only | Medium | Open | T5, T7 |
 | T-06 | Stored XSS/markdown; missing web security headers | M | M | headers Implemented (T2; CSP allows inline); encoding rules apply at T9 | Low | Open | T9 |
 | T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
@@ -424,11 +432,11 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 | T-09 | Ticket redemption correlation | L | H | narrowing Implemented (T5); CLI side Implemented (T11: header only, one request, no redirect, minimal user agent, disclosed at consent); batching/jitter declined (ADR-0030) | Accepted | Accepted | operator |
 | T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
 | T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
-| T-16 | Consent withdrawal mid-interview | M | M | Implemented in code (T4, mode B); harness assertion planned (T7) | Medium | Open | T7, T8 |
-| T-17 | Token confusion (two JWT schemes) | L | H | both schemes + cross-scheme matrix Implemented (T2) | Low | Mitigated | T2 |
+| T-16 | Consent withdrawal mid-interview | M | M | Implemented in code (T4, mode B); mode A instructed, not enforceable (T8); harness assertion planned (T7) | Medium | Open | T7 |
+| T-17 | Token confusion (two JWT schemes) | L | H | both schemes + cross-scheme matrix Implemented (T2); re-run through the real MCP transport and tools, plus a per-tool scope check (T8) | Low | Mitigated | T2, T8 |
 | T-11 | Receipt-code enumeration/abuse | L | L-M | Implemented (T5, ADR-0029) | Low | Mitigated | T9 |
 | T-05 | Judge manipulation / Goodhart | M | L-M | Planned (T7) | Medium | Open | T7 |
-| T-18 | DoS / cost | M | L-M | domain limits Implemented (T5), single instance | Low | Mitigated (single instance) | T4, T6 |
+| T-18 | DoS / cost | M | L-M | domain limits Implemented (T5); MCP: 120 requests a minute per account, 176 KiB body cap, bounded read (T8); single instance | Low | Mitigated (single instance) | T4, T6 |
 | T-20 | Transcript at AI provider | M | M | out of our control | Accepted, disclosed | Accepted | owner |
 
 ## 5. Residual risks, stated plainly

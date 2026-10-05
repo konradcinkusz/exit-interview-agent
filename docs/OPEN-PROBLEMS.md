@@ -21,12 +21,13 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-12 | Receipt codes: access without a list of records | Medium |
 | OP-13 | Storage-level correlation between the ledger and the records | Medium |
 | OP-14 | One submission per employer is time-limited by the ledger window | Medium |
-| OP-15 | Anonymous receipt deletion behind the BFF shares one rate-limit key | Low |
-| OP-16 | Manual accessibility pass | Medium |
-| OP-17 | Two-factor sign-in has been tested only against the stub | Medium |
-| OP-18 | CLI secrets are protected by discipline, not by the platform | Medium |
-| OP-19 | A submission can end with an unknown outcome and a lost receipt | Medium |
-| OP-20 | CLI submission has not run over real TLS, on Windows/macOS, or against a deployment | Medium |
+| OP-15 | Anonymous receipt deletion behind the BFF shares one rate-limit key | see section |
+| OP-16 | Manual accessibility pass | see section |
+| OP-17 | Two-factor sign-in has been tested only against the stub | see section |
+| OP-18 | Mode A: host fidelity, the opening text, and the unverified Claude run | High |
+| OP-19 | CLI secrets are protected by discipline, not by the platform | Medium |
+| OP-20 | A submission can end with an unknown outcome and a lost receipt | Medium |
+| OP-21 | CLI submission has not run over real TLS, on Windows/macOS, or against a deployment | Medium |
 
 ## OP-1. Real employment verification
 
@@ -97,8 +98,9 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 ## OP-8. MCP sampling support
 
 - **Why it matters.** Sampling would let our server ask the user's host model to run parts of the protocol, but client support is uneven.
-- **What we do now.** The brief says not to rely on it unless verified and recorded in an ADR ([brief §4](architecture/PROJECT-BRIEF.md)). We do not use it; support
-  in the host was **not verified** in this session.
+- **What we do now.** Not used, referenced or possible: the server is stateless and a test scans the assembly ([ADR-0042](adr/0042-mcp-sdk-and-streamable-http-stateless.md)). Anthropic's connector documentation,
+  read 2026-10-05 ([Build an MCP server for Claude](https://claude.com/docs/connectors/building/index)), says Claude "doesn't yet support" resource subscriptions, sampling and advanced or draft capabilities, which is why the design is right for now.
+  Elicitation is not listed as supported either way; also unused. Other hosts: not checked.
 - **What would close it.** Read the host's published documentation for the supported MCP features, record the result and date in an ADR, and
   add it only if it brings a privacy or quality benefit.
 
@@ -113,7 +115,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **Why it matters.** authservice registers MCP clients statically from configuration (its ADR-0005: no dynamic registration); each host needs its own
   client id, secret, redirect URIs, scopes and resource, held by the operator.
 - **What we do now.** Wired for Claude (T2, [ADR-0012](adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)): the AppHost configures one client, the service validates its tokens and
-  serves RFC 9728 metadata; the MCP transport is Planned (T8). Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
+  serves RFC 9728 metadata; the MCP transport is Implemented (T8, [mcp.md](architecture/mcp.md)). The operator runbook is [`guides/connect-claude.md`](guides/connect-claude.md): it marks every step not verified live. Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
 - **What would close it.** A documented operator runbook per host and a startup check that fails loudly on a missing client; dynamic registration
   would need authservice to change its stance.
 
@@ -173,7 +175,18 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** Unit tests pin the three texts; the stub carries a contract note.
 - **What would close it.** The full-stack journey against the AppHost with a two-factor account enrolled through authservice (a later e2e layer).
 
-## OP-18. CLI secrets are protected by discipline, not by the platform
+
+## OP-18. Mode A: host fidelity, the opening text, and the unverified Claude run
+
+- **Why it matters.** In mode A the host model, not this project, conducts the interview. The server checks the record (schema, PII re-scan, AI-disclosure flag, size, one per employer) but cannot see whether consent was
+  obtained or withdrawn, whether the AI disclosure was said, whether questions were neutral, or whether quotes are verbatim ([mcp.md](architecture/mcp.md)). The protocol's opening says "the full conversation is not stored", which is true of this
+  service and not of the user's AI provider; the prompt adds a fixed note ([ADR-0045](adr/0045-mode-a-host-fidelity-and-opening-note.md)) whose wording has had no legal review. Nobody has run a real Claude client against this server,
+  so the connector flow, the prompt's discoverability to users and the host's adherence to the instructions are all **unverified**.
+- **What we do now.** Server-side validation, the confirm-before-submit instruction, a pinned and reviewed contract, an operator runbook that says what was and was not verified, and the README/connect copy that says mode A is the weakest of the three modes.
+- **What would close it.** (1) A live run against Claude with the real authservice image and two tunnels, recorded with date and versions. (2) The T7 harness running the personas against mode A hosts and reporting the same metrics as mode B.
+  (3) A lawyer's reading of the opening plus note. (4) A server-observable signal that is not the transcript (for example the interview's own turn and duration bands, already in the record) compared with what hosts report.
+
+## OP-19. CLI secrets are protected by discipline, not by the platform
 
 - **Why it matters.** The ticket (single use, minutes) and the receipt code (the only deletion key) pass through a user-space program. The CLI keeps them out of arguments, files, logs and error text (canary-tested) and in a type that does not print,
   but a .NET string cannot be wiped, an exported environment variable is readable by the same user through the process table, a crash dump can hold a copy, the terminal's scrollback keeps the receipt code that is shown once, and the hidden prompt and the
@@ -181,14 +194,14 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** Say so (the messages, the ADRs); prefer the prompt and stdin over the environment in the docs; the receipt file is optional, private on Unix and never overwritten.
 - **What would close it.** An OS keychain-backed receipt store (optional, local only), a Windows/macOS run of the hidden prompt and file-permission tests in CI, and, for the ticket, nothing short of public-client support in authservice (OP-7), which makes tickets unnecessary.
 
-## OP-19. A submission can end with an unknown outcome and a lost receipt
+## OP-20. A submission can end with an unknown outcome and a lost receipt
 
 - **Why it matters.** If the connection breaks or times out after the request left, the server may have stored the record and issued a receipt the person never saw. The CLI cannot retry safely (the ticket may be spent; a repeat would be `INTERVIEW_ID_TAKEN`), and
   the server by design cannot re-issue or look up a receipt ([ADR-0029](adr/0029-receipt-deletion-semantics.md)). The record then exists and its author cannot delete it ([OP-12](#op-12-receipt-codes-access-without-a-list-of-records)).
 - **What we do now.** One attempt only, after the connection is open; the message says the outcome is unknown and what a repeat would do ([ADR-0058](adr/0058-cli-http-client-hygiene.md)). The window is small (one request of at most 160 KiB, 30 s).
 - **What would close it.** A client-chosen idempotency token that makes the server return the same receipt on a repeat. That needs a server change (T5) and a decision about what it may store, since it would be a second secret tied to a record; not attempted here.
 
-## OP-20. CLI submission has not run over real TLS, on Windows or macOS, or against a deployment
+## OP-21. CLI submission has not run over real TLS, on Windows or macOS, or against a deployment
 
 - **Why it matters.** Every CLI test runs over loopback `http` (a real socket) or an in-process handler against the real service. The `https` requirement, certificate validation, and proxy behaviour rest on the address check and on leaving the platform's TLS defaults untouched (asserted),
   not on a handshake test. Nothing is deployed.

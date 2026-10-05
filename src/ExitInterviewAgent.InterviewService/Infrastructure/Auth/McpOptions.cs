@@ -6,6 +6,8 @@ namespace ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 /// <item><c>Mcp:Issuer</c> must equal authservice's <c>Jwt:PublicBaseUrl</c> exactly (trailing slash ignored).</item>
 /// <item><c>Mcp:Resource</c> is this service's canonical MCP URI, the <c>aud</c> of every MCP token.</item>
 /// <item><c>Mcp:MetadataAddress</c> is where the RFC 8414 document is read from; defaults to <c>Jwt:Authority</c>.</item>
+/// <item><c>Mcp:AllowedOrigins</c> lists the browser origins allowed to call the MCP endpoint (default: none). Claude's
+/// connector calls from Anthropic's servers and sends no <c>Origin</c>; any request that carries one not on the list is refused.</item>
 /// </list>
 /// Unset, the MCP scheme still registers but validates nothing, and <c>/health</c> says so.
 /// </summary>
@@ -16,6 +18,7 @@ public sealed class McpOptions
     public string? Issuer { get; set; }
     public string? Resource { get; set; }
     public string? MetadataAddress { get; set; }
+    public string[] AllowedOrigins { get; set; } = [];
 
     /// <summary>The normalised issuer, or null when unset or not an absolute URL.</summary>
     public string? NormalizedIssuer => Uri.TryCreate(Issuer?.Trim(), UriKind.Absolute, out var uri)

@@ -21,5 +21,5 @@ T5 built `POST /api/v1/submissions/ticketed` (anonymous, ticket in `X-Submission
 ## Consequences
 
 - A person can go from `interview --out` to a receipt and a deletion without ever putting a secret in a command line. They do need an environment variable, a terminal or a pipe for it: three paths, all tested.
-- Pasting the ticket into the terminal's visible stdin (a pipe) is not hidden: it is the person's pipe. A terminal with scrollback keeps what the CLI prints (the receipt code, shown once); see OP-18.
+- Pasting the ticket into the terminal's visible stdin (a pipe) is not hidden: it is the person's pipe. A terminal with scrollback keeps what the CLI prints (the receipt code, shown once); see OP-19.
 - `--server` has no config-file form. If that annoys, the trigger for revisiting is a deployment that publishes a stable address; the change would be a signed or pinned default, not a silent one.

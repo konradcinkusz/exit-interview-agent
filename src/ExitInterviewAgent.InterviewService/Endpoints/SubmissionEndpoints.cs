@@ -92,23 +92,6 @@ public static class SubmissionEndpoints
         return group;
     }
 
-    /// <summary>
-    /// TEMPORARY, development and tests only (same status as the <c>_probe</c> next to it): proves that an MCP principal
-    /// reaches <see cref="SubmissionService"/> with the same account subject a web token carries, until T8 mounts the
-    /// MCP submit tool on the same service. Not mapped in Production.
-    /// </summary>
-    public static RouteGroupBuilder MapMcpSubmissionProbe(this RouteGroupBuilder mcp)
-    {
-        mcp.MapPost("/_submit", async (HttpContext http, SubmissionService submissions, CancellationToken ct) =>
-        {
-            var body = await BoundedBody.ReadAsync(http.Request, RecordLimits.Default.MaxPayloadBytes, ct);
-            return ToResult(body is null
-                ? SubmissionOutcome.Reject(SubmissionCodes.PayloadTooLarge)
-                : await submissions.SubmitAsync(body, http.User.FindFirst("sub")!.Value, ct));
-        });
-        return mcp;
-    }
-
     public static int StatusFor(string code) => code switch
     {
         SubmissionCodes.PayloadTooLarge => StatusCodes.Status413PayloadTooLarge,
