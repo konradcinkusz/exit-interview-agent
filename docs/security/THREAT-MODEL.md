@@ -441,28 +441,28 @@ deliberately kept), `Implemented` (only where noted).
 
 Likelihood and impact are ordinal judgements by the author, not measurements (Assumption). L = low, M = medium, H = high.
 
-| ID | Risk | Tests | Mitigation status | Residual | Status | Owner |
-|---|---|---|---|---|---|---|
-| T-10 | Fabricated / bulk / Sybil records, no real verification | Not verified (verification is mocked) | ledger, domain rate and size limits, validation, PII re-scan Implemented (T5); signals labelled and shown with uncertainty (T10); verification is a mock | **High**, unsolved | Open | open problem |
-| T-01 | Small-group deanonymisation, differencing | `tests/ExitInterviewAgent.Signals.Tests/Disclosure/AdversaryTests.cs`, `PropertyTests.cs` | Implemented (T10): per-cell k, clean partitions, single-band cuts, batched snapshots; exhaustive and property tests with mutants | Medium (re-rated: one-snapshot and one-record differencing closed; m accounts give k - m, side knowledge and unanimity remain) | Mitigated in code; residual Open | T10 |
-| T-02 | Re-identification from quotes/episodes | `tests/ExitInterviewAgent.Signals.Tests/Disclosure/PropertyTests.cs` (aggregate path never carries quotes) | Implemented (T1, T5, T10): PII detection and caps; the aggregate path never carries a quote (tested) | Medium | Open (detection limits) | T1 |
-| T-07 | Exfiltration via MCP host | `tests/ExitInterviewAgent.InterviewService.Tests/Mcp/McpCanaryTests.cs` (no transcript field in record schema); `TokenMatrixTests.cs` (scope enforcement) | server side Implemented (T8); host behaviour unmeasured, no live Claude run | Accepted, disclosed | Open | T7 |
-| T-15 | Log/trace leakage | `tests/ExitInterviewAgent.InterviewService.Tests/Logging/ContentCanaryTests.cs`, `McpCanaryTests.cs`, `ProviderClientTests` (T6) | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5, extended to MCP in T8); model-call side Planned (T6) | Medium (platform logs) | Mitigated (T5, T8), Open (T6) | T6 |
-| T-12 | Account takeover | Unit tests in `web/app` (Playwright auth flow tests) | authservice features; BFF single-flight rotation + logout revocation Implemented (T2); 2FA Implemented (T9) | Medium | Open (MFA required vs optional) | T9 |
-| T-03 | Prompt injection into interviewer | `tests/ExitInterviewAgent.InterviewAgent.Tests/PersonaTests.cs` (injection persona at 100% pass rate) | Implemented in code (T4), mock only; real models unmeasured (T7); mode A advisory (T8) | Medium (mode A) | Open | T6, T7 |
-| T-04 | Injection into extractor / fabricated quotes | `tests/ExitInterviewAgent.RecordSchema.Tests/ValidationTests.cs` | Implemented (T1, T4): schema validation and quote substring check; client-side only | Medium | Open | T5, T7 |
-| T-06 | Stored XSS/markdown; missing web security headers | `web/app/__tests__/lib/security-headers.spec.ts`, `web/app/__tests__/signals.spec.ts` | headers + nonce CSP Implemented (T2, T9); encoding tested at T10b (no markup interpreted) | Low | Mitigated | T9 |
-| T-14 | Supply chain (mutable image tag, Dependabot off) | `scripts/scan-secrets.sh` (secret scanning in hook and CI); gitleaks v8.28.0 verified in CI | partly: secret scanning Implemented, digest pin Proposed, lockfiles committed | Medium | Open | T12 |
-| T-08 | Ledger correlation with DB + key | `tests/ExitInterviewAgent.Persistence.Tests/SchemaInvariantTests.cs` (no record/interview/receipt columns) | Implemented (T5): keyed rotatable HMAC, no record link, week bucket; storage-artefact residual | Accepted | Accepted | T5 |
-| T-09 | Ticket redemption correlation | `tests/ExitInterviewAgent.InterviewService.Tests/Auth/TokenMatrixTests.cs` (single-use, atomic delete race condition); `web/app/__tests__/ticket-handling.spec.ts` | narrowing Implemented (T5); CLI side Implemented (T11: header only, one request, no redirect); batching/jitter declined (ADR-0030) | Accepted | Accepted | operator |
-| T-13 | Insider with DB + key + traffic | Design review only (not testable) | not preventable | Accepted | Accepted | operator |
-| T-19 | Legal compulsion / litigation | Design review only (policy enforced) | policy: no real data | Accepted | Accepted | owner |
-| T-16 | Consent withdrawal mid-interview | `tests/ExitInterviewAgent.InterviewAgent.Tests/PersonaTests.cs` (withdrawal persona) | Implemented in code (T4, mode B); mode A instructed, not enforceable (T8); harness assertion planned (T7) | Medium | Open | T7 |
-| T-17 | Token confusion (two JWT schemes) | `tests/ExitInterviewAgent.InterviewService.Tests/Auth/TokenMatrixTests.cs` (exhaustive: wrong issuer, audience, `alg=none`, HS256, wrong `typ`, scope variants, scheme mismatch) | both schemes + cross-scheme matrix Implemented (T2); per-tool scope check (T8) | Low | Mitigated | T2, T8 |
-| T-11 | Receipt-code enumeration/abuse | `tests/ExitInterviewAgent.InterviewService.Tests/Endpoints/ReceiptDeletionTests.cs` (rate limiting, constant-time compare, 204 for all well-formed codes) | Implemented (T5, ADR-0029): 256-bit codes, hash lookup, constant-time compare, 6/min per IP, 60/min global | Low | Mitigated | T9 |
-| T-05 | Judge manipulation / Goodhart | `tests/ExitInterviewAgent.EvaluationHarness.Tests/JudgeTests.cs` (rubric pinning, judge prompt pinning) | Planned (T7): SHA-256 pinning of prompt and rubric; judge scores advisory until human calibration | Medium | Open | T7 |
-| T-18 | DoS / cost | `tests/ExitInterviewAgent.Signals.Tests/RateLimitingTests.cs`, `tests/ExitInterviewAgent.InterviewService.Tests/RateLimitingTests.cs` | domain limits Implemented (T5); MCP: 120 requests/min per account, 176 KiB body cap (T8); single instance in-memory limiter | Low | Mitigated (single instance) | T4, T6 |
-| T-20 | Transcript at AI provider | Provider configuration tested (CLI flow); mode A disclosure tested in connect runbook | out of our control; CLI warns and requires typed confirmation | Accepted, disclosed | Accepted | owner |
+| ID | Risk | Likelihood | Impact | Mitigation status | Residual | Status | Owner |
+|---|---|---|---|---|---|---|---|
+| T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | ledger, domain rate and size limits, validation, PII re-scan Implemented (T5); signals labelled and shown with uncertainty (T10); verification is a mock | **High**, unsolved | Open | open problem |
+| T-01 | Small-group deanonymisation, differencing | M | H | Implemented (T10): per-cell k, clean partitions, single-band cuts, batched snapshots; exhaustive and property tests with mutants | Medium (re-rated from medium-high: one-snapshot and one-record differencing are closed in tests; m accounts give k - m and side knowledge remain, tied to T-10) | Mitigated in code; residual Open | T10 |
+| T-02 | Re-identification from quotes/episodes | M | H | Implemented (T1, T5, T10): PII detection and caps; the aggregate path never carries a quote (tested) | Medium | Open (detection limits) | T1 |
+| T-07 | Exfiltration via MCP host | M | H | server side Implemented (T8); host behaviour unmeasured, no live Claude run | Accepted, disclosed | Open | T7 |
+| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5, extended to MCP in T8); model-call side Planned (T6); CLI submission paths: canary tests for ticket, receipt code, quote text and server address Implemented (T11) | Medium (platform logs) | Mitigated (T5, T8), Open (T6) | T6 |
+| T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
+| T-03 | Prompt injection into interviewer | M | M | Implemented in code, mock only (T4); real models unmeasured (T7); mode A advisory (T8) | Medium (mode A) | Open | T6, T7 |
+| T-04 | Injection into extractor / fabricated quotes | M | M | Implemented in code (T1, T4); client-side only | Medium | Open | T5, T7 |
+| T-06 | Stored XSS/markdown; missing web security headers | M | M | headers Implemented (T2); per-request nonce CSP without `unsafe-inline` scripts Implemented (T9, ADR-0047); the signals view renders API strings with React escaping only and has an XSS-string employer test in `tests/e2e/specs/signals.spec.ts` (T10b, ADR-0067, ADR-0071) | Low (CSP trusts every script served from the origin; defence in depth behind React escaping) | Mitigated (web) | T9 |
+| T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
+| T-08 | Ledger correlation with DB + key | L | H | Implemented (T5): keyed rotatable HMAC, no record link, week bucket; storage-artefact residual | Accepted | Accepted | T5 |
+| T-09 | Ticket redemption correlation | L | H | narrowing Implemented (T5); CLI side Implemented (T11: header only, one request, no redirect, minimal user agent, disclosed at consent); batching/jitter declined (ADR-0030) | Accepted | Accepted | operator |
+| T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
+| T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
+| T-16 | Consent withdrawal mid-interview | M | M | Implemented in code (T4, mode B); mode A instructed, not enforceable (T8); harness assertion planned (T7) | Medium | Open | T7 |
+| T-17 | Token confusion (two JWT schemes) | L | H | both schemes + cross-scheme matrix Implemented (T2); re-run through the real MCP transport and tools, plus a per-tool scope check (T8) | Low | Mitigated | T2, T8 |
+| T-11 | Receipt-code enumeration/abuse | L | L-M | Implemented (T5, ADR-0029) | Low | Mitigated | T9 |
+| T-05 | Judge manipulation / Goodhart | M | L-M | Planned (T7) | Medium | Open | T7 |
+| T-18 | DoS / cost | M | L-M | domain limits Implemented (T5); MCP: 120 requests a minute per account, 176 KiB body cap, bounded read (T8); single instance | Low | Mitigated (single instance) | T4, T6 |
+| T-20 | Transcript at AI provider | M | M | out of our control | Accepted, disclosed | Accepted | owner |
 
 ## 5. Residual risks, stated plainly
 
