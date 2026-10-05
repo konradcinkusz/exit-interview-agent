@@ -23,7 +23,7 @@ flowchart LR
         end
         EP["Signals endpoints\n(account policy, rate limit,\ncaching, problem+json)"]
     end
-    WEB["web (later task)"]
+    WEB["web (T10b)"]
     REC -->|"streams, drops quotes, id,\nconfidence, metadata, week"| AD
     AD -->|"Observation:\nemployer, bands, verification,\n(topic, rating)"| PORT
     PORT --> BLD --> PUB --> STORE
@@ -55,6 +55,28 @@ endpoint slice (architecture tests in both test projects).
 | `EmployerSnapshots` | `SnapshotId`, `EmployerRef` (key), `View` (JSON) | the already-controlled view of one displayable employer |
 
 No record, quote, interview id, receipt, rating column or any column a query could sort by; the migration test compares the migrated PostgreSQL schema with exactly these columns and the model has no pending changes.
+
+## The web view (T10b)
+
+`web/app` renders the two read endpoints at `/signals` and `/signals/[employerRef]` ([UI and UX](../ux/UI-UX.md#signals-screens); decisions [ADR-0067](../adr/0067-signals-pages-render-the-api-and-derive-nothing.md) to
+[0071](../adr/0071-signals-browser-suite-absence-tests-and-mutation-proof.md)). The rule is that the view **shows exactly what the API returned and derives nothing**.
+
+| Concern | Where |
+|---|---|
+| The strict reader: validates the contract, drops what must not be shown (numbers of an `insufficient_data` topic, cells of a suppressed cut, statistics of a `none` or `suppressed` band) | `web/app/lib/signals.ts` |
+| Pure views, no arithmetic: the stat line (mean, interval and n in one string), the range bar, tables | `web/app/app/signals/views.tsx` |
+| Fetching and failures: one read through the BFF, the browser's own cache, 429 with the service's wait and no retry loop, 401 to sign-in | `useSignals.ts`, `Failure.tsx`, `SignalsList.tsx`, `[employerRef]/SignalsEmployer.tsx` |
+| Reference validation (the API's pattern, before any request; encoded when it becomes a path) | `web/app/lib/signals-ref.ts` |
+| Caching and validators through the BFF | `web/app/lib/upstream.ts`, `lib/proxy-routing.ts`, `proxy.ts`, `app/api/proxy/[...path]/route.ts` ([ADR-0068](../adr/0068-signals-through-the-bff-caching-validators-and-429.md)) |
+| The copy contract of AGGREGATION §8, as typed catalog strings | `web/app/lib/messages/en.ts` (`m.signals`, `m.deleteSubmission.publishedFigures`) |
+| The contract mirror used by the browser suite | `tests/e2e/support/stub-backend.mjs` (contract note) |
+
+Mutants run against this layer and killed (each fails a test): a count printed for an insufficient topic; a sort control on the list; the list re-ordered by the client; the reader keeping the overall of an insufficient topic;
+the reader keeping the cells of a suppressed cut; n dropped from the stat line; `public` let through; a `304` treated as a redirect; `Retry-After` not passed; `ETag` not passed; the edge gate leaving every path to the route; the reference guard
+loosened; a 400 made distinguishable from a 404; the route not forwarding `If-None-Match`; the page retrying a 429 by itself.
+
+What was **not** verified: the view against the real service (the browser suite runs against the stub that mirrors the contract; the .NET side was not run in this task); a screen reader; whether readers understand intervals
+([OP-26](../OPEN-PROBLEMS.md#op-26-readers-may-still-compare-employers-by-eye-and-nobody-has-tested-comprehension), [OP-28](../OPEN-PROBLEMS.md#op-28-the-signals-pages-have-only-met-the-stub)).
 
 ## Extraction path
 

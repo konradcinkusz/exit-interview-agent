@@ -73,6 +73,42 @@ for (const scheme of ["light", "dark"] as const) {
       await expectNoViolations(page, `${scheme} ticket shown`);
     });
 
+    test("the signals pages and each state they reach have no axe violations @smoke", async ({ page, request }) => {
+      const name = accountName("a11y-signals");
+      await page.goto("/login?redirect=%2Faccount");
+      await signIn(page, name);
+      await expect(page.getByTestId("account-subject")).toBeVisible();
+
+      // rate limited (not cached by the browser), then the figures, then "nothing to show", then the list
+      await request.post(`${STUB_URL}/__test/signals-config?email=${encodeURIComponent(emailFor(name))}&limit=1&retryAfter=60`);
+      await page.goto("/signals/demo-beta");
+      await expect(page.getByTestId("signals-failure")).toBeVisible();
+      await expectNoViolations(page, `${scheme} signals 429`);
+
+      await page.goto("/signals/demo-acme");
+      await expect(page.getByTestId("topic-onboarding")).toBeVisible();
+      await expectNoViolations(page, `${scheme} signals employer`);
+
+      await page.goto("/signals/demo-ghost");
+      await expect(page.getByTestId("nothing-to-show")).toBeVisible();
+      await expectNoViolations(page, `${scheme} signals nothing to show`);
+
+      await page.goto("/signals");
+      await expect(page.getByTestId("employer-list")).toBeVisible();
+      await expectNoViolations(page, `${scheme} signals list`);
+    });
+
+    test("the signals empty state has no axe violations @smoke", async ({ page, request }) => {
+      const name = accountName("a11y-signals-empty");
+      await page.goto("/login?redirect=%2Faccount");
+      await signIn(page, name);
+      await expect(page.getByTestId("account-subject")).toBeVisible();
+      await request.post(`${STUB_URL}/__test/signals-config?email=${encodeURIComponent(emailFor(name))}&empty=1`);
+      await page.goto("/signals");
+      await expect(page.getByTestId("signals-empty")).toBeVisible();
+      await expectNoViolations(page, `${scheme} signals empty`);
+    });
+
     test("the consent step has no axe violations @smoke", async ({ page }) => {
       await page.goto("/login");
       await signIn(page, accountName("consent"));

@@ -1,6 +1,6 @@
 # Aggregation: what is published, and what can and cannot be recovered from it
 
-Status vocabulary as in [ADR-0017](../adr/0017-documentation-layout-and-claim-status.md). Everything in sections 1-6, 8 and 9 is **Implemented** (T10) and
+Status vocabulary as in [ADR-0017](../adr/0017-documentation-layout-and-claim-status.md). Everything in sections 1-6, 8 and 9 is **Implemented** (T10; the web view of section 8 by T10b) and
 tested; section 7 says what the rules do **not** do. Decisions: [ADR-0052](../adr/0052-signals-module-boundary-input-port-and-store.md) (module, port, store),
 [ADR-0053](../adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md) (the rules), [ADR-0054](../adr/0054-statistics-regularised-t-interval-and-reliability.md) (statistics),
 [ADR-0055](../adr/0055-publication-batches-snapshot-and-deletion-semantics.md) (publication), [ADR-0056](../adr/0056-signals-api-caching-rate-limits-and-demo-data.md) (API).
@@ -110,7 +110,12 @@ K is a convention, not a guarantee. Stated candidly, each with the test or open 
 Statuses: topic `ok` | `insufficient_data`; cut `published` | `suppressed`; band `ok` | `none` | `suppressed`. Codes: `SIGNALS_EMPLOYER_NOT_FOUND` (404, also for an employer below k), `SIGNALS_INVALID_EMPLOYER_REF` (400),
 `rate_limited` (429, `Retry-After`). Caching: `private, max-age` to the next batch, `ETag`, `Last-Modified` = batch start, `304` on `If-None-Match`.
 
-A view built on this API must show, in words the reader sees (the strings are a contract, not a suggestion; a UI may translate them but must not drop their meaning):
+A view built on this API must show, in words the reader sees (the strings are a contract, not a suggestion; a UI may translate them but must not drop their meaning).
+**Applied by the web panel (T10b, Implemented and tested):** the right-hand column is shown verbatim by `m.signals` in `web/app/lib/messages/en.ts`, asserted by Vitest (templates and rendered markup) and by the browser suite;
+the "Where" column maps to: every aggregate = the note at the top of the list and of each employer page; next to the snapshot date = `SnapshotNote`; every mean = `StatLine` (one string) with the "wide interval" sentence under each figure;
+coverage = the contract wording in lower case under each figure and in each band row; `insufficient_data` = no digit anywhere in the section (tested); a `suppressed` cut = the sentence and no band, no table, no cell (the reader drops cells before the view sees them);
+the list = the sentence above the list; deletion = `m.deleteSubmission.publishedFigures` on `/delete-submission`, shown before and after a deletion. No deviation from the wording; the only addition is a per-band sentence for a band that arrives `suppressed`
+("Hidden to protect small groups."), which the standard policy never produces inside a published cut. Decisions: [ADR-0067](../adr/0067-signals-pages-render-the-api-and-derive-nothing.md) to [0069](../adr/0069-one-answer-for-nothing-to-show-in-the-ui.md).
 
 | Where | Must say |
 |---|---|

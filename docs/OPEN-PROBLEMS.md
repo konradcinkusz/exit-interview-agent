@@ -32,6 +32,9 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-23 | CLI secrets are protected by discipline, not by the platform | Medium |
 | OP-24 | A submission can end with an unknown outcome and a lost receipt | Medium |
 | OP-25 | CLI submission has not run over real TLS, on Windows/macOS, or against a deployment | Medium |
+| OP-26 | Readers may still compare employers by eye, and nobody has tested comprehension | Medium |
+| OP-27 | A browser may keep Signals answers after sign-out, until the batch ends | Low |
+| OP-28 | The Signals pages have only met the stub | Medium |
 
 ## OP-1. Real employment verification
 
@@ -244,6 +247,26 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** State it ([cli-submission](architecture/cli-submission.md#tests-and-what-they-cannot-show)); the in-process end-to-end test pins the contract with the real service.
 - **What would close it.** A test with a throwaway TLS certificate (accepted as an untrusted-certificate failure, and trusted in a second run), the CLI binaries exercised on the other two platforms, and a first smoke run against a staging deployment once there is one.
 
+
+## OP-26. Readers may still compare employers by eye, and nobody has tested comprehension
+
+- **Why it matters.** The pages show no rank, score or comparison and say "two figures whose intervals overlap are not different", but a reader can open two employers and compare two means. The interval is shown and worded ("a wide interval means early, not wrong"), yet
+  there has been **no usability test**: nobody has checked that a reader understands what an interval, reliability or coverage means, or that a `low` coverage figure speaks for few respondents. An unread caveat does not protect anyone ([metric-ethics](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md) §3).
+- **What we do now.** The numbers never appear without interval, n, reliability and coverage; there is no view that puts two employers or bands side by side; the contract copy is applied verbatim; the list says it does not rank.
+- **What would close it.** A small comprehension test with people who are not the authors (do they read a 5-rating figure as a verdict? do they compare two employers?), and changes to the copy and layout from what it shows. **Trigger:** before any real data is shown.
+
+## OP-27. A browser may keep Signals answers after sign-out, until the batch ends
+
+- **Why it matters.** The two Signals reads carry `private, max-age` to the next batch so that a visit does not cost a request ([ADR-0068](adr/0068-signals-through-the-bff-caching-validators-and-429.md)). A browser may therefore still hold an answer after the account signs out, and serve it to whoever uses that profile.
+- **What we do now.** Only aggregates identical for every account are stored (nothing per account, nothing below k); `private` and `Vary: Cookie` keep shared caches out; pages are `no-store`; the lifetime is clamped to 7 days and is the time to the next batch.
+- **What would close it.** `no-store` on these reads (every visit then costs a request against the per-account budget), or a cache partition keyed to the session. **Trigger:** the endpoints being opened to anonymous readers, or aggregates becoming sensitive per account.
+
+## OP-28. The Signals pages have only met the stub
+
+- **Why it matters.** The browser suite runs against a stub that mirrors the Signals contract and carries a note saying it must change with the contract; a machine does not enforce the note. The pages were not run against the real interview-service (with `Signals:Demo:Mode=Seed`) in the task that built them,
+  so a drift between the stub and the service (a header, a status, an empty list) would show only there. The accessibility check is axe (a subset), with no screen-reader pass ([OP-16](#op-16-manual-accessibility-pass) covers the new pages too).
+- **What we do now.** The stub is built from the contract file and the endpoint source; the web reader refuses any response that is not exactly the contract, so drift fails closed ("could not be loaded"), never as a wrong number.
+- **What would close it.** A full-stack journey against the AppHost with the demo seed (sign in, list, an employer, a 304 on revisit), run in CI or by hand and recorded; ideally a contract test that replays the real service's responses through the web reader.
 
 ## OP-29. Fail-closed over-masking of capitalised topic words is bounded only by a list
 

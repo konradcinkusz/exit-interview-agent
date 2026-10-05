@@ -31,6 +31,17 @@ test("a well-formed code gets the uniform answer, with no sign-in @smoke", async
   await expect(result).not.toContainText(/deleted successfully|was deleted|has been deleted/i);
 });
 
+test("the page says published figures drop the record at the next update, before and after a deletion @smoke", async ({ page, request }) => {
+  const sentence = "Deleting your record removes it from the stored data now. Published figures drop it at the next update.";
+  await page.goto("/delete-submission");
+  await expect(page.getByTestId("receipt-published-figures")).toHaveText(sentence);
+
+  await page.getByTestId("receipt-input").fill(await validCode(request));
+  await page.getByTestId("receipt-submit").click();
+  await expect(page.getByTestId("receipt-result")).toBeVisible();
+  await expect(page.getByTestId("receipt-published-figures")).toHaveText(sentence);
+});
+
 test("the code travels only in the X-Receipt-Code header: no URL, no bearer, no cookie, nothing remembered @smoke", async ({ page, request, context }) => {
   const name = accountName("receipt");
   // Signed in on purpose: even then the request must carry no account.

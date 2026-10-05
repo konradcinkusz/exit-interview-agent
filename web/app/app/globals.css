@@ -70,3 +70,25 @@ footer.site { max-width: 42rem; margin: 0 auto; padding: 1rem; color: var(--mute
 dl.commands dt { margin-top: 0.75rem; }
 dl.commands dd { margin: 0.1rem 0 0 0; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Signals (T10b). No colour carries meaning: the interval bar is one neutral hue, and every state is also text. */
+.stat-line { font-weight: 600; display: block; }
+p.stat { margin: 0.25rem 0; font-size: 1.1rem; }
+.range-bar { display: block; width: 100%; max-width: 20rem; height: 0.9rem; margin: 0.25rem 0; }
+.range-bar .axis { stroke: var(--border); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.range-bar .span { fill: var(--accent); opacity: 0.55; }
+.range-bar .mean { stroke: var(--fg); stroke-width: 2; vector-effect: non-scaling-stroke; }
+dl.facts { margin: 0.5rem 0; }
+dl.facts div { margin: 0.25rem 0; }
+dl.facts dt { font-weight: 600; display: inline; }
+dl.facts dt::after { content: ": "; }
+dl.facts dd { display: inline; margin: 0; }
+table.signals-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0 1rem; }
+table.signals-table caption { text-align: left; font-weight: 600; padding: 0.25rem 0; }
+table.signals-table th, table.signals-table td { text-align: left; vertical-align: top; padding: 0.4rem 0.5rem; border-top: 1px solid var(--border); }
+table.signals-table thead th { border-top: 0; border-bottom: 2px solid var(--border); }
+table.signals-table .num { text-align: right; }
+table.signals-table .line { display: block; color: var(--muted); }
+h4 { font-size: 1rem; margin: 1rem 0 0.25rem; }
+.paging { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: baseline; margin: 1rem 0; }
+ul.employers { list-style: none; padding-left: 0; }
