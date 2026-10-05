@@ -382,7 +382,7 @@ public sealed class SignalsEndpointTests
             records.Add(record);
             await SubmitAsync(host, record);
         }
-        logs.Lines.Clear();
+        logs.Clear();
 
         await PublishNextBatchAsync(host);
         await GetAsync(host, "/api/v1/signals/employers");

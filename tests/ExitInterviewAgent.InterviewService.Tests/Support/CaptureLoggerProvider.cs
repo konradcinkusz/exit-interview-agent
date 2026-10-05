@@ -10,6 +10,8 @@ public sealed class CaptureLoggerProvider : ILoggerProvider, ILogger
     /// <summary>A snapshot: the host logs from background threads while a test reads, so a live list would throw "Collection was modified".</summary>
     public IReadOnlyList<string> Lines { get { lock (_lines) return [.. _lines]; } }
 
+    public void Clear() { lock (_lines) _lines.Clear(); }
+
     public ILogger CreateLogger(string categoryName) => this;
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
     public bool IsEnabled(LogLevel logLevel) => true;
