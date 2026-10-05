@@ -65,19 +65,26 @@ missing or different. Tolerances are the one part edited by hand (`tolerances` i
 
 ## Plugging in model providers
 
-The harness never constructs a provider. `evals/profiles.yaml` declares profiles by provider name and by environment variable (the model id and the key are
-never committed). A provider project registers one factory per name:
+The harness itself never constructs a provider. `evals/profiles.yaml` declares profiles by provider name and by environment variable (the model id and the key are
+never committed). Since T6 the eval tool's `Program` calls `ProviderRegistration.RegisterAll()` (the one file in the harness that touches the Providers project, a
+tested rule), which registers a factory per provider name using `ProviderProfiles.Create` ([providers](../architecture/providers.md#for-the-eval-harness-t7),
+[ADR-0032](../adr/0032-provider-packages-and-adapters.md)):
 
-```csharp
-// ExitInterviewAgent.Eval/Program.cs, before EvalCli.RunAsync (T6 adds this line; nothing else changes):
-ProviderFactories.Register("anthropic", settings => /* IChatClient from settings.Model, settings.Env["ANTHROPIC_API_KEY"] */);
-ProviderFactories.Register("openai-compatible", settings => /* ... settings.Endpoint ... */);
-ProviderFactories.Register("ollama", settings => /* ... */);
-```
+| Profile | Provider | Model from | Endpoint from | Key from (`requires_env`, at most one) |
+|---|---|---|---|---|
+| `anthropic` | `anthropic` | `EVAL_ANTHROPIC_MODEL` | (the Anthropic default) | `ANTHROPIC_API_KEY` |
+| `openai-compatible` | `openai-compatible` | `EVAL_OPENAI_COMPATIBLE_MODEL` | `EVAL_OPENAI_COMPATIBLE_ENDPOINT` (default `api.openai.com/v1`) | `EVAL_OPENAI_COMPATIBLE_API_KEY` |
+| `ollama` | `ollama` | `EVAL_OLLAMA_MODEL` | `EVAL_OLLAMA_ENDPOINT` (default `localhost:11434`) | none |
 
-Without the factory a profile reports `skipped:no-provider`; without its environment, `skipped:no-credential` (naming the variables, never their values). Neither is
-ever a pass. Run it with `run --profile anthropic --out report/` and the report has one column per profile; real-model runs are exploratory and nightly and
-never block a pull request. The Layer 2 judge and the model-assisted classifier use the `judge:` entry in the same file.
+A client built for a profile has everything the CLI path has: the base-URL policy (https for a keyed remote, no embedded credentials), the refusal of a subscription-token
+variable, one credential header, bounded retries, the hard per-interview budget (a fresh client, so a fresh budget, per run), usage accounting, and errors without
+content. A fatal provider failure (a wrong key or model name, a spent budget, three failed calls in a row) is a **run error** in the report, never a pass and never
+a caught failure. The `provider.call` spans and the provider metrics are emitted from their own source and are not part of the harness's captured trace.
+
+Without its environment a profile reports `skipped:no-credential` (naming the variables, never their values); with an unregistered provider name, `skipped:no-provider`.
+Neither is ever a pass. Run it with `run --profile anthropic --out report/` and the report has one column per profile; real-model runs are exploratory and nightly and
+never block a pull request. The Layer 2 judge and the model-assisted classifier use the `judge:` entry in the same file. **No real-model run has been made**: the wiring is
+tested with a fake HTTP backend only (`ProviderProfileTests`).
 
 ## What is weak, said plainly
 

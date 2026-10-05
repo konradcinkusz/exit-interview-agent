@@ -338,7 +338,8 @@ deliberately kept), `Implemented` (only where noted).
   email (for example on account deletion): outside this repository, see OPEN-PROBLEMS.
 - **Residual.** Platform-level logs (proxy, load balancer, database slow-query logs) are outside application control.
   **Likelihood medium, impact high.**
-- **Status.** Mitigated for the submission, ticket and receipt paths (T5); Open for the model-call side (T6) and platform logs.
+- **Provider side (T6, Implemented, [ADR-0035](../adr/0035-provider-telemetry-and-export.md)):** the canary test is extended to every provider client (Anthropic, OpenAI-compatible, Ollama) and plants the interviewee's marker, the API key, a response header, a base-URL path and an error body that echoes the request; none appears in any activity of any source, metric label, log line or exception, and each case proves it has power. There is no switch that records prompt or completion text. The scan can fail (a test shows a deliberately leaking span is caught). **Not covered:** a real provider's behaviour (no live call was made).
+- **Status.** Mitigated for the submission, ticket and receipt paths (T5) and for the model-call side (T6, against fakes: no live provider call was made); Open for platform logs.
 
 ### T-16 Consent withdrawal mid-interview
 
@@ -398,7 +399,8 @@ deliberately kept), `Implemented` (only where noted).
   the whole transcript goes to the provider the user chose.
 - **Asset.** A3.
 - **Mitigation.** Out of our control by design (the project hosts no model). The CLI warns before the first call which provider
-  receives the transcript and offers a local model (Planned, T4/T6); the provider-terms table in
+  receives the transcript, names the host, says the provider's terms apply and have not been verified, requires a typed `yes` (or `--yes-i-understand`),
+  and offers a local model (**Implemented**, T6, [ADR-0033](../adr/0033-provider-configuration-credentials-and-disclosure.md); a remote Ollama counts as external; the confirmation is remembered only on request, in a deletable local file); the provider-terms table in
   [CONSIDERATIONS §1](../legal/CONSIDERATIONS.md) states what could and could not be verified.
 - **Residual.** Accepted; disclosed. **Status.** Accepted.
 

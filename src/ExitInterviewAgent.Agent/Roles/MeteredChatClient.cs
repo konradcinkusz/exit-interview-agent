@@ -65,7 +65,10 @@ public sealed class MeteredChatClient(IChatClient inner, ModelMeter meter) : Del
         {
             meter.Add(inputEstimate);
             span?.SetStatus(ActivityStatusCode.Error, "model_call_failed");
-            throw new ModelCallFailedException(ex.GetType().Name);
+            var failure = ex as IModelFailure;
+            var code = failure?.FailureCode ?? ex.GetType().Name;
+            span?.SetTag(InterviewTelemetry.Attr.ErrorType, SpanTags.SafeCode(code));
+            throw new ModelCallFailedException(code, failure?.IsFatal ?? false);
         }
     }
 
@@ -73,5 +76,14 @@ public sealed class MeteredChatClient(IChatClient inner, ModelMeter meter) : Del
         throw new NotSupportedException("The interview agent uses non-streaming calls so that every call is metered.");
 }
 
-/// <summary>A model call failed. Carries the exception type name only: provider messages can echo the prompt.</summary>
-public sealed class ModelCallFailedException(string innerType) : Exception($"The model call failed ({SpanTags.SafeCode(innerType)}).");
+/// <summary>
+/// A model call failed. Carries a controlled code (the exception type name, or the code of an <see cref="IModelFailure"/>) only:
+/// provider messages can echo the prompt. <see cref="IsFatal"/> failures (bad credentials, a spent budget) end the interview
+/// instead of degrading to the protocol's own wording.
+/// </summary>
+public sealed class ModelCallFailedException(string innerType, bool isFatal = false) : Exception($"The model call failed ({SpanTags.SafeCode(innerType)}).")
+{
+    public bool IsFatal { get; } = isFatal;
+
+    public string Code { get; } = SpanTags.SafeCode(innerType);
+}

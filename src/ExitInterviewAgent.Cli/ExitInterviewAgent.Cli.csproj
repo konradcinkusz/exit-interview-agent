@@ -1,11 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- `exit-interview`: offline demo of the interview agent with the mock model and a persona. No network, no submission (ADR-0026). -->
+  <!-- `exit-interview`: the interview agent: an offline demo (mock model, persona), and a real interactive interview with your own provider (ADR-0026, ADR-0033). No submission to any server. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>exit-interview</AssemblyName>
     <RootNamespace>ExitInterviewAgent.Cli</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.Providers\ExitInterviewAgent.Providers.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Personas\ExitInterviewAgent.Personas.csproj" />
   </ItemGroup>

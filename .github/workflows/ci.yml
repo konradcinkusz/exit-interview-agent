@@ -114,6 +114,13 @@ jobs:
           out/linux-x64/exit-interview demo --persona talkative --seed 1 > demo2.txt
           cmp demo1.txt demo2.txt
           out/linux-x64/exit-interview demo --persona withdraws-consent | grep -q "(no record:"
+          # T6: provider listing (no network) and a refused consent on the interactive path (exit 3, nothing kept).
+          out/linux-x64/exit-interview providers | grep -q "Not supported, on purpose"
+          printf 'No, I do not agree.\n' > consent-no.txt
+          code=0
+          out/linux-x64/exit-interview interview --provider mock --model scripted --tenure 1y_3y < consent-no.txt > interview.txt || code=$?
+          test "$code" -eq 3
+          grep -q "nothing was kept or written" interview.txt
       - uses: actions/upload-artifact@v4
         with:
           name: exit-interview-${{ matrix.rid }}

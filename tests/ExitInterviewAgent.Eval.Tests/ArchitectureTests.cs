@@ -11,13 +11,25 @@ public class ArchitectureTests
     private static readonly Assembly Eval = typeof(ModelProfile).Assembly;
 
     [Fact]
-    public void The_eval_project_references_only_the_agent_personas_records_and_privacy_projects()
+    public void The_eval_project_references_only_the_agent_personas_providers_records_and_privacy_projects()
     {
         var csproj = XDocument.Load(Path.Combine(RepoLayout.Root, "src", "ExitInterviewAgent.Eval", "ExitInterviewAgent.Eval.csproj"));
 
         var refs = csproj.Descendants("ProjectReference").Select(e => Path.GetFileNameWithoutExtension(((string)e.Attribute("Include")!).Replace('\\', '/'))).Order().ToList();
 
-        Assert.Equal(["ExitInterviewAgent.Agent", "ExitInterviewAgent.Personas", "ExitInterviewAgent.Privacy", "ExitInterviewAgent.Records"], refs);
+        Assert.Equal(["ExitInterviewAgent.Agent", "ExitInterviewAgent.Personas", "ExitInterviewAgent.Privacy", "ExitInterviewAgent.Providers", "ExitInterviewAgent.Records"], refs);
+    }
+
+    [Fact]
+    public void Only_ProviderRegistration_touches_the_providers_project()
+    {
+        var offenders = Directory.GetFiles(Path.Combine(RepoLayout.Root, "src", "ExitInterviewAgent.Eval"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && Path.GetFileName(f) != "ProviderRegistration.cs")
+            .Where(f => File.ReadAllText(f).Contains("ExitInterviewAgent.Providers", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .ToList();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]

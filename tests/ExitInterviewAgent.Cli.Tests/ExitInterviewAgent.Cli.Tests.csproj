@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExitInterviewAgent.Cli\ExitInterviewAgent.Cli.csproj" />
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Providers\ExitInterviewAgent.Providers.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
