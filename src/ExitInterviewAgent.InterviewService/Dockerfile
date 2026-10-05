@@ -9,6 +9,7 @@ COPY src/ExitInterviewAgent.ServiceDefaults/ExitInterviewAgent.ServiceDefaults.c
 COPY src/ExitInterviewAgent.Contracts/ExitInterviewAgent.Contracts.csproj src/ExitInterviewAgent.Contracts/
 COPY src/ExitInterviewAgent.Records/ExitInterviewAgent.Records.csproj src/ExitInterviewAgent.Records/
 COPY src/ExitInterviewAgent.Privacy/ExitInterviewAgent.Privacy.csproj src/ExitInterviewAgent.Privacy/
+COPY src/ExitInterviewAgent.Agent/ExitInterviewAgent.Agent.csproj src/ExitInterviewAgent.Agent/
 COPY src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj src/ExitInterviewAgent.InterviewService/
 RUN dotnet restore src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj
 
@@ -16,7 +17,9 @@ COPY src/ExitInterviewAgent.ServiceDefaults/ src/ExitInterviewAgent.ServiceDefau
 COPY src/ExitInterviewAgent.Contracts/ src/ExitInterviewAgent.Contracts/
 COPY src/ExitInterviewAgent.Records/ src/ExitInterviewAgent.Records/
 COPY src/ExitInterviewAgent.Privacy/ src/ExitInterviewAgent.Privacy/
-# The Records project embeds the published schema.
+# The Agent project publishes the interview protocol that the MCP prompt and resources serve (ADR-0042).
+COPY src/ExitInterviewAgent.Agent/ src/ExitInterviewAgent.Agent/
+# The Records and Agent projects embed the published schemas.
 COPY schemas/ schemas/
 COPY src/ExitInterviewAgent.InterviewService/ src/ExitInterviewAgent.InterviewService/
 RUN dotnet publish src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj \

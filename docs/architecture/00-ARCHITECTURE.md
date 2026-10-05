@@ -40,7 +40,7 @@ them (REPO-BASELINE §4b).
 
 `INIT-GENERIC-TEMPLATE`, `00-REFERENCE-ARCHITECTURE`, `REPO-BASELINE`, `FLY-IO-DEPLOYMENT`, `FRONTEND-BFF`,
 `SERVICE-API-PATTERNS`, `IDENTITY-AND-ACCOUNTS`, `SHARED-SERVICE-REUSE`, `TESTING-STRATEGY`,
-`E2E-ACCEPTANCE-TESTING`, `README-BADGES`. The submission task (T5, ADR-0027..0031) loaded the reference architecture (P3, P4, P5, P8, P11, P13),
+`E2E-ACCEPTANCE-TESTING`, `README-BADGES`. The MCP task (T8, ADR-0042..0046) loaded the reference architecture (P8, P9, P10, P11), `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `IDENTITY-AND-ACCOUNTS` and `TESTING-STRATEGY`, plus authservice's `DEPLOYMENT.md` ("Registering an MCP client") and ADR 0005. The submission task (T5, ADR-0027..0031) loaded the reference architecture (P3, P4, P5, P8, P11, P13),
 `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY`, `METRIC-ETHICS`, `IDENTITY-AND-ACCOUNTS` and `DEMO-DATA-AND-SEEDING`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
@@ -61,7 +61,8 @@ architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded
 | P6 container per service | `src/ExitInterviewAgent.InterviewService/Dockerfile`, `web/app/Dockerfile` |
 | P7 Fly topology | `flyio/*.fly.toml`, `flyio/INFRASTRUCTURE-ANALYSIS.md` (generated, not deployed) |
 | P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, mcp-auth, database, telemetry-export, ledger-key and employment-verifier (an unavailable verifier degrades submissions to level `unchecked`, ADR-0031); startup banner prints the same |
-| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012); web, MCP and ticket entry points all call one `SubmissionService` (ADR-0031) |
+| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012); web, MCP and ticket entry points all call one `SubmissionService` (ADR-0031, ADR-0044); client-chosen MCP names are reduced to a closed vocabulary before the SDK sees them (ADR-0043) |
+| P10 interface + registration | the MCP tools, prompt and resources are listed by type in `Mcp/McpServerSetup.cs` (ADR-0042); a tool also needs an entry in `McpToolScopes` (closed otherwise) |
 | P9 `Program.cs` is a manifest | `InterviewService/Program.cs` calls into `Infrastructure/ServiceCollectionExtensions.cs` |
 | P12 tag-driven CI/CD | `.github/workflows/flyio.yml` (never triggered) |
 | P13 test at the layer with the logic | service tests (InMemory), PostgreSQL tests for what InMemory cannot enforce (unique indexes, atomic delete, migrations; skipped and reported as not run without `TEST_POSTGRES_CONNECTION`), Vitest for BFF logic, Playwright for the journey |
@@ -97,6 +98,7 @@ Every row carries a date and a reason. An acknowledged deviation is a decision; 
 | 2026-10-05 | CodeQL results kept as run artifacts, not uploaded to code scanning | `REPO-BASELINE` §1 | private repo; GHAS not assumed; flip `CODEQL_UPLOAD` when public | ADR-004 |
 | 2026-10-05 | No PDF overview track (`docs/papers/`, `build-overview-pdf.yml`) | `INIT-GENERIC-TEMPLATE` §9 (optional) | nothing hands anyone a PDF yet; the results write-up is T12 | none needed |
 | 2026-10-05 | The CLI references `Agent` and `Personas`, not `Contracts` only | ADR-0002 (`cli` row) | the CLI is where the agent runs; `Contracts` holds DTOs that cross a service boundary and the demo crosses none; T11 adds the `Contracts` reference for submission | ADR-0026 |
+| 2026-10-05 | MCP unknown tool, prompt and resource names are answered by the SDK after the name is replaced by a constant, not by an error that echoes it | `SECURITY-REVIEW` §7 (errors never leak); threat model T-15 | the SDK logs and tags the client-chosen name before any filter runs; no server-side hook can stop that except at the body | ADR-0043 |
 | 2026-10-05 | The Ollama client is hand-written, not `OllamaSharp` (the NuGet-recommended package) | brief §4 ("verify the package choice") | one endpoint; avoids a second dependency tree on an older abstractions line; the Microsoft package is deprecated; trigger: tools, thinking mode or model management | ADR-0032 |
 | 2026-10-05 | The Agent project gained a failure-code seam (`IModelFailure`, `ModelCallFailedException.IsFatal`) and the runner rethrows fatal model failures | ADR-0023 (T6 adds providers without touching the agent) | a wrong key must stop an interview at the first call, not after a fallback-worded one; the seam carries a code, never a message | ADR-0034 |
 | 2026-10-05 | `GET /health` is readiness (503 until the schema is applied) and carries the integration list | P4/P8 | one request answers "what is live?"; Fly checks `/health` with a 60 s grace period | this table |

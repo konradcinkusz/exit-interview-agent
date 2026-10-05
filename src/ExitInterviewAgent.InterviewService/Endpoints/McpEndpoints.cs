@@ -1,6 +1,7 @@
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.ServiceDefaults;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 
 namespace ExitInterviewAgent.InterviewService.Endpoints;
 
@@ -41,8 +42,8 @@ public static class McpEndpoints
     }
 
     /// <summary>
-    /// The authenticated, scope-guarded mount point for the MCP endpoint at the resource's path. T8 maps the MCP
-    /// transport on this group; nothing else may be mapped under it without the policy.
+    /// The authenticated, scope-guarded mount point for the MCP endpoint at the resource's path, with the MCP Streamable
+    /// HTTP transport mapped on it. Nothing else may be mapped under this group without the policy.
     /// </summary>
     public static RouteGroupBuilder? MapMcpMount(this WebApplication app, McpOptions mcp)
     {
@@ -51,17 +52,7 @@ public static class McpEndpoints
             return null;
         }
         var group = app.MapGroup(path).RequireAuthorization(AuthPolicies.McpSubmit).RequireRateLimiting(ApiExtensions.ApiPolicy);
-        if (app.Environment.IsDevelopment())
-        {
-            // TEMPORARY, development and tests only: proves the scheme, the scope policy and the claim set end to end
-            // until the MCP transport (T8) is mounted. It is not part of the product and is not mapped in Production.
-            group.MapGet("/_probe", (HttpContext http) => Results.Ok(new
-            {
-                subject = http.User.FindFirst("sub")?.Value,
-                clientId = http.User.FindFirst("client_id")?.Value,
-                claims = http.User.Claims.Select(c => c.Type).Distinct().Order().ToArray(),
-            }));
-        }
+        group.MapMcp();
         return group;
     }
 }

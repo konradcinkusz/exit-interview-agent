@@ -43,7 +43,7 @@ public sealed class ProtectedResourceMetadataTests(ServiceFactory factory) : ICl
     [Fact]
     public async Task Unauthenticated_call_to_the_mcp_endpoint_gets_the_challenge_mcp_clients_follow()
     {
-        var response = await factory.CreateClient().GetAsync("/mcp/_probe");
+        var response = await factory.CreateClient().SendAsync(McpWire.ListTools());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         var challenge = response.Headers.WwwAuthenticate.ToString();
@@ -59,7 +59,7 @@ public sealed class ProtectedResourceMetadataTests(ServiceFactory factory) : ICl
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.NewMcpToken().With(t => t.Issuer = "https://evil.example").Build());
 
-        var response = await client.GetAsync("/mcp/_probe");
+        var response = await client.SendAsync(McpWire.ListTools());
 
         var challenge = response.Headers.WwwAuthenticate.ToString();
         Assert.Contains("error=\"invalid_token\"", challenge);
@@ -84,7 +84,7 @@ public sealed class ProtectedResourceMetadataTests(ServiceFactory factory) : ICl
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/.well-known/oauth-protected-resource")).StatusCode);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", unconfigured.MintMcpToken("account-123"));
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/mcp/_probe")).StatusCode); // no mount point either
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(McpWire.ListTools())).StatusCode); // no mount point either
 
         var health = await HealthAsync(client);
         Assert.Contains(health.GetProperty("integrations").EnumerateArray(),

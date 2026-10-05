@@ -22,7 +22,7 @@ public sealed class ClaimMinimizationTests(ServiceFactory factory) : IClassFixtu
     [Fact]
     public void Only_the_retained_claims_survive()
     {
-        var kept = McpAuthenticationExtensions.MinimizeClaims(Full()).Claims.Select(c => c.Type).Order().ToArray();
+        var kept = ExitInterviewAgent.InterviewService.Infrastructure.Auth.McpAuthenticationExtensions.MinimizeClaims(Full()).Claims.Select(c => c.Type).Order().ToArray();
 
         Assert.Equal(["client_id", "scope", "sub"], kept);
     }

@@ -8,8 +8,10 @@
     <ProjectReference Include="..\ExitInterviewAgent.Contracts\ExitInterviewAgent.Contracts.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Privacy\ExitInterviewAgent.Privacy.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

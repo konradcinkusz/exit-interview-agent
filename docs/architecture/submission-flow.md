@@ -131,4 +131,4 @@ and expired tickets. Age is measured to the end of the week bucket. It logs coun
 
 ## Not built here
 
-The MCP transport and tool (T8), web screens (T9), the CLI client (T11), signals and aggregates (T10), a real employer registry and real verification (OP-1, OP-2).
+The web screens (T9), the CLI client (T11), signals and aggregates (T10), a real employer registry and real verification (OP-1, OP-2).
