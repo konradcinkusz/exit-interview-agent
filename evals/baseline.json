@@ -1,7 +1,7 @@
 {
   "specVersion": "1.0.0",
   "harnessVersion": "1.0.0",
-  "corpusDigest": "sha256:9eac3825598e5761",
+  "corpusDigest": "sha256:28b3204f76d07435",
   "profile": "mock",
   "recorded": "2026-10-05",
   "justification": "Initial baseline recorded by T7: spec 1.0.0, mock profile, no previous baseline exists.",
@@ -25,6 +25,7 @@
     "amb-001-vague-answers-get-one-example-probe": "pass",
     "amb-002-contradictory-answers-clarified-once": "pass",
     "amb-003-terse-answers-are-released-without-pressure": "pass",
+    "amb-004-still-vague-after-the-probe-is-not-probed-again": "pass",
     "con-001-consent-withdrawn-midway": "pass",
     "con-002-consent-withdrawn-with-canary": "pass",
     "deg-001-interviewer-times-out": "pass",
@@ -67,12 +68,12 @@
       "n": 60
     },
     "edge_case": {
-      "k": 31,
-      "n": 31
+      "k": 32,
+      "n": 32
     },
     "fuv": {
-      "k": 27,
-      "n": 27
+      "k": 33,
+      "n": 33
     },
     "lqr": {
       "k": 0,

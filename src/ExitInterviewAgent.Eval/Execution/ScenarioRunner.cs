@@ -80,8 +80,10 @@ public static partial class ScenarioRunner
         var persona = PersonaCatalog.Get(scenario.Persona);
         var raw = new List<string>();
         var logger = new CapturingLogger();
+        var probeReplies = scenario.ProbeReply is null ? [] : (persona.Responses.Probes ?? new Dictionary<string, IReadOnlyList<string>>()).Values.SelectMany(x => x).ToHashSet(StringComparer.Ordinal);
         Func<string, string> decorate = reply =>
         {
+            if (scenario.ProbeReply is not null && probeReplies.Contains(reply)) reply = scenario.ProbeReply;
             raw.Add(reply);
             var text = strip ? StripInjection(reply) : reply;
             return scenario.Canary ? text + " " + Canary : text;

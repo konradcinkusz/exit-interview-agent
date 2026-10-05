@@ -16,6 +16,7 @@
     "seeds": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "type": "integer", "minimum": 0, "maximum": 1000000 }, "description": "One run per seed. Default [1]." },
     "canary": { "type": "boolean", "description": "Plant a marker string in every interviewee reply; constraint C-08 then scans every span, event and log line for it." },
     "control": { "enum": ["strip-injection"], "description": "Also run a control interview with the instruction-like sentences removed from the interviewee replies; the turn-kind sequences must be identical (C-05)." },
+    "probe_reply": { "type": "string", "minLength": 8, "description": "Scenario-level delta: whenever the persona answers a concrete-example probe, it says this instead (so the interviewee stays vague after the probe). The text must be in evals/labels/vagueness.yaml." },
     "faults": {
       "type": "array",
       "maxItems": 4,

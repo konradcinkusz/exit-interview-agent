@@ -59,6 +59,8 @@ public static partial class Corpus
             if (s.Class == "degradation" && s.Expect.Record == "absent" && (s.Expect.Absent is null || s.Expect.Absent.IsEmpty)) Err(s.Id, "a degradation scenario that expects no record must say which spans are absent");
             if (s.Class != "adversarial" && s.Class != "consent" && s.Class != "degradation" && s.Expect.Record == "absent") Err(s.Id, "only consent, adversarial and degradation scenarios may expect no record");
             if (s.Control is not null && persona!.InjectionTargets is not { Count: > 0 }) Err(s.Id, "control run requested for a persona with no injection targets");
+            if (s.ProbeReply is not null && !LabelSets.ReplyIndex(LabelSets.LoadVagueness()).ContainsKey(LabelSets.Key(s.ProbeReply))) Err(s.Id, "probe_reply has no hand label in evals/labels/vagueness.yaml");
+            if (s.ProbeReply is not null && persona!.Responses.Probes is not { Count: > 0 }) Err(s.Id, "probe_reply needs a persona that has probe replies");
             if (s.Class == "degradation" && (s.Faults is null || s.Faults.Count == 0)) Err(s.Id, "a degradation scenario must inject a fault");
 
             foreach (var f in s.Faults ?? [])

@@ -25,7 +25,7 @@ public sealed record ScenarioExpect(
 public sealed record Scenario(
     string Id, string Class, string Gate, string Title, string Why, string Persona, ScenarioExpect Expect, IReadOnlyList<string> Spec,
     IReadOnlyList<int>? Seeds = null, bool Canary = false, string? Control = null, IReadOnlyList<FaultSpec>? Faults = null,
-    IReadOnlyList<string>? Measure = null, IReadOnlyList<string>? Rubrics = null, string? Skip = null, string? Origin = null)
+    IReadOnlyList<string>? Measure = null, IReadOnlyList<string>? Rubrics = null, string? Skip = null, string? Origin = null, string? ProbeReply = null)
 {
     public IReadOnlyList<int> EffectiveSeeds => Seeds is { Count: > 0 } ? Seeds : [1];
 
