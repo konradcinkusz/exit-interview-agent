@@ -1,0 +1,241 @@
+# Tag-driven build and ordered deploy (P12, FLY-IO-DEPLOYMENT §10).
+#
+#   push tag v*
+#     |- test              build + unit tests + the kernel guard
+#     |- detect-changes    diff vs the PREVIOUS TAG -> per-app flags; an app missing on Fly is ALWAYS selected
+#     |- build (matrix)    one image per changed service -> GHCR, built once
+#     '- deploy (ordered)  postgres -> authservice -> interview-service -> web
+#
+# NEVER TRIGGERED in this phase. PROJECT-BRIEF §2 forbids pushing v* tags, creating Fly apps and adding
+# secrets to GitHub. This file is generated topology, kept and syntax-checked, not exercised.
+name: flyio
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  SLUG: exit-interview-agent
+  ENVIRONMENT_NAME: dev
+  FLY_ORG: personal
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: konradcinkusz
+  PRIMARY_REGION: fra
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test -c Release
+      - run: scripts/check-kernel-size.sh
+      - run: npm install -g pnpm@12.9.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm test
+
+  detect-changes:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      postgres: ${{ steps.flags.outputs.postgres }}
+      authservice: ${{ steps.flags.outputs.authservice }}
+      interview_service: ${{ steps.flags.outputs.interview_service }}
+      web: ${{ steps.flags.outputs.web }}
+      matrix: ${{ steps.flags.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - id: flags
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          prev="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$prev" ]; then changed="$(git diff --name-only "$prev" HEAD)"; else changed="__first_tag__"; fi
+          echo "previous tag: ${prev:-none}"
+          apps="$(flyctl apps list --json)"
+          missing() { # app name -> true when it does not exist on Fly yet
+            if echo "$apps" | jq -e --arg a "$1" '.[] | select((.Name // .name) == $a)' >/dev/null; then echo false; else echo true; fi
+          }
+          touched() { echo "$changed" | grep -Eq "$1" && echo true || echo false; }
+          # A change to the kernel or the contracts invalidates every image that compiles them.
+          pg=$([ "$(missing "$SLUG-postgres")" = true ] || [ "$(touched '^flyio/postgres\.fly\.toml$|__first_tag__')" = true ] && echo true || echo false)
+          auth=$([ "$(missing "$SLUG-authservice-$ENVIRONMENT_NAME")" = true ] || [ "$(touched '^flyio/authservice\.fly\.toml$|__first_tag__')" = true ] && echo true || echo false)
+          svc=$([ "$(missing "$SLUG-interview-service-$ENVIRONMENT_NAME")" = true ] || [ "$(touched '^src/ExitInterviewAgent\.(InterviewService|ServiceDefaults|Contracts)/|^Directory\.|^global\.json|^flyio/interview-service\.fly\.toml$|__first_tag__')" = true ] && echo true || echo false)
+          web=$([ "$(missing "$SLUG-web-$ENVIRONMENT_NAME")" = true ] || [ "$(touched '^web/|^flyio/web\.fly\.toml$|__first_tag__')" = true ] && echo true || echo false)
+          matrix='[]'
+          [ "$svc" = true ] && matrix="$(echo "$matrix" | jq -c '. + [{"name":"interview-service","dockerfile":"src/ExitInterviewAgent.InterviewService/Dockerfile","context":"."}]')"
+          [ "$web" = true ] && matrix="$(echo "$matrix" | jq -c '. + [{"name":"web","dockerfile":"web/app/Dockerfile","context":"web"}]')"
+          {
+            echo "postgres=$pg"; echo "authservice=$auth"; echo "interview_service=$svc"; echo "web=$web"
+            echo "matrix=$matrix"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Build once: this image is what every deploy step references with `flyctl deploy --image`.
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ghcr.io/konradcinkusz/exit-interview-agent-${{ matrix.name }}:${{ github.ref_name }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy-postgres:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.postgres == 'true' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          INTERVIEW_DB_PASSWORD: ${{ secrets.INTERVIEW_DB_PASSWORD }}
+          AUTH_DB_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          app="$SLUG-postgres"
+          for v in POSTGRES_PASSWORD INTERVIEW_DB_PASSWORD AUTH_DB_PASSWORD; do
+            [ -n "${!v}" ] || { echo "missing required secret: $v" >&2; exit 1; }
+          done
+          # Idempotent app and volume creation live here, never in shell history (Fly guide §11).
+          if ! flyctl apps list --json | jq -e --arg a "$app" '.[] | select((.Name // .name) == $a)' >/dev/null; then
+            flyctl apps create "$app" --org "$FLY_ORG" --yes
+          fi
+          if ! flyctl volumes list --app "$app" --json | jq -e '.[] | select(.name == "exit_interview_agent_pgdata")' >/dev/null; then
+            flyctl volumes create exit_interview_agent_pgdata --app "$app" --region "$PRIMARY_REGION" --size 3 --yes
+          fi
+          flyctl secrets set --app "$app" --stage \
+            "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" "INTERVIEW_DB_PASSWORD=$INTERVIEW_DB_PASSWORD" "AUTH_DB_PASSWORD=$AUTH_DB_PASSWORD"
+          # --ha=false: a second machine would get a second EMPTY volume.
+          flyctl deploy --config flyio/postgres.fly.toml --app "$app" --ha=false --wait-timeout 300
+
+  deploy-authservice:
+    needs: [detect-changes, deploy-postgres]
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.authservice == 'true'
+          && (needs.deploy-postgres.result == 'success' || needs.deploy-postgres.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          AUTH_DB_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+          AUTH_JWT_PRIVATE_KEY_PEM: ${{ secrets.AUTH_JWT_PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          app="$SLUG-authservice-$ENVIRONMENT_NAME"
+          # A signing key is not optional: a service that boots without one infers the symmetric path
+          # and publishes an EMPTY JWKS. Fail the deploy rather than discover it from rejected tokens.
+          for v in AUTH_DB_PASSWORD AUTH_JWT_PRIVATE_KEY_PEM; do
+            [ -n "${!v}" ] || { echo "missing required secret: $v" >&2; exit 1; }
+          done
+          if ! flyctl apps list --json | jq -e --arg a "$app" '.[] | select((.Name // .name) == $a)' >/dev/null; then
+            flyctl apps create "$app" --org "$FLY_ORG" --yes
+          fi
+          flyctl secrets set --app "$app" --stage \
+            "ConnectionStrings__DefaultConnection=Host=$SLUG-postgres.internal;Port=5432;Database=authdb;Username=authservice;Password=$AUTH_DB_PASSWORD" \
+            "Jwt__PrivateKeyPem=$AUTH_JWT_PRIVATE_KEY_PEM"
+          flyctl deploy --config flyio/authservice.fly.toml --app "$app" --wait-timeout 300
+      # The one assertion the health check cannot make: the key set is NON-EMPTY.
+      - name: JWKS is non-empty
+        run: |
+          set -euo pipefail
+          url="https://$SLUG-authservice-$ENVIRONMENT_NAME.fly.dev/.well-known/jwks.json"
+          for _ in $(seq 1 10); do
+            n="$(curl -fsS "$url" | jq '.keys | length' || echo 0)"
+            [ "$n" -gt 0 ] && { echo "JWKS has $n key(s)"; exit 0; }
+            sleep 6
+          done
+          echo "JWKS at $url is empty: every consumer would reject every token" >&2
+          exit 1
+
+  deploy-interview-service:
+    needs: [detect-changes, build, deploy-authservice]
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.interview_service == 'true'
+          && needs.build.result == 'success'
+          && (needs.deploy-authservice.result == 'success' || needs.deploy-authservice.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          INTERVIEW_DB_PASSWORD: ${{ secrets.INTERVIEW_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          app="$SLUG-interview-service-$ENVIRONMENT_NAME"
+          [ -n "$INTERVIEW_DB_PASSWORD" ] || { echo "missing required secret: INTERVIEW_DB_PASSWORD" >&2; exit 1; }
+          if ! flyctl apps list --json | jq -e --arg a "$app" '.[] | select((.Name // .name) == $a)' >/dev/null; then
+            flyctl apps create "$app" --org "$FLY_ORG" --yes
+          fi
+          flyctl secrets set --app "$app" --stage \
+            "ConnectionStrings__interviewdb=Host=$SLUG-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=$INTERVIEW_DB_PASSWORD"
+          # Pulling a private GHCR image needs a credential on Fly: see flyio/SECRETS.md (open question).
+          flyctl deploy --config flyio/interview-service.fly.toml --app "$app" \
+            --image "$REGISTRY/$IMAGE_OWNER/$SLUG-interview-service:$GITHUB_REF_NAME" --wait-timeout 300
+
+  deploy-web:
+    needs: [detect-changes, build, deploy-interview-service]
+    if: >-
+      ${{ always() && !cancelled()
+          && needs.detect-changes.outputs.web == 'true'
+          && needs.build.result == 'success'
+          && (needs.deploy-interview-service.result == 'success' || needs.deploy-interview-service.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          app="$SLUG-web-$ENVIRONMENT_NAME"
+          if ! flyctl apps list --json | jq -e --arg a "$app" '.[] | select((.Name // .name) == $a)' >/dev/null; then
+            flyctl apps create "$app" --org "$FLY_ORG" --yes
+          fi
+          flyctl deploy --config flyio/web.fly.toml --app "$app" \
+            --image "$REGISTRY/$IMAGE_OWNER/$SLUG-web:$GITHUB_REF_NAME" --wait-timeout 300

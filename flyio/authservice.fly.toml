@@ -1,0 +1,38 @@
+# GENERATED TOPOLOGY, NEVER TRIGGERED in this phase (PROJECT-BRIEF §2: no deployment of any kind).
+# This repository's OWN instance of konradcinkusz/authservice (shared-service-reuse): own compute,
+# own database (authdb), own signing key; named for the consumer, image pinned, source never vendored.
+app = "exit-interview-agent-authservice-dev"
+primary_region = "fra"
+
+[build]
+  image = "ghcr.io/konradcinkusz/authservice:v0.3.4"   # pinned, never :latest
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS = "http://+:8080"
+  DATABASE_PROVIDER = "PostgreSQL"
+  Database__SchemaMode = "Migrate"
+  Database__MigrationsAssembly = "AuthService.Migrations.PostgreSQL"
+  # Product-specific issuer/audience: a token from another product's instance must not validate here.
+  Jwt__Issuer = "ExitInterviewAgent"
+  Jwt__Audience = "ExitInterviewAgent"
+  Jwt__PublicBaseUrl = "https://exit-interview-agent-authservice-dev.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # 1, not 0: interview-service validates tokens against this app's JWKS in-request, on first use and
+  # again whenever its cache expires, and web calls /api/v1/auth/login in-request.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    path = "/health/ready"   # readiness: 503 until the schema is initialised
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

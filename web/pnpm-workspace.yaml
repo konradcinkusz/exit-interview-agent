@@ -1,0 +1,9 @@
+# One pnpm workspace from the first commit (FRONTEND-BFF §7). The shared @exit-interview-agent/web-kit
+# package is created when a second app arrives; until then everything lives in app/.
+packages:
+  - app
+
+# Dependency build scripts are denied unless approved. unrs-resolver (an eslint resolver) ships
+# prebuilt binaries as optional dependencies, so its install script is explicitly denied (pnpm 11+).
+allowBuilds:
+  unrs-resolver: false

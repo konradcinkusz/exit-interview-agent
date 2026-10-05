@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>ExitInterviewAgent.InterviewService</RootNamespace>
+    <AssemblyName>ExitInterviewAgent.InterviewService</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.ServiceDefaults\ExitInterviewAgent.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Contracts\ExitInterviewAgent.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

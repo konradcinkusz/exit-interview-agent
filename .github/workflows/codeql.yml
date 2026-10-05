@@ -1,0 +1,74 @@
+name: codeql
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  # Code scanning results upload needs GitHub Advanced Security on a private repository. The repo is
+  # private by decision, so SARIF is kept as a run artifact instead. Flip to `always` when the
+  # repository is public or GHAS is enabled (an owner decision; see docs/adr/0004-deployment-topology-and-registry.md).
+  CODEQL_UPLOAD: never
+
+jobs:
+  analyze:
+    name: SAST (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read   # the analyze action reads the workflow run; required on private repositories
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        if: matrix.language == 'csharp'
+        with:
+          dotnet-version: 10.0.x
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.language == 'csharp' && 'manual' || 'none' }}
+      - name: Build (csharp)
+        if: matrix.language == 'csharp'
+        run: dotnet build ExitInterviewAgent.sln -c Release
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
+          upload: ${{ env.CODEQL_UPLOAD }}
+          output: sarif-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sarif-${{ matrix.language }}
+          path: sarif-results
+          retention-days: 14
+
+  dependency-audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: NuGet (direct and transitive)
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee nuget-audit.txt
+          ! grep -q "has the following vulnerable packages" nuget-audit.txt
+      - run: npm install -g pnpm@12.9.1
+      - name: npm (web)
+        working-directory: web
+        run: pnpm audit --prod --audit-level high
+      - name: npm (e2e)
+        working-directory: tests/e2e
+        run: pnpm audit --audit-level high

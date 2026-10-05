@@ -1,0 +1,47 @@
+# GENERATED TOPOLOGY, NEVER TRIGGERED in this phase (PROJECT-BRIEF §2: no deployment of any kind).
+# One Postgres instance, one logical database + role per service (P3). Reached only at
+# exit-interview-agent-postgres.internal:5432 over 6PN: no [http_service], no [[services]], ever.
+# Deploy with --ha=false: a second machine would get a second EMPTY volume, not a replica.
+app = "exit-interview-agent-postgres"
+primary_region = "fra"
+
+[build]
+  image = "postgres:17-alpine"   # a pinned major; NOT Fly's managed postgres-flex image
+
+[env]
+  POSTGRES_USER = "postgres"
+  POSTGRES_DB = "postgres"
+  # A SUBDIRECTORY of the mount: the volume root carries lost+found and initdb refuses a non-empty dir.
+  PGDATA = "/var/lib/postgresql/data/pgdata"
+  POSTGRES_INITDB_ARGS = "--encoding=UTF8 --locale=C"
+
+[[mounts]]
+  source = "exit_interview_agent_pgdata"
+  destination = "/var/lib/postgresql/data"
+  initial_size = "3gb"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+
+# Runs on first boot only (the entrypoint executes initdb.d scripts when PGDATA is empty).
+# Creates one role and one database per service, no cross-grants. Role passwords come from the
+# secrets INTERVIEW_DB_PASSWORD and AUTH_DB_PASSWORD (flyio/SECRETS.md); POSTGRES_PASSWORD too.
+[[files]]
+  guest_path = "/docker-entrypoint-initdb.d/01-create-databases.sh"
+  raw_value = '''
+#!/bin/sh
+set -e
+create_db() { # database role password
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+       -v db="$1" -v role="$2" -v pw="$3" <<'EOSQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'role', :'pw')
+  WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'role') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I', :'db', :'role')
+  WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db') \gexec
+SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', :'db') \gexec
+EOSQL
+}
+create_db interviewdb interview "$INTERVIEW_DB_PASSWORD"
+create_db authdb authservice "$AUTH_DB_PASSWORD"
+'''

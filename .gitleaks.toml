@@ -1,0 +1,16 @@
+# Secret scanner configuration (REPO-BASELINE §2, P5). Extends the default ruleset.
+title = "exit-interview-agent gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented dev-only placeholders; none of these is a credential."
+regexes = [
+  '''dev-only-[a-z0-9-]*''',
+  '''REPLACE_ME''',
+  '''example\.invalid''',
+]
+paths = [
+  '''pnpm-lock\.yaml''',
+]

@@ -1,0 +1,43 @@
+# GENERATED TOPOLOGY, NEVER TRIGGERED in this phase (PROJECT-BRIEF §2: no deployment of any kind).
+app = "exit-interview-agent-interview-service-dev"
+primary_region = "fra"
+
+[build]
+  # Both paths are relative to THIS FILE. The context is the repository root: the Dockerfile
+  # copies src/ExitInterviewAgent.* and the root build props.
+  dockerfile = "../src/ExitInterviewAgent.InterviewService/Dockerfile"
+  context = ".."
+
+[env]
+  # Public configuration only. Secrets (ConnectionStrings__interviewdb) are Fly secrets.
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS = "http://+:8080"
+  DATABASE_PROVIDER = "PostgreSQL"
+  # The issuer URL is public by necessity: it is where every validator fetches the JWKS from.
+  Jwt__Authority = "https://exit-interview-agent-authservice-dev.fly.dev"
+  Jwt__Issuer = "ExitInterviewAgent"
+  Jwt__Audience = "ExitInterviewAgent"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # 1, not 0: the web app's server side calls this service in-request (the BFF proxy, GET /api/v1/me).
+  # A cold start here is a failed call, not a slow page.
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[http_service.checks]]
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"   # .NET cold start + first-boot schema migration
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

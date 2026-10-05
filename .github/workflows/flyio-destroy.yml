@@ -1,0 +1,48 @@
+# Teardown behind a typed confirmation (FLY-IO-DEPLOYMENT §12). NEVER TRIGGERED in this phase.
+# Reverse dependency order, so nothing keeps serving against an app that has already gone.
+# The data volume is KEPT unless the second confirmation is also given.
+name: flyio-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type exactly: destroy exit-interview-agent-dev"
+        type: string
+        required: true
+      destroy_database:
+        description: "Also destroy the Postgres app and its volume (data loss)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  SLUG: exit-interview-agent
+  ENVIRONMENT_NAME: dev
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Check the typed confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          [ "$CONFIRM" = "destroy $SLUG-$ENVIRONMENT_NAME" ] || { echo "confirmation does not match" >&2; exit 1; }
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          DESTROY_DB: ${{ inputs.destroy_database }}
+        run: |
+          set -euo pipefail
+          for app in web interview-service authservice; do
+            flyctl apps destroy "$SLUG-$app-$ENVIRONMENT_NAME" --yes || echo "skip: $SLUG-$app-$ENVIRONMENT_NAME not found"
+          done
+          if [ "$DESTROY_DB" = true ]; then
+            flyctl apps destroy "$SLUG-postgres" --yes || echo "skip: postgres not found"
+          else
+            echo "Postgres app and volume kept (destroy_database=false)."
+          fi
