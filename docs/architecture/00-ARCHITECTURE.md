@@ -17,6 +17,10 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `src/ExitInterviewAgent.ServiceDefaults` | P2: the shared kernel (plumbing only) | 12 |
 | `src/ExitInterviewAgent.Contracts` | DTOs that cross a boundary | 0 |
 | `src/ExitInterviewAgent.InterviewService` | the one service; owns `interviewdb` | 1 (+ kernel, contracts) |
+| `src/ExitInterviewAgent.Records` | the interview record: immutable model, schema validation, canonical form, quote fidelity ([record-schema](record-schema.md)) | 1 (JSON-Schema validator, ADR-0008) |
+| `src/ExitInterviewAgent.Privacy` | deterministic PII detector and masker ([pii-detector](../privacy/pii-detector.md)) | 0 |
+| `schemas/` | published, versioned record schema (v1 immutable once released, ADR-0009) | n/a |
+| `tests/ExitInterviewAgent.Records.Tests`, `tests/ExitInterviewAgent.Privacy.Tests` | xUnit; golden fixtures; architecture tests; PII evaluation corpus | 3 each |
 | `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; architecture tests | 4 |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
 | `tests/e2e` | Playwright journeys against the production artifact | 1 runtime, 2 dev |

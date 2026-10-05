@@ -1,0 +1,111 @@
+# Dev corpus (synthetic only; no real people, numbers or addresses). Rules were tuned against this file.
+# Markup: {{kind:text}} marks gold PII; kinds: email phone url handle ip id emp person.
+# --- emails
+You can write to {{email:anna.kowalska@example.com}} about it.
+My private address is {{email:jan_nowak91@poczta.example}}, not the work one.
+Send the documents to {{email:hr.office@zephyrix.example}} please.
+It was something like {{email:t.wisniewski[at]mailbox.example}} I think.
+Her email {{email:magda.z@uni-lodz.example.pl}} bounced.
+The ticket was closed by support@helpdesk, which is a shared mailbox.
+Dostałem maila z {{email:kadry@firma-test.example}} dopiero po tygodniu.
+Write to {{email:o'brien@corp.example}} and copy me.
+# --- phone
+Call me on {{phone:+48 512 345 678}} tomorrow.
+My number is {{phone:601-222-333}} if you want to talk.
+Zadzwoń: {{phone:(22) 123-45-67}}.
+Moja komórka to {{phone:600 700 800}}.
+Her mobile, {{phone:+44 7911 123456}}, was in the signature.
+Tel. {{phone:224 556 677}} was on the contract.
+Reach me at {{phone:0048 501 502 503}} after work.
+The extension was 4401 and the floor was 12.
+I joined on 2021-03-15 and left on 2024-09-30.
+We shipped version 2.14.7.3 in the second quarter.
+My salary was 12 500 PLN and the bonus was 8 000 PLN.
+They offered 10 000 - 12 000 PLN but paid 9 500.
+Revenue reached 1 450 000 000 last year.
+# --- urls and handles and ips
+My portfolio is {{url:https://janek-portfolio.example/work}} if you want proof.
+See {{url:www.glassdoor-clone.example/reviews/zephyrix}} for what others said.
+I posted it on {{url:medium.com/@someone/why-i-left}}.
+Check {{url:http://intranet.zephyrix.example/policy.pdf}}.
+He is {{handle:@mkowalski_dev}} on that platform.
+Find me on {{handle:@ania.codes}} and say hello.
+My LinkedIn is {{url:linkedin.com/in/ewa-malinowska-4521}}.
+Her telegram: {{handle:ewa_telegram_22}}.
+The server at {{ip:10.20.30.40}} was down all week.
+VPN showed {{ip:192.168.100.7}} for me.
+We run ASP.NET and Node.js on Azure.
+Our stack was Next.js, React and Postgres.
+# --- national and financial ids
+My PESEL is {{id:85061543217}} and they stored it unencrypted.
+Podałem PESEL {{id:77122309876}} w formularzu.
+Their NIP was {{id:526-104-08-11}} on the invoice.
+NIP: {{id:5261040811}} appeared on the form.
+My ID card number {{id:ABC 123456}} was photocopied.
+Passport {{id:AB1234567}} was scanned at HR.
+SSN {{id:123-45-6789}} was requested for the US payroll.
+Konto: {{id:61 1090 1014 0000 0712 1981 2874}} na przelewy.
+The offer said PLN 150000 gross per year.
+Bonus of EUR 120000 was promised in writing.
+# --- employee ids
+My employee ID was {{emp:E-100234}} on the badge.
+Employee number {{emp:48213}} was used for the payroll portal.
+Numer pracownika: {{emp:PR-5520}}.
+Badge {{emp:EMP-77120}} stopped working.
+Staff ID: {{emp:SA00912}} was on the laptop sticker.
+# --- names: title and relation cues
+My manager {{person:Tomasz Zieliński}} cancelled every one-to-one.
+My boss, {{person:Joanna Kamińska}}, never answered messages.
+My team lead was {{person:Grzegorz Lewandowski}} for the first year.
+Our director {{person:Hartmann}} rarely visited.
+{{person:Anna Wójcik}}, my manager, changed the targets twice.
+Dr. {{person:Weronika Szymańska}} ran the department.
+Mrs {{person:Fitzgerald}} from legal sent the contract.
+Mr {{person:Ostrowski}} told us to stay late.
+Pan {{person:Mazurek}} z działu sprzedaży był niemiły.
+Pani {{person:Barbara Kozłowska}} odmówiła podwyżki.
+Mój szef {{person:Marek Jankowski}} nie rozmawiał z nami.
+Moja przełożona, {{person:Agnieszka Pawlak}}, obiecała awans.
+Z moim kierownikiem {{person:Dariuszem Michalskim}} nie dało się rozmawiać.
+I reported directly to {{person:Elena Voronova}} for two years.
+A guy named {{person:Stefan}} took over the project.
+The VP, {{person:Richard Hale}}, promised a review in January.
+Mój mentor, {{person:Kuba Adamski}}, odszedł pierwszy.
+# --- names: runs and lexicon
+We were led by {{person:Ingrid Solberg}} and later by {{person:Mohamed Farouk}}.
+Ask {{person:Agnieszka}} about the budget.
+{{person:Tomek}} said the review would happen in spring.
+It was {{person:Marcin Kaczmarek}} who decided about the bonuses.
+I got along with {{person:Natalia}}, the rest were hard.
+The decision came from {{person:J. Brandt}} himself.
+Thanks to {{person:Piotr}} the first weeks were fine.
+Spotkałem {{person:Piotra Nowaka}} na korytarzu.
+Rozmawiałem z {{person:Kasią}} o urlopie.
+Pracowałem z {{person:Anną}} i {{person:Markiem}}.
+{{person:Jan van der Meer}} joined as head of delivery.
+Her surname was {{person:Przybylska}} and she was in finance.
+# --- hard negatives: capitalised words, tools, places, roles
+I joined Zephyrix in March and left in September.
+Orbit Suite was the main tool and nobody trained us on it.
+We used Microsoft Teams, Jira and Confluence all day.
+The Warsaw office was closed in June and everyone moved to Kraków.
+Human Resources never replied to the Product Manager.
+The Project Manager changed three times.
+Overall, the culture was fine, but Management was distant.
+On Monday the CEO announced the reorganisation.
+I'm not sure why the Director left.
+In Poland the market was smaller than in Germany.
+Polish and English were both used in meetings.
+Honestly, nothing changed after the survey.
+We ran SQL reports on Excel sheets and Power BI.
+The HR department was understaffed.
+Yes. No. Maybe, I do not know.
+Rok 2023 był trudny dla całej firmy.
+W Warszawie biuro było małe, a w Krakowie jeszcze mniejsze.
+Dział HR nigdy nie odpowiedział na maile.
+Szef działu często zmieniał zdanie.
+Moja umowa była na czas określony.
+Nie dostałem informacji zwrotnej od przełożonego.
+The offer was 5 000 EUR but they paid in PLN.
+Quarter three results were 3 400 and 3 900.
+Meetings were scheduled for 10:30 and 14:00 every day.

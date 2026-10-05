@@ -1,0 +1,67 @@
+# Held-out corpus (synthetic only). Written before the detector was run on it and never used to tune a rule.
+# Markup: {{kind:text}} marks gold PII; kinds: email phone url handle ip id emp person.
+My line manager {{person:Katarzyna Dąbrowska}} never gave me feedback.
+Please write to me at {{email:marta.lis88@mailbox.example}} if you need more detail.
+You can reach me on {{phone:+48 601 234 567}} after six.
+Mój przełożony, {{person:Rafał Czarnecki}}, nigdy nie miał dla nas czasu.
+The onboarding at Zephyrix was chaotic, and Orbit Suite was never explained to me.
+I earned 9 500 PLN gross, but the offer letter said 11 000 - 12 500.
+My employee number was {{emp:EMP-48213}} if that helps you find the file.
+My PESEL is {{id:90010112349}}, which they asked for on day one.
+I typed my PESEL as {{id:90010112342}} on the form and it was never corrected.
+I reported to {{person:Oliver Brandt}} for two years; he was fair.
+Ask {{person:Ewa}} in finance, she knows what happened to the bonus.
+The team lead, Mr {{person:Havlicek}}, shouted at us in meetings.
+My profile is {{url:linkedin.com/in/jan-nowicki-77}} if you want to verify.
+Follow me on {{handle:@kasia_planuje}} for the full story.
+The portal logged me in from {{ip:198.51.100.23}}, which was the office VPN.
+Nobody at HR answered. Human Resources only replied after three weeks.
+W marcu dostałem awans na papierze, ale bez podwyżki.
+Rozmawiałem z {{person:Anną Mazur}} i z {{person:Pawłem Sobczakiem}} o awansie.
+The CEO, {{person:Margaret Oyelaran}}, announced layoffs by email on a Friday.
+HR was represented by {{person:Dominika Rutkowska}} who rarely replied.
+We used Jira, Slack and Confluence daily.
+The company moved to a new office in Warsaw in June.
+There was a culture of overtime; nobody said it out loud, but {{person:Wojtek}} left at five and was frowned upon.
+Call {{phone:22 555 01 79}} for the HR hotline.
+The salary band for my role was 14,000 to 16,000 and I got 12,500.
+My manager's name was {{person:Brzęczyszczykiewicz}}, nobody could pronounce it.
+I worked with {{person:Zuzanna Pietrzak-Lewandowska}} on the migration.
+Sprawdź moje CV na {{url:https://example.org/cv/anna-w}}.
+Her badge was {{emp:ID-7740213}}, I remember because it was on my desk.
+Honestly the worst part was the constant reorganisations.
+Nobody explained the bonus plan, not even {{person:Peter}}.
+{{person:Mike}} from payroll fixed it eventually.
+They compared me to {{person:Maria}} all the time.
+One of the directors, {{person:Lars Eriksson}}, called me at {{phone:0044 7700 900123}}.
+The role description mentioned Python, SQL and Azure, nothing about on-call.
+On 12.03.2024 I resigned; my last day was 30.04.2024.
+Email me: {{email:j.kovacs+exit@corp-mail.example}}
+My ticket number was 4482915.
+Order no. 20240115 was never closed.
+Pani {{person:Halina}} z kadr była bardzo miła.
+The new hire {{person:Yusuf Demir}} quit after a month.
+Gdyby nie {{person:Karolina}}, już dawno bym odszedł.
+Our director {{person:Brandt}} never visited the site.
+The contract said Sp. z o.o. in the header.
+Contact: {{email:hr-team@zephyrix.example}}
+Visit {{url:www.zephyrix.example/careers}} for the job ad.
+A colleague named {{person:Imani}} was promoted instead.
+Reorganisation happened three times in 14 months.
+My mentor was {{person:Sofía Ramírez}} and she was excellent.
+Moja szefowa {{person:Magdalena Wójcik}} ciągle zmieniała priorytety.
+Szef działu, {{person:Bartosz Krawczyk}}, obiecał podwyżkę.
+I asked the recruiter, a woman called {{person:Joanna}}, about the pay range.
+The numbers: revenue grew to 1 200 000 000 and headcount to 3 400.
+Zadzwoń pod {{phone:512 900 321}}, to mój numer.
+W Excelu mieliśmy wszystko, nawet harmonogram urlopów.
+Her IBAN {{id:PL61 1090 1014 0000 0712 1981 2874}} was on the form.
+My manager, Mr. {{person:Okonkwo}}, was often absent.
+Thanks to {{person:Aisha}} and {{person:Dmitri}} the first month was bearable.
+{{person:Karol}} z IT naprawił mi laptopa.
+The onboarding buddy ({{person:Priya Nair}}) was on leave.
+Skontaktuj się z {{person:Wiolettą Kaczmarek}} w sprawie umowy.
+We had weekly one-to-ones, but they were cancelled constantly.
+I never got a laptop until week three. Then the VPN failed.
+The Slack channel #general was dead after layoffs.
+Kontakt: {{handle:@zephyrix_hr}}
