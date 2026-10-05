@@ -7,7 +7,7 @@ namespace ExitInterviewAgent.Providers;
 
 /// <summary>
 /// A thin client for Ollama's native <c>POST /api/chat</c> (non-streaming): system, user and assistant text in, text and token
-/// counts out. Hand-written because the maintained Microsoft package for Ollama is deprecated and OllamaSharp would add a
+/// counts out. Hand-written because the Microsoft package for Ollama is deprecated (its NuGet page recommends OllamaSharp) and OllamaSharp would add a
 /// second dependency tree for one endpoint ([ADR-0032](../../docs/adr/0032-provider-packages-and-adapters.md)). It speaks only to the
 /// <see cref="HttpClient"/> it is given (which carries the retry policy) and never reads an error body.
 /// </summary>

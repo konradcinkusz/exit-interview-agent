@@ -26,7 +26,7 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Second JWT scheme for MCP (scope-enforced, RFC 9728 metadata, authservice client wired in the AppHost), BFF refresh rotation and consent step, account-deletion semantics, security headers | **Implemented** (T2, [ADR-0012](docs/adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)..[0014](docs/adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)). Not run here: Claude completing the flow, the `v0.3.4` image |
 | Interview agent core (protocol, state machine, roles, PII guard, quote step, tracing seam), scripted mock model, eight simulated personas, offline CLI demo | **Implemented** (T4, [ADR-0022](docs/adr/0022-interview-agent-core.md) to [0026](docs/adr/0026-cli-project-and-ci-artifacts.md); design in [interview-agent.md](docs/architecture/interview-agent.md)). The mock is a test seam, not a quality baseline |
 | Ingest, ledger, receipt-code deletion, submission tickets, `EmploymentVerifier` mock | Planned (T5) |
-| Model providers behind `IChatClient` and PII-free tracing | Planned (T6) |
+| Model providers behind `IChatClient` (Anthropic API key, OpenAI-compatible endpoint, Ollama), interactive `interview` CLI, disclosure, retries and budgets, PII-free OpenTelemetry | **Implemented** (T6, [ADR-0032](docs/adr/0032-provider-packages-and-adapters.md) to [0036](docs/adr/0036-cli-interview-and-providers-commands.md); design in [providers.md](docs/architecture/providers.md)). **Not run live**: no provider was called, see [limits](#run-it-with-your-own-model) |
 | Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
 | MCP adapter | Planned (T8) |
 | Web panel features: own submissions, receipt-code deletion, tickets (consent step and account deletion exist since T2) | Planned (T9) |
@@ -34,13 +34,13 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | CLI submission with a ticket | Planned (T11) |
 | Security review, release gate, results write-up | Planned (T12) |
 
-The interview agent runs offline against simulated personas with a scripted mock model ([Try it offline](#try-it-offline)); it has **no real model provider, no submission and no interactive interviewee yet**, so no real interview can happen. Nothing is deployed, and no real person's data is processed anywhere.
+The interview agent runs offline against simulated personas with a scripted mock model ([Try it offline](#try-it-offline)); it can also run with your own model ([Run it with your own model](#run-it-with-your-own-model)), but it has **no submission yet**. Nothing is deployed, and this project processes no real person's data anywhere: it has no server that receives a transcript.
 
 ## Non-goals, stated up front
 
 - **Nothing is deployed, and nothing will be in this phase.** Everything is built and tested locally. The Fly.io files and the `flyio*.yml` workflows are generated and syntax-checked, never triggered: no `v*` tag, no Fly app, no GitHub secret. The repository is private; making it public is the owner's decision.
 - **No Claude subscription tokens and no GitHub Copilot as a model backend.** See [Supported model access](#supported-model-access) for what was read and what could not be verified.
-- **No real interviews and no real personal data.** Simulated personas only.
+- **No real interviews are offered or supported, and no real personal data is processed by this project.** The shipped personas are simulated. The CLI can technically hold a conversation with you; read [the limits](#run-it-with-your-own-model) before typing anything real.
 - No blockchain, tokens or DAO; no public publication of individual reviews (aggregates only above a minimum count); no real employment verification (an interface and a mock, real verification is an open problem).
 
 ## Supported model access
@@ -49,9 +49,9 @@ The project hosts no model: you bring the compute.
 
 | Access | Supported | Notes |
 |---|---|---|
-| Anthropic API key | **Yes** (planned, T6) | Anthropic's Commercial Terms permit powering products with the API; whether bring-your-own-key distribution is addressed was not read. Employment-related uses carry Anthropic's high-risk requirements: see [legal considerations §1](docs/legal/CONSIDERATIONS.md#1-model-provider-terms-what-we-may-and-may-not-support) |
-| OpenAI-compatible endpoint | **Yes** (planned, T6) | The terms are those of whoever hosts the endpoint. OpenAI's own terms could **not be read** (blocked) and are *Unverified* |
-| Local models (Ollama) | **Yes** (planned, T6) | Ollama is MIT-licensed (read). The licence of the weights you download governs their use; none are bundled |
+| Anthropic API key | **Yes** (T6; not run live) | Anthropic's Commercial Terms permit powering products with the API; whether bring-your-own-key distribution is addressed was not read. Employment-related uses carry Anthropic's high-risk requirements: see [legal considerations §1](docs/legal/CONSIDERATIONS.md#1-model-provider-terms-what-we-may-and-may-not-support) |
+| OpenAI-compatible endpoint | **Yes** (T6; not run live) | The terms are those of whoever hosts the endpoint. OpenAI's own terms could **not be read** (blocked) and are *Unverified* |
+| Local models (Ollama) | **Yes** (T6; not run live) | Ollama is MIT-licensed (read). The licence of the weights you download governs their use; none are bundled |
 | Claude Free/Pro/Max subscription tokens | **No** | Anthropic's own documentation says third parties may not offer Claude.ai login or route requests through Free, Pro or Max credentials (read 2026-10-05) |
 | GitHub Copilot as a backend | **No** | Not because it was found to be forbidden: GitHub's terms for this use **could not be verified** (2026-10-05) |
 | Claude as an MCP host (mode A) | **Yes** (planned, T8) | You sign in to Claude with Anthropic's own client; we never see a Claude credential. The host sees your whole interview ([privacy at a glance](#privacy-at-a-glance)) |
@@ -110,10 +110,51 @@ dotnet publish src/ExitInterviewAgent.Cli -c Release -r linux-x64 --self-contain
 out/linux-x64/exit-interview demo --persona talkative --seed 1
 ```
 
+## Run it with your own model
+
+The project hosts no model. `exit-interview interview` runs a real interview in your terminal with **your API key** (Anthropic, or any OpenAI-compatible endpoint) or **a local model** (Ollama). The transcript stays in memory on your machine; only your model provider sees it. Nothing is submitted anywhere in this version.
+
+**Before you start, read this:**
+
+- **Your provider sees the whole conversation** (every question and every answer), under *your* account's terms, retention and training rules. This project has not verified those for you. The CLI says so and asks you to type `yes` before the first call to an external provider (`--yes-i-understand` for scripts). A model on your own machine gets a shorter notice and no prompt.
+- **This is not a way to run real interviews.** No privacy policy, lawful basis, working deletion or lawyer's review exists yet ([legal §4](docs/legal/CONSIDERATIONS.md#4-why-real-interviews-are-out-of-scope)). Use invented answers and a fictional employer while the project is in this state. Nothing here is legal advice.
+- **Ctrl-C or Ctrl-D stops the interview and discards everything**: no record, no transcript, nothing written.
+- **Keys come from environment variables only.** There is no `--api-key` flag, and a config file with a key in it is refused. A key is never printed, logged, traced or put in an error.
+- **Not supported, on purpose:** Claude Free/Pro/Max subscription credentials (Anthropic's documentation says third parties may not route requests through them; naming `CLAUDE_CODE_OAUTH_TOKEN` as a key source is refused) and GitHub Copilot (its terms for this use **could not be verified**; that is why there is no adapter, not a finding that it is prohibited). Limit: no recognisable format for a subscription token is documented, so one pasted into `ANTHROPIC_API_KEY` is not recognised here and is left to the API to reject.
+
+```bash
+# What can run, with no network call:
+dotnet run --project src/ExitInterviewAgent.Cli -- providers
+
+# Anthropic API (your key, in the environment; pick a model id from your own account):
+export ANTHROPIC_API_KEY=...        # from the Anthropic Console, never a Claude subscription token
+dotnet run --project src/ExitInterviewAgent.Cli -- providers ping --provider anthropic --model <model-id>      # one minimal live request, only when you run it
+dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider anthropic --model <model-id> --tenure 1y_3y --employer acme-example --out ./interview-out
+
+# Any OpenAI-compatible endpoint (hosted, or a local gateway; the base URL includes /v1):
+export OPENAI_API_KEY=...           # optional for a gateway you point at yourself
+dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider openai-compatible --base-url https://gateway.example/v1 --model <model-id> --tenure 1y_3y
+
+# A local model with Ollama (no key; nothing leaves your machine through this program):
+ollama pull <model>                 # the licence of the weights you pull governs their use
+dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider ollama --model <model> --num-ctx 8192 --tenure 1y_3y
+
+# From a script (confirms the notice without a prompt; use only if you have read it):
+dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider anthropic --model <model-id> --tenure 1y_3y --yes-i-understand
+```
+
+`--out <dir>` writes `record.json` only if a record was produced and validated; `--save-transcript` (with `--out`) also writes `transcript.txt`. Without `--out` nothing is written. The record is printed with its validation result either way. Tenure is asked for if `--tenure` is missing (`lt_6m`, `6m_1y`, `1y_3y`, `3y_5y`, `5y_10y`, `gt_10y`).
+
+Settings come from flags, then environment variables (`EXIT_INTERVIEW_PROVIDER`, `EXIT_INTERVIEW_MODEL`, `EXIT_INTERVIEW_BASE_URL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_HOST`, and more), then an optional config file with no secrets in it. The full table, the trust boundary, failure behaviour and how to add a provider: [`docs/architecture/providers.md`](docs/architecture/providers.md).
+
+Cost and limits: there is a hard per-interview budget (tokens and calls, derived from the protocol's own budget; `--max-tokens` lowers it) and retries with backoff on rate limits and server errors. **No price is built in** (a price list cannot be verified from here): give `--price-in` and `--price-out` (per million tokens) and `--max-cost` if you want a cost figure or ceiling. OpenTelemetry export is **off** unless you set `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` or an OTLP endpoint; prompts and replies are never exported and there is no switch for it.
+
+**What was and was not verified:** the adapters, retries, refusals, disclosure, the Ctrl-C/EOF behaviour and the leak canary (key, headers, prompt text, error bodies) are tested against fakes in CI. **No call to a real provider has been made** (no key and a restricted network where this was built); the optional live smoke tests (`Category=Live`) skip unless you set a key and `EXIT_INTERVIEW_LIVE_MODEL`, and never run in CI. **Nothing here measures how well a real model interviews**: that is the evaluation harness's job (T7) and is not done.
+
 ## Test it
 
 ```bash
-dotnet build -warnaserror && dotnet test                    # service, kernel guards, records, PII detector, agent, personas, CLI, architecture tests
+dotnet build -warnaserror && dotnet test                    # service, kernel guards, records, PII detector, agent, personas, providers, CLI, architecture tests
 scripts/check-kernel-size.sh                                # the shared-kernel ceiling
 cd web && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build
 cd ../tests/e2e && pnpm install --frozen-lockfile && npx playwright install --with-deps chromium && pnpm test
@@ -133,7 +174,8 @@ CI runs the same (plus container image builds and workflow linting): [`.github/w
 | `src/ExitInterviewAgent.Records`, `src/ExitInterviewAgent.Privacy` | the record schema, validation and quote fidelity ([record schema](docs/architecture/record-schema.md)); the deterministic PII detector ([PII detector](docs/privacy/pii-detector.md)) |
 | `src/ExitInterviewAgent.Agent` | the interview agent core: protocol, state machine, roles, PII guard, quote step, tracing seam, scripted mock model ([interview agent](docs/architecture/interview-agent.md), [trace schema](docs/eval/TRACE-SCHEMA.md)) |
 | `src/ExitInterviewAgent.Personas` | the simulated interviewees: data files, schema, seeded simulator |
-| `src/ExitInterviewAgent.Cli` | `exit-interview`: the offline demo |
+| `src/ExitInterviewAgent.Providers` | model providers behind `IChatClient`: Anthropic (official SDK), OpenAI-compatible, Ollama; transport policy, budget, disclosure, telemetry ([providers](docs/architecture/providers.md)) |
+| `src/ExitInterviewAgent.Cli` | `exit-interview`: the offline demo, the interactive interview with your own model, `providers` |
 | `tests/` | xUnit projects mirroring the sources; Playwright journeys in `tests/e2e` |
 | `flyio/` | generated Fly.io topology, secrets and cost analysis (not deployed) |
 | `docs/` | [architecture and deviation register](docs/architecture/00-ARCHITECTURE.md), [ADRs](docs/adr/), [UI/UX and backlog](docs/ux/UI-UX.md), diagrams; [privacy design](docs/privacy/DESIGN.md), [threat model](docs/security/THREAT-MODEL.md), [legal considerations](docs/legal/CONSIDERATIONS.md), [open problems](docs/OPEN-PROBLEMS.md), [evaluation methodology](docs/eval/METHODOLOGY.md) |

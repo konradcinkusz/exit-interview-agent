@@ -59,20 +59,33 @@ public sealed class FakeBackend(ProviderKind kind) : HttpMessageHandler
         {
             ProviderKind.Anthropic => JsonSerializer.Serialize(new
             {
-                id = "msg_fake", type = "message", role = "assistant", model = "fake-model",
-                content = new[] { new { type = "text", text } }, stop_reason = "end_turn", stop_sequence = (string?)null,
+                id = "msg_fake",
+                type = "message",
+                role = "assistant",
+                model = "fake-model",
+                content = new[] { new { type = "text", text } },
+                stop_reason = "end_turn",
+                stop_sequence = (string?)null,
                 usage = new { input_tokens = input, output_tokens = output },
             }),
             ProviderKind.OpenAiCompatible => JsonSerializer.Serialize(new
             {
-                id = "chatcmpl-fake", @object = "chat.completion", created = 1, model = "fake-model",
+                id = "chatcmpl-fake",
+                @object = "chat.completion",
+                created = 1,
+                model = "fake-model",
                 choices = new[] { new { index = 0, message = new { role = "assistant", content = text }, finish_reason = "stop" } },
                 usage = new { prompt_tokens = input, completion_tokens = output, total_tokens = input + output },
             }),
             _ => JsonSerializer.Serialize(new
             {
-                model = "fake-model", created_at = "2026-10-05T12:00:00Z", message = new { role = "assistant", content = text },
-                done = true, done_reason = "stop", prompt_eval_count = input, eval_count = output,
+                model = "fake-model",
+                created_at = "2026-10-05T12:00:00Z",
+                message = new { role = "assistant", content = text },
+                done = true,
+                done_reason = "stop",
+                prompt_eval_count = input,
+                eval_count = output,
             }),
         };
         return Json(HttpStatusCode.OK, json);

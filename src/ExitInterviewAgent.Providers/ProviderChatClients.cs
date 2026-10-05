@@ -28,32 +28,32 @@ public static class ProviderChatClients
         switch (settings.Kind)
         {
             case ProviderKind.Anthropic:
-            {
-                var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, AuthScheme.XApiKey, runtime);
-                // MaxRetries = 0: retries belong to the transport policy. ApiKey is explicit, so no environment or profile credential is resolved.
-                var client = new AnthropicClient { ApiKey = key!, BaseUrl = settings.BaseUrl.AbsoluteUri.TrimEnd('/'), HttpClient = http, MaxRetries = 0, Timeout = sdkTimeout };
-                return new ProviderChatClient(client.AsIChatClient(settings.Model, 1024), settings, runtime, budget, http);
-            }
-            case ProviderKind.OpenAiCompatible:
-            {
-                var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, key is null ? AuthScheme.None : AuthScheme.Bearer, runtime);
-                var options = new OpenAIClientOptions
                 {
-                    Endpoint = settings.BaseUrl,
-                    Transport = new HttpClientPipelineTransport(http),
-                    RetryPolicy = new ClientRetryPolicy(0),
-                    NetworkTimeout = sdkTimeout,
-                };
-                // The SDK insists on a credential object; with no key a placeholder is used and the transport removes the header.
-                var chat = new OpenAIClient(new ApiKeyCredential(key ?? "unused"), options).GetChatClient(settings.Model).AsIChatClient();
-                return new ProviderChatClient(chat, settings, runtime, budget, http);
-            }
+                    var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, AuthScheme.XApiKey, runtime);
+                    // MaxRetries = 0: retries belong to the transport policy. ApiKey is explicit, so no environment or profile credential is resolved.
+                    var client = new AnthropicClient { ApiKey = key!, BaseUrl = settings.BaseUrl.AbsoluteUri.TrimEnd('/'), HttpClient = http, MaxRetries = 0, Timeout = sdkTimeout };
+                    return new ProviderChatClient(client.AsIChatClient(settings.Model, 1024), settings, runtime, budget, http);
+                }
+            case ProviderKind.OpenAiCompatible:
+                {
+                    var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, key is null ? AuthScheme.None : AuthScheme.Bearer, runtime);
+                    var options = new OpenAIClientOptions
+                    {
+                        Endpoint = settings.BaseUrl,
+                        Transport = new HttpClientPipelineTransport(http),
+                        RetryPolicy = new ClientRetryPolicy(0),
+                        NetworkTimeout = sdkTimeout,
+                    };
+                    // The SDK insists on a credential object; with no key a placeholder is used and the transport removes the header.
+                    var chat = new OpenAIClient(new ApiKeyCredential(key ?? "unused"), options).GetChatClient(settings.Model).AsIChatClient();
+                    return new ProviderChatClient(chat, settings, runtime, budget, http);
+                }
             case ProviderKind.Ollama:
-            {
-                var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, key is null ? AuthScheme.None : AuthScheme.Bearer, runtime);
-                if (key is not null) http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Bearer " + key);
-                return new ProviderChatClient(new OllamaChatClient(http, settings.BaseUrl, settings.Model, settings.NumCtx), settings, runtime, budget, http);
-            }
+                {
+                    var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, key is null ? AuthScheme.None : AuthScheme.Bearer, runtime);
+                    if (key is not null) http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Bearer " + key);
+                    return new ProviderChatClient(new OllamaChatClient(http, settings.BaseUrl, settings.Model, settings.NumCtx), settings, runtime, budget, http);
+                }
             default:
                 throw new ArgumentException("The mock model is not a provider; use ScriptedChatClient.", nameof(settings));
         }

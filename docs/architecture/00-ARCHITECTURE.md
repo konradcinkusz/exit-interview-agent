@@ -21,11 +21,12 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `src/ExitInterviewAgent.Privacy` | deterministic PII detector and masker ([pii-detector](../privacy/pii-detector.md)) | 0 |
 | `src/ExitInterviewAgent.Agent` | the interview agent core: protocol, state machine, roles, PII guard, quote step, tracing seam, scripted mock model ([interview-agent](interview-agent.md)) | 3 (model abstractions, logging abstractions, JSON-Schema validator) |
 | `src/ExitInterviewAgent.Personas` | seeded, data-driven interviewee simulators (ADR-0024) | 1 (JSON-Schema validator) |
-| `src/ExitInterviewAgent.Cli` | `exit-interview`, the offline demo (ADR-0026) | 0 |
+| `src/ExitInterviewAgent.Providers` | model providers behind `IChatClient`: Anthropic SDK, OpenAI-compatible, Ollama; transport policy, budget, disclosure, provider telemetry ([providers](providers.md), ADR-0032..0035) | 4 (Anthropic SDK, Microsoft's OpenAI adapter, model abstractions, logging abstractions) |
+| `src/ExitInterviewAgent.Cli` | `exit-interview`: offline demo (ADR-0026), interactive interview and `providers` (ADR-0036) | 3 (OpenTelemetry SDK, console exporter, OTLP exporter) |
 | `schemas/` | published, versioned schemas: the record (v1 immutable once released, ADR-0009), the extractor output, the persona | n/a |
 | `tests/ExitInterviewAgent.Records.Tests`, `tests/ExitInterviewAgent.Privacy.Tests` | xUnit; golden fixtures; architecture tests; PII evaluation corpus | 3 each |
 | `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; architecture tests | 4 |
-| `tests/ExitInterviewAgent.Agent.Tests`, `tests/ExitInterviewAgent.Personas.Tests`, `tests/ExitInterviewAgent.Cli.Tests` | xUnit; state machine, per-rule and per-persona end-to-end tests, the canary trace test, architecture tests | 3 each |
+| `tests/ExitInterviewAgent.Agent.Tests`, `tests/ExitInterviewAgent.Personas.Tests`, `tests/ExitInterviewAgent.Cli.Tests`, `tests/ExitInterviewAgent.Providers.Tests` | xUnit; state machine, per-rule and per-persona end-to-end tests, the canary trace test (extended to every provider client), fake-HTTP adapter tests on a fake clock, architecture tests | 3 each |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
 | `tests/e2e` | Playwright journeys against the production artifact | 1 runtime, 2 dev |
 
@@ -40,7 +41,7 @@ them (REPO-BASELINE §4b).
 `E2E-ACCEPTANCE-TESTING`, `README-BADGES`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
-`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. (Not loaded here, loaded by the task that needs them:
+`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The providers task (T6, ADR-0032..0036) loaded the reference architecture (P5, P8, P10, P15), `AI-EVALS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and `SERVICE-API-PATTERNS`. (Not loaded here, loaded by the task that needs them:
 `open-source-release`, `research-documentation`.)
 
 ## Where each principle lives
@@ -60,7 +61,8 @@ architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded
 | P12 tag-driven CI/CD | `.github/workflows/flyio.yml` (never triggered) |
 | P13 test at the layer with the logic | service tests (InMemory), Vitest for BFF logic, Playwright for the journey |
 | P14 docs in the repo | this directory; README claims are checked by `scripts/check-doc-links.py` and review |
-| P15 observability | OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; probes filtered from traces; no scopes exported |
+| P15 observability | OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; probes filtered from traces; no scopes exported. The CLI exports only when asked (`OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER`, an OTLP endpoint), only the agent and provider sources, never content (ADR-0035) |
+| P10 extensibility through interface + registration | a model provider is an `IChatClient` plus a `ProviderCatalog` row and one `case` in `ProviderChatClients.Create` ([providers](providers.md#how-to-add-a-provider)) |
 
 ## Deviation register
 
@@ -73,6 +75,8 @@ Every row carries a date and a reason. An acknowledged deviation is a decision; 
 | 2026-10-05 | CodeQL results kept as run artifacts, not uploaded to code scanning | `REPO-BASELINE` §1 | private repo; GHAS not assumed; flip `CODEQL_UPLOAD` when public | ADR-004 |
 | 2026-10-05 | No PDF overview track (`docs/papers/`, `build-overview-pdf.yml`) | `INIT-GENERIC-TEMPLATE` §9 (optional) | nothing hands anyone a PDF yet; the results write-up is T12 | none needed |
 | 2026-10-05 | The CLI references `Agent` and `Personas`, not `Contracts` only | ADR-0002 (`cli` row) | the CLI is where the agent runs; `Contracts` holds DTOs that cross a service boundary and the demo crosses none; T11 adds the `Contracts` reference for submission | ADR-0026 |
+| 2026-10-05 | The Ollama client is hand-written, not `OllamaSharp` (the NuGet-recommended package) | brief §4 ("verify the package choice") | one endpoint; avoids a second dependency tree on an older abstractions line; the Microsoft package is deprecated; trigger: tools, thinking mode or model management | ADR-0032 |
+| 2026-10-05 | The Agent project gained a failure-code seam (`IModelFailure`, `ModelCallFailedException.IsFatal`) and the runner rethrows fatal model failures | ADR-0023 (T6 adds providers without touching the agent) | a wrong key must stop an interview at the first call, not after a fallback-worded one; the seam carries a code, never a message | ADR-0034 |
 | 2026-10-05 | `GET /health` is readiness (503 until the schema is applied) and carries the integration list | P4/P8 | one request answers "what is live?"; Fly checks `/health` with a 60 s grace period | this table |
 
 ## Known limits of the scaffold (not deviations)

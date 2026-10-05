@@ -29,7 +29,6 @@ public static class ProviderTelemetry
     public static class Events
     {
         public const string Retry = "provider.retry";
-        public const string BudgetExceeded = "provider.budget.exceeded";
     }
 
     public static class Attr
