@@ -24,6 +24,15 @@ export function authConfig(env: Env = process.env): AuthConfig {
   };
 }
 
+/**
+ * The public https URL of the MCP endpoint (interview-service `Mcp:ResourceUrl`), or undefined when the Claude connector is
+ * not set up in this environment (P8). Shown on the "Connect your AI client" page; not a secret.
+ */
+export function mcpResourceUrl(env: Env = process.env): string | undefined {
+  const url = trimSlash(env.MCP_RESOURCE_URL);
+  return url && /^https:\/\//.test(url) ? url : undefined;
+}
+
 export const identityConfigured = (cfg: AuthConfig) => Boolean(cfg.url && cfg.issuer && cfg.audience);
 
 /** The one backend today. A second service adds a row here and a prefix in `routeFor` (lib/proxy-routing.ts). */

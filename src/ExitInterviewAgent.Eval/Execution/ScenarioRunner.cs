@@ -89,7 +89,8 @@ public static partial class ScenarioRunner
             return scenario.Canary ? text + " " + Canary : text;
         };
 
-        IChatClient model = profile.Factory!();
+        using var client = profile.Factory!();
+        IChatClient model = client;
         if (scenario.Faults is { Count: > 0 }) model = new FaultInjectingChatClient(model, scenario.Faults);
 
         using var recorder = new TraceRecorder();

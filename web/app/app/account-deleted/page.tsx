@@ -1,14 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { DELETION_FACTS } from "@/lib/copy";
+import { m } from "@/lib/messages";
+
+const A = m.accountDeleted;
+const D = m.account.deletion;
+export const metadata: Metadata = { title: A.title };
 
 export default function AccountDeletedPage() {
   return (
     <>
-      <h1>Your account is closed</h1>
-      <p data-testid="deleted-removes">{DELETION_FACTS.removes}</p>
-      <p data-testid="deleted-not-submissions">{DELETION_FACTS.notSubmissions}</p>
-      <p data-testid="deleted-receipt">{DELETION_FACTS.receipt}</p>
-      <p><Link href="/">Back to the start</Link></p>
+      <h1>{A.title}</h1>
+      <p data-testid="deleted-removes">{D.removes}</p>
+      <p data-testid="deleted-not-submissions">{D.notSubmissions}</p>
+      <p data-testid="deleted-receipt">{D.receipt}</p>
+      <p><Link href="/delete-submission">{A.deleteSubmission}</Link></p>
+      <p><Link href="/">{A.back}</Link></p>
     </>
   );
 }

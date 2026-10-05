@@ -42,6 +42,7 @@ export default defineConfig({
         AUTH_AUDIENCE: "e2e-audience",
         INTERVIEW_SERVICE_URL: `http://localhost:${STUB_PORT}`,
         SESSION_COOKIE_SECURE: "false",
+        MCP_RESOURCE_URL: "https://mcp.example.invalid/mcp",
       },
       url: `http://localhost:${WEB_PORT}/healthz`,
       reuseExistingServer: !ci,

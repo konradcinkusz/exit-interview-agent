@@ -173,7 +173,7 @@ public sealed class InterviewRunner
                     ? await _prober.ProbeAsync(request, ct).ConfigureAwait(false)
                     : await _interviewer.AskAsync(request, ct).ConfigureAwait(false);
             }
-            catch (ModelCallFailedException)
+            catch (ModelCallFailedException e) when (!e.IsFatal)
             {
                 proposed = null;
             }
@@ -250,7 +250,7 @@ public sealed class InterviewRunner
             span.Set(Attr.Attempts, attempt);
             string text;
             try { text = await _extractor.ExtractAsync(transcript, errors, ct).ConfigureAwait(false); }
-            catch (ModelCallFailedException)
+            catch (ModelCallFailedException e) when (!e.IsFatal)
             {
                 errors = ["extractor.model_error"];
                 span.Set(Attr.SchemaValid, false);

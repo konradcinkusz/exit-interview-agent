@@ -36,6 +36,16 @@
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
   </ItemGroup>
+  <ItemGroup Label="Model providers (ADR-0032)">
+    <!-- Official Anthropic .NET SDK (MIT, publisher Anthropic); it ships its own IChatClient adapter. -->
+    <PackageVersion Include="Anthropic" Version="12.53.0" />
+    <!-- Microsoft's IChatClient adapter over the official OpenAI .NET SDK (transitive OpenAI 2.14.0, MIT). -->
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
+  </ItemGroup>
+  <ItemGroup Label="CLI telemetry export (ADR-0035)">
+    <PackageVersion Include="OpenTelemetry" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.19.1" />
+  </ItemGroup>
   <ItemGroup Label="Evaluation harness (ADR-0037)">
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>

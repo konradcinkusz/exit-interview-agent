@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAccessToken } from "@/lib/jwt";
+import { isSameOriginRequest, isStateChanging } from "@/lib/csrf";
 import { authConfig } from "@/lib/runtime-config";
+import { contentSecurityPolicy, generateNonce } from "@/lib/security-headers";
 import { ACCESS_COOKIE, CONSENT_COOKIE, REFRESHED_COOKIE, REFRESH_COOKIE, clearSession } from "@/lib/session";
 
 // The edge gate (Next 16's `proxy.ts`, formerly `middleware.ts`). Not to be confused with the BFF
@@ -13,24 +15,63 @@ import { ACCESS_COOKIE, CONSENT_COOKIE, REFRESHED_COOKIE, REFRESH_COOKIE, clearS
 //  - consent before anything else: a verified session without the consent marker may only reach the consent step,
 //    the auth routes and the public pages. authservice holds the authoritative acceptance record.
 
+//
+// Three more jobs on EVERY response that goes through here (ADR-0047, ADR-0048):
+//  - a per-request nonce Content-Security-Policy, passed to Next on the request so it nonces its own bootstrap scripts;
+//  - `Cache-Control: no-store` on everything except the two cacheable probes, because any page or API answer can carry
+//    account data, a ticket or a receipt outcome;
+//  - a same-origin check on every state-changing request (CSRF, in addition to SameSite=Strict cookies).
+
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
+  "/register",
+  "/verify-email",
+  "/connect",
+  "/privacy",
+  "/delete-submission",
   "/healthz",
   "/api/config",
   "/api/auth/login",
+  "/api/auth/two-factor",
+  "/api/auth/register",
+  "/api/auth/verify-email",
+  "/api/auth/resend-verification",
+  "/api/auth/consent-versions",
   "/api/auth/session",
   "/api/auth/refresh",
+  "/api/receipts",
   "/account-deleted",
 ]);
+
+/** Probes and runtime config set their own short cache lifetime; everything else is never stored. */
+const CACHEABLE = new Set(["/healthz", "/api/config"]);
 
 /** Reachable by a signed-in account that has not (yet) accepted the current versions. */
 const CONSENT_EXEMPT = new Set(["/consent"]);
 const isConsentExempt = (pathname: string) => CONSENT_EXEMPT.has(pathname) || pathname.startsWith("/api/auth/");
 
 export async function proxy(request: NextRequest) {
+  const nonce = generateNonce();
+  const csp = contentSecurityPolicy(nonce, process.env.NODE_ENV === "production");
+  // Next reads the nonce from the CSP header of the REQUEST and stamps it on the scripts it renders.
+  const forwarded = new Headers(request.headers);
+  forwarded.set("content-security-policy", csp);
+  forwarded.set("x-nonce", nonce);
+
+  const response = await gate(request, () => NextResponse.next({ request: { headers: forwarded } }));
+  response.headers.set("Content-Security-Policy", csp);
+  if (!CACHEABLE.has(request.nextUrl.pathname)) response.headers.set("Cache-Control", "no-store");
+  return response;
+}
+
+async function gate(request: NextRequest, pass: () => NextResponse): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
-  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+
+  if (pathname.startsWith("/api/") && isStateChanging(request.method) && !isSameOriginRequest(request.headers)) {
+    return NextResponse.json({ error: "cross_origin_request" }, { status: 403 });
+  }
+  if (PUBLIC_PATHS.has(pathname)) return pass();
 
   const cfg = authConfig();
   const isApi = pathname.startsWith("/api/");
@@ -44,14 +85,14 @@ export async function proxy(request: NextRequest) {
       consent.search = `?redirect=${encodeURIComponent(pathname + search)}`;
       return NextResponse.redirect(consent);
     }
-    return NextResponse.next();
+    return pass();
   }
 
   // The access cookie lapsed but the session may be alive: rotate through the refresh route, once per navigation.
   const hasRefresh = Boolean(request.cookies.get(REFRESH_COOKIE)?.value);
   if (hasRefresh && !request.cookies.get(REFRESHED_COOKIE)?.value) {
     // API paths pass through: the proxy route handler and the auth routes rotate for themselves.
-    if (isApi) return NextResponse.next();
+    if (isApi) return pass();
     const refresh = request.nextUrl.clone();
     refresh.pathname = "/api/auth/refresh";
     refresh.search = `?redirect=${encodeURIComponent(pathname + search)}`;

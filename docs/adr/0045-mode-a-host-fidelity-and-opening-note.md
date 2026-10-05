@@ -18,4 +18,4 @@ The protocol's opening (R01) says "the full conversation is not stored". True of
 ## Consequences
 
 - Mode A has the weakest privacy and fidelity guarantees of the three modes; README and connect guide say so.
-- The note is part of the prompt-text hash in the snapshot; legal review of its wording is open (`docs/OPEN-PROBLEMS.md`, OP-15).
+- The note is part of the prompt-text hash in the snapshot; legal review of its wording is open (`docs/OPEN-PROBLEMS.md`, OP-18).

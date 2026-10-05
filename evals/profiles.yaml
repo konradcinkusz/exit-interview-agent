@@ -1,9 +1,15 @@
 # Model profiles for the evaluation harness (docs/eval/README.md, "Plugging in model providers").
 #
 # `mock` is built into the harness and is not listed here. A profile here names a PROVIDER; the harness does not construct providers itself. The
-# T6 providers project registers one factory per provider name (ProviderFactories.Register) and the eval tool's Program calls that registration.
-# Until then every profile below reports `skipped:no-provider`; with a factory but without its environment it reports `skipped:no-credential`.
-# Neither is ever a pass, and the report says which.
+# Providers project (T6, ADR-0032) supplies one factory per provider name (anthropic, openai-compatible, ollama); the eval tool's Program registers
+# them through ProviderRegistration. Without its environment a profile reports `skipped:no-credential`; an unregistered provider name reports
+# `skipped:no-provider`. Neither is ever a pass, and the report says which.
+#
+# `requires_env` lists KEY variables only, and a provider profile may list at most one: its value is the API key (read from nowhere else, never
+# logged). A variable that holds a Claude subscription token (CLAUDE_CODE_OAUTH_TOKEN) is refused. These names are deliberately the EVAL_ ones for
+# the keyed gateway so that a nightly run never picks up a developer's own key by accident; the anthropic profile uses the provider's own
+# ANTHROPIC_API_KEY, as the CLI does. The endpoint variable is optional; the base-URL policy of the CLI applies (https for a keyed remote, no
+# embedded credentials, no Copilot host).
 #
 # No model identifier and no secret is committed. The model to test is taken from an environment variable, so the identifier is pinned by whoever
 # runs the nightly (and recorded in the report, together with the model the service says actually answered).

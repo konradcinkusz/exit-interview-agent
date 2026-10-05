@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Model providers behind IChatClient: Anthropic API key, OpenAI-compatible endpoint, Ollama (ADR-0032). The only project that talks to a model over the network; metadata-only telemetry (ADR-0034). -->
+  <ItemGroup>
+    <PackageReference Include="Anthropic" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Providers.Tests" />
+  </ItemGroup>
+</Project>
