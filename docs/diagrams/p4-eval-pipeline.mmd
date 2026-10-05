@@ -1,0 +1,12 @@
+flowchart LR
+    SC["scenariusze (YAML)<br/>evals/scenarios/*"] --> RUN["runner<br/>(scenariusz, ziarno, profil)"]
+    PER["persony<br/>(skryptowe wejścia)"] --> RUN
+    RUN -->|"IChatClient"| MOCK["profil mock<br/>(skryptowy model)"]
+    RUN --> ART["artefakt: transkrypt,<br/>ślad OTel, rekord"]
+    ART --> L1["warstwa 1<br/>asercje deterministyczne<br/>C-01..C-12, B-01..B-10"]
+    ART -.-> L2["warstwa 2<br/>sędzia LLM R-01, R-02<br/>pominięty bez klucza"]
+    L1 --> GATE{"bramka<br/>C-xx = 100%<br/>metryki vs baseline.json"}
+    L2 -.->|"nic nie blokuje"| REP["raport<br/>report/report.json, report.md"]
+    GATE --> REP
+    LAB["etykiety ręczne<br/>evals/labels/*"] --> CAL["kalibracja<br/>kappa, bootstrap"]
+    CAL --> REP
