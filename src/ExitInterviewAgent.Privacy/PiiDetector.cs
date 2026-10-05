@@ -5,7 +5,7 @@ namespace ExitInterviewAgent.Privacy;
 /// <summary>
 /// Deterministic PII detector and masker: regular expressions, checksums and language heuristics. No model, no
 /// network, no I/O. The same text and options always give the same findings. Findings carry kinds and offsets only.
-/// A <see cref="System.Text.RegularExpressions.RegexMatchTimeoutException"/> (2 s per rule) is possible on adversarial
+/// A <see cref="System.Text.RegularExpressions.RegexMatchTimeoutException"/> (2 s per rule, see RegexBudget) is possible on adversarial
 /// input; callers must treat any exception as "do not submit".
 /// </summary>
 public sealed class PiiDetector
