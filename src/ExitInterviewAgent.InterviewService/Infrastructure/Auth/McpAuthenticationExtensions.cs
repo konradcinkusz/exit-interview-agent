@@ -74,6 +74,9 @@ public static class McpAuthenticationExtensions
         // has no use for and must never be able to log (ADR-0014).
         services.PostConfigure<JwtBearerOptions>(AuthSchemes.Web, o =>
         {
+            // On the MCP path the web scheme must not even try: the request is authenticated once, by the MCP scheme.
+            // Otherwise every MCP call would also be validated (and logged as a failure) by the wrong scheme.
+            o.ForwardDefaultSelector = ctx => mcp.ResourcePath is { } path && ctx.Request.Path.StartsWithSegments(path) ? AuthSchemes.Mcp : null;
             var previous = o.Events.OnTokenValidated;
             o.Events.OnTokenValidated = async ctx =>
             {

@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ExitInterviewAgent.InterviewService.Tests.Support;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
@@ -259,4 +261,32 @@ public sealed class TokenMatrixTests(ServiceFactory factory) : IClassFixture<Ser
         Assert.Contains("scope", claims);
         Assert.DoesNotContain("email", claims);
     }
+}
+
+/// <summary>An MCP request is authenticated once, by the MCP scheme; the web scheme does not also try (and fail) on it.</summary>
+public sealed class SingleSchemePerRouteTests(ServiceFactory factory) : IClassFixture<ServiceFactory>
+{
+    private static async Task<int> WebSchemeFailuresAsync(ServiceFactory factory, string path, string token)
+    {
+        var capture = new CaptureLoggerProvider();
+        using var host = factory.WithWebHostBuilder(b =>
+        {
+            b.UseSetting("Logging:LogLevel:Microsoft.AspNetCore", "Debug");
+            b.ConfigureLogging(l => l.AddProvider(capture));
+        });
+        var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        await client.GetAsync(path);
+
+        lock (capture.Lines) return capture.Lines.Count(l => l.Contains("Bearer was not authenticated", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_valid_mcp_token_on_the_mcp_path_is_not_first_failed_by_the_web_scheme()
+        => Assert.Equal(0, await WebSchemeFailuresAsync(factory, "/mcp/_probe", factory.MintMcpToken("account-1")));
+
+    [Fact]
+    public async Task The_control_a_valid_mcp_token_on_a_web_path_is_failed_by_the_web_scheme()
+        => Assert.True(await WebSchemeFailuresAsync(factory, "/api/v1/me", factory.MintMcpToken("account-1")) > 0);
 }
