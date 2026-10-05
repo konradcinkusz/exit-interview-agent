@@ -176,7 +176,7 @@ and 65017 output tokens. **Cost: not computed** (no price table was supplied; th
 byte-identical `report.json` (CI diffs them on every pull request; a unit test does the same in-process).
 
 **Mutation proof** ([MUTATION-EVIDENCE.md](MUTATION-EVIDENCE.md)): 12 of 12 weakenings of the real Agent code are caught by the gate (`python3 scripts/mutate-agent.py`); the first pass caught 11 and found the
-missing scenario (amb-004) and the vacuous withdrawal check (C-03) that the corpus now has. The Eval project has 154 tests (`dotnet test tests/ExitInterviewAgent.Eval.Tests`), 23 of them in `MutationTests`.
+missing scenario (amb-004) and the vacuous withdrawal check (C-03) that the corpus now has. The Eval project has 155 tests (`dotnet test tests/ExitInterviewAgent.Eval.Tests`), 23 of them in `MutationTests`.
 
 **Judge and calibration** (`calibrate`): **no judge ran** (`skipped:no-credential`), so judge-versus-label agreement is **not measured**. What is measured offline, against labels written by the harness's own author
 (48 judge items; 74 replies; 16 pairs; all non-human, so a rehearsal and a weak calibration):
@@ -221,7 +221,7 @@ All offline; the .NET 10 SDK is the only requirement. From the repository root:
 | determinism | run the `run` command above twice into two directories and `cmp` the two `report.json` |
 | rule-screen, analyser and classifier agreement; calibration state | `dotnet run --project src/ExitInterviewAgent.Eval -- calibrate --out report/` (then `report/calibration.md`) |
 | 12 of 12 real-code mutations caught | `python3 scripts/mutate-agent.py` (clean tree; about a minute per mutation) |
-| 154 tests, 23 of them in `MutationTests` | `dotnet test tests/ExitInterviewAgent.Eval.Tests` |
+| 155 tests, 23 of them in `MutationTests` | `dotnet test tests/ExitInterviewAgent.Eval.Tests` |
 | the four findings | `dotnet test tests/ExitInterviewAgent.Eval.Tests --filter FullyQualifiedName~FindingsTests` |
 | everything above in one go (without the mutation pass) | `scripts/run-evals.sh` |
 | profiles and why a real-model profile is skipped | `dotnet run --project src/ExitInterviewAgent.Eval -- profiles` |
