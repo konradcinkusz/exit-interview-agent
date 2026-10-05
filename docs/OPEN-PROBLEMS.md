@@ -143,3 +143,27 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
   ([ADR-0028](adr/0028-submission-ledger-hmac-rotation-and-window.md); [threat model T-10](security/THREAT-MODEL.md)).
 - **What we do now.** A configurable window and an honest statement. The default is an assumption, not a measurement.
 - **What would close it.** Either a window at least as long as the record age (more exposure), or an aggregate that counts accounts rather than records (needs a link the design refuses).
+
+## OP-15. Anonymous receipt deletion behind the BFF shares one rate-limit key
+
+- **Why it matters.** The interview-service limits receipt deletion per client address (default 6 a minute) and keys on the socket address unless `Submission:ClientIpHeader`
+  names a forwarded header ([ADR-0029](adr/0029-receipt-deletion-semantics.md)). Every web request reaches it from the web server, so for people using the portal the
+  per-client window behaves as one budget for everyone, and one person's retries can lock others out for a minute. Found by T9 ([ADR-0049](adr/0049-anonymous-receipt-route-and-the-header-contract.md)); not visible locally.
+- **What we do now.** Nothing: the BFF does not forward the visitor's address, because that puts an IP into a second service for a limiter key, which is a privacy choice for the operator.
+- **What would close it.** A deployment ADR that decides between forwarding a client-address header (and configuring `Submission:ClientIpHeader` to read only that header from the BFF's network)
+  and accepting the shared budget with a larger global allowance; plus a load test of the chosen setting.
+
+## OP-16. Manual accessibility pass
+
+- **Why it matters.** The browser suite runs axe-core (WCAG 2.0/2.1 A and AA rules) on every page and state, which finds a subset of problems. It cannot judge reading order, whether
+  the copy is understandable, focus order across a whole flow, or what a screen reader announces ([ADR-0051](adr/0051-message-catalog-accessibility-gate-and-stub-contract.md)).
+- **What we do now.** The automated floor, a keyboard-only login test, a 320 px overflow test, visible focus, a skip link, `role="alert"` for errors.
+- **What would close it.** A person running the flows with a screen reader and keyboard only, at 200% zoom and in forced-colours mode, recorded in the repository.
+
+## OP-17. Two-factor sign-in has been tested only against the stub
+
+- **Why it matters.** The BFF's second step relies on authservice's `2fa/login` contract as read from its source (ADR-0050), including telling a wrong code, a dead challenge and a lockout apart by the
+  text of a `401`. The browser suite runs against a stub that mirrors that source; no session here could run the real image.
+- **What we do now.** Unit tests pin the three texts; the stub carries a contract note.
+- **What would close it.** The full-stack journey against the AppHost with a two-factor account enrolled through authservice (a later e2e layer).
+

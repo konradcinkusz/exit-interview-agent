@@ -29,7 +29,7 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Model providers behind `IChatClient` and PII-free tracing | Planned (T6) |
 | Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
 | MCP adapter | Planned (T8) |
-| Web panel features: own submissions, receipt-code deletion, tickets (consent step and account deletion exist since T2) | Planned (T9) |
+| Web panel: landing, sign-in with two-factor, sign-up and email verification, consent, connect-your-AI-client, CLI ticket (shown once), deletion by receipt code, account (data export, deletion), privacy page; nonce CSP, no-store, same-origin check; axe-core gate. There is no "my submissions" list, by design | **Implemented** (T9, [ADR-0047](docs/adr/0047-nonce-csp-and-style-policy.md)..[0051](docs/adr/0051-message-catalog-accessibility-gate-and-stub-contract.md); [UI and UX](docs/ux/UI-UX.md)). Tested against a stub backend, not the real services ([OP-17](docs/OPEN-PROBLEMS.md)); English only; no manual accessibility pass yet ([OP-16](docs/OPEN-PROBLEMS.md)) |
 | Signals (aggregates with uncertainty) | Planned (T10) |
 | CLI submission with a ticket | Planned (T11) |
 | Security review, release gate, results write-up | Planned (T12) |

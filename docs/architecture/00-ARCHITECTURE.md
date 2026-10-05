@@ -27,7 +27,7 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; architecture tests | 4 |
 | `tests/ExitInterviewAgent.Agent.Tests`, `tests/ExitInterviewAgent.Personas.Tests`, `tests/ExitInterviewAgent.Cli.Tests` | xUnit; state machine, per-rule and per-persona end-to-end tests, the canary trace test, architecture tests | 3 each |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
-| `tests/e2e` | Playwright journeys against the production artifact | 1 runtime, 2 dev |
+| `tests/e2e` | Playwright journeys against the production artifact; axe-core accessibility gate | 1 runtime, 3 dev |
 
 The dependency counts come from `grep -c '<PackageReference' <csproj>` and the key counts of
 `dependencies` / `devDependencies` in each `package.json`; update them in the pull request that changes
@@ -41,7 +41,7 @@ them (REPO-BASELINE §4b).
 `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY`, `METRIC-ETHICS`, `IDENTITY-AND-ACCOUNTS` and `DEMO-DATA-AND-SEEDING`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
-`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. (Not loaded here, loaded by the task that needs them:
+`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The web-panel task (T9, ADR-0047..0051) loaded `FRONTEND-BFF`, `IDENTITY-AND-ACCOUNTS`, `E2E-ACCEPTANCE-TESTING`, `TESTING-STRATEGY`, `SECURITY-REVIEW`, `METRIC-ETHICS` and the reference architecture (P5, P9, P11). (Not loaded here, loaded by the task that needs them:
 `open-source-release`, `research-documentation`.)
 
 ## Where each principle lives
@@ -63,6 +63,23 @@ architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded
 | P14 docs in the repo | this directory; README claims are checked by `scripts/check-doc-links.py` and review |
 | P15 observability | OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; probes filtered from traces; no scopes exported |
 
+## The web panel (T9)
+
+`web/app` is the product surface and the BFF ([UI and UX](../ux/UI-UX.md) lists every route and flow). What lives where:
+
+| Concern | Where |
+|---|---|
+| Edge gate: signature, issuer and audience verified; explicit public list; consent first; per-request nonce CSP; `no-store`; same-origin check for state changes | `web/app/proxy.ts`, `lib/security-headers.ts`, `lib/csrf.ts` (ADR-0047, ADR-0048) |
+| Sessions: HttpOnly, SameSite=Strict cookies, single-flight refresh, two-factor challenge cookie | `lib/session.ts`, `lib/refresh.ts`, `app/api/auth/*` (ADR-0013, ADR-0050) |
+| Authenticated API: catch-all proxy mapping only `v1/*`, bearer injected from the cookie; forwards no secret header | `app/api/proxy/[...path]/route.ts`, `lib/upstream.ts`, `lib/proxy-routing.ts` |
+| Anonymous receipt deletion: its own route, one header, one backend path, no account | `app/api/receipts/route.ts` (ADR-0049) |
+| Tickets (mint, show once, clear), receipt deletion, connect, privacy, account (export, delete), sign-up, verification | `app/{cli,delete-submission,connect,privacy,account,register,verify-email}` |
+| Copy: one typed English catalog; precise-semantics strings are tested | `lib/messages/` (ADR-0051), `lib/copy.ts` |
+| Tests: Vitest for logic, Playwright against the production artifact and the stub, axe on every page | `web/app/**/*.test.ts`, `tests/e2e/specs`, `tests/e2e/support/stub-backend.mjs` |
+
+Runtime configuration (`/api/config`, P12) now also carries the MCP connector address (`MCP_RESOURCE_URL`, public, unset means "not set up here", P8). The portal has no "my submissions"
+list and none may be added: records are not linked to accounts ([submission-flow](submission-flow.md)).
+
 ## Deviation register
 
 Every row carries a date and a reason. An acknowledged deviation is a decision; an unacknowledged one is drift.
@@ -75,15 +92,18 @@ Every row carries a date and a reason. An acknowledged deviation is a decision; 
 | 2026-10-05 | No PDF overview track (`docs/papers/`, `build-overview-pdf.yml`) | `INIT-GENERIC-TEMPLATE` §9 (optional) | nothing hands anyone a PDF yet; the results write-up is T12 | none needed |
 | 2026-10-05 | The CLI references `Agent` and `Personas`, not `Contracts` only | ADR-0002 (`cli` row) | the CLI is where the agent runs; `Contracts` holds DTOs that cross a service boundary and the demo crosses none; T11 adds the `Contracts` reference for submission | ADR-0026 |
 | 2026-10-05 | `GET /health` is readiness (503 until the schema is applied) and carries the integration list | P4/P8 | one request answers "what is live?"; Fly checks `/health` with a 60 s grace period | this table |
+| 2026-10-05 | Receipt deletion has its own anonymous BFF route beside the catch-all proxy | `FRONTEND-BFF` §5 (one catch-all fronts the estate) | the catch-all requires a session and injects a bearer; the receipt endpoint is anonymous by design and must carry no account | ADR-0049 |
 
 ## Known limits of the scaffold (not deviations)
 
-- The BFF rotates refresh tokens (single-flight, per process) and gates on consent (ADR-013); two-factor sign-in is unsupported (501).
+- The BFF rotates refresh tokens (single-flight, per process) and gates on consent (ADR-013); two-factor sign-in works since T9 (ADR-0050), tested against the stub only (OP-17).
 - `interview-service` has the submission slice since T5 (submit, tickets, receipt deletion, retention; no signals, no read of stored records
   by any endpoint), `GET /api/v1/me`, and the MCP mount point (`/mcp`, scope-guarded, no transport until T8; a Development-only submit probe
   stands in for the tool).
 - The in-process limiters and the InMemory write gate are single-instance mechanisms; a second replica needs shared state (threat model T-18).
-- The web CSP allows inline scripts and styles (Next emits inline bootstrap scripts; no per-request nonces yet): a weaker CSP than a
-  nonce-based one, same-origin otherwise (`web/app/lib/security-headers.ts`). Trigger: nonce support when the portal gets user-rendered content.
+- The web CSP is per request with a nonce and no `unsafe-inline` for scripts or styles in production (ADR-0047). Its residuals: `'self'` trusts every script file the origin serves,
+  and the policy is only as good as the edge gate that sets it. Development relaxes it (Next's dev server needs `unsafe-eval` and inline styles).
+- The e2e suite runs against a stub of authservice and the interview-service. The stub mirrors the ticket and receipt contract and carries a contract note; it must change in the same pull request
+  as the contract (ADR-0051). A full-stack journey against the AppHost is a later layer.
 - The edge gate is Next 16's `proxy.ts` (formerly `middleware.ts`); it is not the BFF catch-all under
   `app/api/proxy`.
