@@ -29,8 +29,6 @@ public sealed class SnapshotPublisher(
     private const int WriteBatch = 100;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    internal static readonly SemaphoreSlim OneRunAtATime = new(1, 1);
-
     public static DateTimeOffset PeriodStart(DateTimeOffset now, TimeSpan interval)
         => new(now.UtcDateTime.Ticks - now.UtcDateTime.Ticks % interval.Ticks, TimeSpan.Zero);
 
@@ -41,7 +39,7 @@ public sealed class SnapshotPublisher(
 
     internal async Task<PublishOutcome> RunDueAsync(CancellationToken ct, IDisclosurePolicy policy)
     {
-        await OneRunAtATime.WaitAsync(ct);
+        await state.RunLock.WaitAsync(ct);
         var clock = Stopwatch.StartNew();
         try
         {
@@ -115,7 +113,7 @@ public sealed class SnapshotPublisher(
         }
         finally
         {
-            OneRunAtATime.Release();
+            state.RunLock.Release();
         }
     }
 

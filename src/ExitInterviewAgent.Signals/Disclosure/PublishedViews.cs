@@ -38,4 +38,5 @@ public static class BandStatuses
 {
     public const string Ok = "ok";
     public const string None = "none";
+    public const string Suppressed = "suppressed";
 }

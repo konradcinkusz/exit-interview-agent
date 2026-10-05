@@ -12,6 +12,9 @@ public sealed class PublicationState
         private set { lock (_gate) { _lastRunFailed = value; } }
     }
 
+    /// <summary>One publication at a time inside the process. A second instance is stopped by the unique fingerprint in the database.</summary>
+    internal SemaphoreSlim RunLock { get; } = new(1, 1);
+
     public void Succeeded() => LastRunFailed = false;
 
     public void Failed() => LastRunFailed = true;

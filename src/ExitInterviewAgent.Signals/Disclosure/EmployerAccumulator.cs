@@ -110,7 +110,7 @@ internal sealed class EmployerAccumulator(DisclosureRules rules, IDisclosurePoli
             {
                 CellDisposition.Shown => new BandView(bands[b], BandStatuses.Ok, BuildStats(cells[b], _respondentsByBand[d][b], withGroups: false)),
                 CellDisposition.None => new BandView(bands[b], BandStatuses.None, null),
-                _ => throw new InvalidOperationException("A published cut holds no suppressed cell."),
+                _ => new BandView(bands[b], BandStatuses.Suppressed, null), // the standard policy never produces one inside a published cut
             });
         }
         return new CutView(Vocabulary.Name(dimension), true, views);
