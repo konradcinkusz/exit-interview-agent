@@ -1,0 +1,18 @@
+flowchart TD
+    R["Rozmowa<br/>(host MCP lub CLI;<br/>transkrypt zostaje u użytkownika)"]
+    P["Lokalny podgląd<br/>(CLI: ponowna walidacja,<br/>dokładnie to, co wychodzi)"]
+    D["Detektor PII<br/>(maskowanie; serwer<br/>skanuje rekord ponownie)"]
+    REC[("Rekord<br/>bez identyfikatora osoby,<br/>bucket tygodnia")]
+    LED[("Ledger<br/>HMAC(sub, pracodawca)<br/>bucket tygodnia")]
+    PAR["Paragon<br/>(kod raz; w bazie tylko hash)"]
+    B["Bucket czasowy<br/>(poniedziałek tygodnia ISO)"]
+    AG["Agregacja<br/>k na komórkę,<br/>czyste partycje"]
+    PUB["Publikacja batchami<br/>(domyślnie raz na dobę)"]
+    R --> P --> D
+    D -->|"jedna transakcja"| REC
+    D -->|"jedna transakcja"| LED
+    D -->|"jedna transakcja"| PAR
+    REC --> B
+    LED --> B
+    B --> AG --> PUB
+    PAR -. "usunięcie rekordu kodem" .-> REC
