@@ -12,6 +12,9 @@
     <ProjectReference Include="..\..\src\ExitInterviewAgent.Privacy\ExitInterviewAgent.Privacy.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Corpus\**\*.txt" CopyToOutputDirectory="PreserveNewest" LinkBase="Corpus" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>
