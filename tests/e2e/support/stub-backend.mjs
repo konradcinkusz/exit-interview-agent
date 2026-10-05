@@ -18,6 +18,15 @@
 // retryAfter} with a Retry-After header, the X-Receipt-Code header, 204 for every well-formed code, a 46-character
 // URL-safe-base64 code whose last two bytes are the first two bytes of SHA-256 over the first 32, 43-character tickets,
 // at most 3 live tickets per account. If the backend contract changes, change this file in the same pull request.
+// The signals routes mirror the T10 contract (src/ExitInterviewAgent.Contracts/SignalsContracts.cs, ADR-0053..0056,
+// docs/privacy/AGGREGATION.md section 8): policy `account` (strict bearer), the response shapes below (six topics always; an
+// `insufficient_data` topic has no overall and no cuts; a suppressed cut has no cells; a published cut lists every band of its
+// dimension as ok or none), alphabetical paging clamped like ApiExtensions.ClampPage (page >= 1, limit default 25, 1..100), a weak
+// ETag per snapshot and resource, `Cache-Control: private, max-age=<seconds to the next batch, at least 60>`, `Vary: Authorization`,
+// `Last-Modified` = the batch start, 304 on If-None-Match, SIGNALS_EMPLOYER_NOT_FOUND (404, byte-identical for an unknown employer
+// and one below the minimum group size, with the cache header only), SIGNALS_INVALID_EMPLOYER_REF (400) and the kernel limiter's 429
+// body with Retry-After. With no snapshot the list answers `{snapshot:null, employers:[], ...}` with `no-store`. The data are
+// synthetic. Per-account switches (/__test/signals-config) keep parallel tests independent.
 // Refresh tokens rotate and are single-use like authservice's: presenting a consumed one counts as reuse and revokes
 // the account's sessions. GET /__test/stats?email= reports what the stub observed.
 import { createHash, randomBytes } from "node:crypto";
@@ -64,6 +73,83 @@ const newReceiptCode = () => {
 const receiptLog = [];
 /** sha256(code) -> how many more times to answer 429, so a test's forced limit cannot hit another test's request. */
 const receiptForceLimit = new Map();
+// --- Signals fixtures (synthetic) ---------------------------------------------------------------------------------------
+const TOPICS = ["onboarding", "management", "growth", "pay_vs_promises", "culture", "reason_for_leaving"];
+const TENURE = ["lt_6m", "6m_1y", "1y_3y", "3y_5y", "5y_10y", "gt_10y"];
+const SENIORITY = ["junior", "mid", "senior", "management"];
+const FUNCTION = ["engineering", "product_design", "sales_marketing", "operations_support", "corporate_functions", "other"];
+const stats = (n, mean, lower, upper, reliability, coverage, distribution = null, verification = null) => ({
+  n, mean, interval: { lower, upper, level: 0.95, method: "regularised-t" }, reliability, coverage, distribution, verification,
+});
+const groups = (keys, counts) => keys.map((key, i) => ({ key, count: counts[i] }));
+const DIST = ["low", "mid", "high"];
+const VERIF = ["unchecked", "unverified", "verified"];
+const cut = (dimension, bands, shown) => ({
+  dimension, status: "published", cells: bands.map((band) => (shown[band] ? { band, status: "ok", stats: shown[band] } : { band, status: "none", stats: null })),
+});
+const withheld = (dimension) => ({ dimension, status: "suppressed", cells: [] });
+const insufficient = (topic) => ({ topic, status: "insufficient_data", overall: null, cuts: [] });
+const topicOf = (topic, overall, cuts) => ({ topic, status: "ok", overall, cuts });
+const EMPLOYERS = new Map([
+  ["demo-acme", {
+    respondentsBand: "10-24",
+    topics: [
+      topicOf("onboarding", stats(12, 3.82, 3.4, 4.2, "moderate", "high", groups(DIST, [0, 5, 7]), groups(VERIF, [12, 0, 0])), [
+        cut("tenure", TENURE, { "1y_3y": stats(6, 3.5, 2.9, 4.1, "low", "medium"), "3y_5y": stats(6, 4.1, 3.5, 4.6, "low", "high") }),
+        withheld("seniority"),
+        cut("function", FUNCTION, { engineering: stats(7, 3.9, 3.3, 4.4, "low", "high"), other: stats(5, 3.7, 2.8, 4.5, "low", "medium") }),
+      ]),
+      insufficient("management"),
+      topicOf("growth", stats(30, 4.05, 3.8, 4.3, "high", "medium", null, groups(VERIF, [12, 8, 10])), [withheld("tenure"), withheld("seniority"), withheld("function")]),
+      topicOf("pay_vs_promises", stats(5, 3.2, 2.3, 4.1, "low", "low", groups(DIST, [0, 5, 0]), null), [withheld("tenure"), withheld("seniority"), withheld("function")]),
+      topicOf("culture", stats(14, 2.9, 2.5, 3.3, "moderate", "high", groups(DIST, [5, 9, 0]), groups(VERIF, [14, 0, 0])), [
+        cut("tenure", TENURE, { "1y_3y": stats(7, 2.8, 2.2, 3.4, "low", "high"), "3y_5y": stats(7, 3.0, 2.4, 3.6, "low", "high") }),
+        cut("seniority", SENIORITY, { mid: stats(14, 2.9, 2.5, 3.3, "moderate", "high") }),
+        withheld("function"),
+      ]),
+      insufficient("reason_for_leaving"),
+    ],
+  }],
+  ["demo-beta", {
+    respondentsBand: "5-9",
+    topics: TOPICS.map((t) => (t === "culture" ? topicOf(t, stats(5, 4.4, 3.8, 5, "low", "medium"), [withheld("tenure"), withheld("seniority"), withheld("function")]) : insufficient(t))),
+  }],
+  ["demo-gamma", {
+    respondentsBand: "50+",
+    topics: TOPICS.map((t) => topicOf(t, stats(60, 3.1, 2.9, 3.3, "high", "high", groups(DIST, [20, 20, 20]), groups(VERIF, [60, 0, 0])), [
+      cut("tenure", TENURE, { "1y_3y": stats(30, 3.0, 2.7, 3.3, "high", "high"), "3y_5y": stats(30, 3.2, 2.9, 3.5, "high", "high") }),
+      withheld("seniority"),
+      withheld("function"),
+    ])),
+  }],
+]);
+// A reference no real answer would carry: band, topic and group strings that are markup. The vocabularies are closed in the real
+// API; the page must not rely on that. Not listed (the list shows alphabetical refs of the others only).
+const HOSTILE = "<img src=x onerror=\"window.__pwned=1\">";
+EMPLOYERS.set("demo-hostile", {
+  respondentsBand: HOSTILE,
+  topics: [
+    topicOf(HOSTILE, stats(12, 3.5, 3, 4, "moderate", "high", [{ key: HOSTILE, count: 12 }], null), [cut(HOSTILE, [HOSTILE, "1y_3y"], { [HOSTILE]: stats(6, 3.5, 3, 4, "low", "high") })]),
+    ...TOPICS.slice(1).map(insufficient),
+  ],
+});
+// 22 more employers so that the list needs a second page at the default page size of this UI (20).
+for (let i = 1; i <= 22; i += 1) {
+  EMPLOYERS.set(`demo-filler-${String(i).padStart(2, "0")}`, {
+    respondentsBand: "5-9",
+    topics: TOPICS.map((t) => (t === "onboarding" ? topicOf(t, stats(5, 3.5, 2.6, 4.4, "low", "medium"), [withheld("tenure"), withheld("seniority"), withheld("function")]) : insufficient(t))),
+  });
+}
+const LISTED = [...EMPLOYERS.keys()].filter((k) => k !== "demo-hostile").sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)); // ordinal, like the service
+const SIGNALS_SEQ = 1;
+const batchStart = () => {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+const snapshotInfo = () => ({ generatedAt: batchStart().toISOString().replace(".000Z", "+00:00"), publicationIntervalHours: 24, rulesVersion: "1", minimumGroupSize: 5, deletionsAppearAtNextPublication: true });
+const signalsCacheControl = () => `private, max-age=${Math.max(60, Math.floor((batchStart().getTime() + 24 * 3600_000 - Date.now()) / 1000))}`;
+const isEmployerRef = (v) => typeof v === "string" && v.length >= 3 && v.length <= 64 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(v);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** @type {Map<string, any>} keyed by email */
@@ -89,6 +175,7 @@ function account(email) {
       mintTimes: [],
       ticketTtlSeconds: null,
       forceRateLimit: false,
+      signals: { requests: 0, conditional: 0, notModified: 0, limitNext: 0, retryAfter: 2, empty: false },
       consentAccepted: !local.startsWith("consent"),
       lastLocale: null,
       currentRefresh: null,
@@ -150,7 +237,7 @@ http.createServer(async (req, res) => {
   if (url.pathname === "/__test/token") return json(res, 200, { token: await mint(url.searchParams.get("sub") ?? "account-e2e") });
   if (url.pathname === "/__test/stats") {
     const a = accounts.get(url.searchParams.get("email") ?? "");
-    return a ? json(res, 200, { ...a, currentRefresh: undefined, challenge: undefined, password: undefined, tickets: a.tickets.length }) : json(res, 404, { error: "unknown account" });
+    return a ? json(res, 200, { ...a, currentRefresh: undefined, challenge: undefined, password: undefined, signals: undefined, tickets: a.tickets.length }) : json(res, 404, { error: "unknown account" });
   }
   if (url.pathname === "/__test/revoke" && req.method === "POST") {
     const a = accounts.get(url.searchParams.get("email") ?? "");
@@ -199,6 +286,72 @@ http.createServer(async (req, res) => {
     a.mintTimes.push(now);
     res.writeHead(201, { "content-type": "application/json" });
     return res.end(JSON.stringify({ ticket, expiresAt: new Date(expiresAt).toISOString() }));
+  }
+
+  if (url.pathname === "/__test/signals-config" && req.method === "POST") {
+    const a = accounts.get(url.searchParams.get("email") ?? "");
+    if (!a) return json(res, 404, {});
+    if (url.searchParams.has("limit")) a.signals.limitNext = Number(url.searchParams.get("limit"));
+    if (url.searchParams.has("retryAfter")) a.signals.retryAfter = Number(url.searchParams.get("retryAfter"));
+    if (url.searchParams.has("empty")) a.signals.empty = url.searchParams.get("empty") === "1";
+    return json(res, 200, {});
+  }
+  if (url.pathname === "/__test/signals-stats") {
+    const a = accounts.get(url.searchParams.get("email") ?? "");
+    return a ? json(res, 200, a.signals) : json(res, 404, {});
+  }
+
+  if (url.pathname.startsWith("/api/v1/signals/employers") && req.method === "GET") {
+    const a = await strictBearerAccount(req);
+    if (!a) return json(res, 401, { error: "no bearer" });
+    a.signals.requests += 1;
+    const conditional = req.headers["if-none-match"];
+    if (conditional) a.signals.conditional += 1;
+    if (a.signals.limitNext > 0) {
+      a.signals.limitNext -= 1;
+      res.writeHead(429, { "content-type": "application/json", "retry-after": String(a.signals.retryAfter) });
+      return res.end(JSON.stringify({ error: "rate_limited", retryAfter: a.signals.retryAfter }));
+    }
+    const cached = (etagKey) => {
+      const etag = `W/"s${SIGNALS_SEQ}-${etagKey}"`;
+      const headers = {
+        "cache-control": signalsCacheControl(), vary: "Authorization", etag, "last-modified": batchStart().toUTCString(),
+      };
+      const matches = String(conditional ?? "").split(",").map((v) => v.trim()).some((v) => v === etag || v === "*");
+      return { headers, matches };
+    };
+    const ref = decodeURIComponent(url.pathname.slice("/api/v1/signals/employers".length).replace(/^\//, ""));
+    if (url.pathname === "/api/v1/signals/employers" || url.pathname === "/api/v1/signals/employers/") {
+      const page = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "", 10) || 1);
+      const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "", 10) || 25));
+      if (a.signals.empty) {
+        res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+        return res.end(JSON.stringify({ snapshot: null, employers: [], page, limit, total: 0 }));
+      }
+      const { headers, matches } = cached(`p${page}l${limit}`);
+      if (matches) {
+        a.signals.notModified += 1;
+        res.writeHead(304, headers);
+        return res.end();
+      }
+      res.writeHead(200, { "content-type": "application/json", ...headers });
+      return res.end(JSON.stringify({ snapshot: snapshotInfo(), employers: LISTED.slice((page - 1) * limit, page * limit), page, limit, total: LISTED.length }));
+    }
+    if (!isEmployerRef(ref)) return problem(res, 400, "SIGNALS_INVALID_EMPLOYER_REF");
+    const employer = a.signals.empty ? undefined : EMPLOYERS.get(ref);
+    if (!employer) {
+      // The same body and headers whether the employer is unknown or has no displayable cell (AGGREGATION R10).
+      res.writeHead(404, { "content-type": "application/problem+json", "cache-control": a.signals.empty ? "no-store" : signalsCacheControl() });
+      return res.end(JSON.stringify({ type: `${PROBLEM}signals_employer_not_found`, title: "SIGNALS_EMPLOYER_NOT_FOUND", status: 404, code: "SIGNALS_EMPLOYER_NOT_FOUND" }));
+    }
+    const { headers, matches } = cached(ref);
+    if (matches) {
+      a.signals.notModified += 1;
+      res.writeHead(304, headers);
+      return res.end();
+    }
+    res.writeHead(200, { "content-type": "application/json", ...headers });
+    return res.end(JSON.stringify({ snapshot: snapshotInfo(), employerRef: ref, respondentsBand: employer.respondentsBand, topics: employer.topics }));
   }
 
   if (url.pathname === "/api/v1/receipts" && req.method === "DELETE") {

@@ -36,7 +36,7 @@ export const insufficientTopic = (topic: string) => ({
   topic,
   status: "insufficient_data",
   overall: null,
-  cuts: ["tenure", "seniority", "function"].map((dimension) => ({ dimension, status: "suppressed", cells: [] })),
+  cuts: [],
 });
 
 // Loosely typed on purpose: the tests mutate these bodies to build hostile and malformed responses.

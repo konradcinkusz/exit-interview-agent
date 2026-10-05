@@ -25,6 +25,17 @@ test("the connect page shows the connector address from the runtime config and w
   await expect(page.locator("main")).not.toContainText(/todo|coming soon|tbd/i);
 });
 
+test("the connect page points to the operator runbook in the project repository and shows its path @smoke", async ({ page }) => {
+  await page.goto("/connect");
+
+  const runbook = page.getByTestId("connect-runbook");
+  await expect(runbook.getByRole("link", { name: "Connect Claude: operator runbook" })).toHaveAttribute(
+    "href",
+    "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/guides/connect-claude.md",
+  );
+  await expect(runbook).toContainText("docs/guides/connect-claude.md");
+});
+
 test("the privacy page lists the key facts and the limits, and links to the full documents @smoke", async ({ page }) => {
   await page.goto("/privacy");
 
