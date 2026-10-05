@@ -67,32 +67,32 @@ public sealed class AdversaryTests
     {
         var range = Enumerable.Range(0, 2 * k + 1).ToArray();
         foreach (var a in range)
-        foreach (var b in range)
-        foreach (var c in range)
-        foreach (var u in range)
-        {
-            int[] cells = [a, b, c];
-            var single = new Snapshot(cells, u, null);
-            if (FindLeak(policy, k, single, null) is { } leak)
-            {
-                return $"single snapshot {a},{b},{c} +{u}: {leak}";
-            }
+            foreach (var b in range)
+                foreach (var c in range)
+                    foreach (var u in range)
+                    {
+                        int[] cells = [a, b, c];
+                        var single = new Snapshot(cells, u, null);
+                        if (FindLeak(policy, k, single, null) is { } leak)
+                        {
+                            return $"single snapshot {a},{b},{c} +{u}: {leak}";
+                        }
 
-            // The adversary's record is one of the records of the second snapshot (added) or of the first (removed).
-            for (var own = 0; own <= cells.Length; own++)
-            {
-                var added = Add(cells, u, own, +1);
-                if (added is not null && FindLeak(policy, k, single, added with { OwnCell = own }) is { } l1)
-                {
-                    return $"{a},{b},{c} +{u}, own record added to {own}: {l1}";
-                }
-                var removed = Add(cells, u, own, -1);
-                if (removed is not null && FindLeak(policy, k, single with { OwnCell = own }, removed) is { } l2)
-                {
-                    return $"{a},{b},{c} +{u}, own record removed from {own}: {l2}";
-                }
-            }
-        }
+                        // The adversary's record is one of the records of the second snapshot (added) or of the first (removed).
+                        for (var own = 0; own <= cells.Length; own++)
+                        {
+                            var added = Add(cells, u, own, +1);
+                            if (added is not null && FindLeak(policy, k, single, added with { OwnCell = own }) is { } l1)
+                            {
+                                return $"{a},{b},{c} +{u}, own record added to {own}: {l1}";
+                            }
+                            var removed = Add(cells, u, own, -1);
+                            if (removed is not null && FindLeak(policy, k, single with { OwnCell = own }, removed) is { } l2)
+                            {
+                                return $"{a},{b},{c} +{u}, own record removed from {own}: {l2}";
+                            }
+                        }
+                    }
         return null;
     }
 
@@ -128,12 +128,12 @@ public sealed class AdversaryTests
         const int k = 5;
         // One snapshot only: the textbook rule holds.
         foreach (var a in Enumerable.Range(0, 11))
-        foreach (var b in Enumerable.Range(0, 11))
-        foreach (var c in Enumerable.Range(0, 11))
-        foreach (var u in Enumerable.Range(0, 11))
-        {
-            Assert.Null(FindLeak(new ClassicComplementary(), k, new Snapshot([a, b, c], u, null), null));
-        }
+            foreach (var b in Enumerable.Range(0, 11))
+                foreach (var c in Enumerable.Range(0, 11))
+                    foreach (var u in Enumerable.Range(0, 11))
+                    {
+                        Assert.Null(FindLeak(new ClassicComplementary(), k, new Snapshot([a, b, c], u, null), null));
+                    }
         // Two snapshots one record apart: it does not.
         var violation = FirstViolation(new ClassicComplementary(), k);
         Assert.NotNull(violation);

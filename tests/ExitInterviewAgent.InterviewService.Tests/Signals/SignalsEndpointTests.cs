@@ -367,6 +367,34 @@ public sealed class SignalsEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, status);
     }
+
+    [Fact]
+    public async Task Publishing_and_reading_log_no_quote_no_record_id_and_no_employer_from_the_publisher()
+    {
+        var logs = new CaptureLoggerProvider();
+        using var host = new TestHost(ManualPublishing(), logs: logs);
+        await host.WaitReadyAsync();
+        const string Quote = "Zebrafish canary sentence about whiteboard markers";
+        var records = new List<System.Text.Json.Nodes.JsonObject>();
+        for (var i = 0; i < 6; i++)
+        {
+            var record = Record("canary-employer-zzzq", quote: Quote);
+            records.Add(record);
+            await SubmitAsync(host, record);
+        }
+        logs.Lines.Clear();
+
+        await PublishNextBatchAsync(host);
+        await GetAsync(host, "/api/v1/signals/employers");
+
+        Assert.NotEmpty(logs.Lines); // the capture sees the publication, so an empty result below would mean something
+        Assert.DoesNotContain(logs.Lines, l => l.Contains("Zebrafish", StringComparison.OrdinalIgnoreCase));
+        foreach (var record in records)
+        {
+            Assert.DoesNotContain(logs.Lines, l => l.Contains(record["interviewId"]!.GetValue<string>()));
+        }
+        Assert.DoesNotContain(logs.Lines.Where(l => l.Contains("signals", StringComparison.OrdinalIgnoreCase)), l => l.Contains("canary-employer"));
+    }
 }
 
 /// <summary>Alias so the endpoint tests read as prose.</summary>

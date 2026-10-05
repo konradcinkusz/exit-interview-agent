@@ -35,9 +35,17 @@ public sealed class SnapshotPublisher(
     public static string FingerprintOf(DateTimeOffset periodStart, TimeSpan interval, int k)
         => $"{periodStart.UtcDateTime:yyyyMMddTHHmm}Z|i{(int)interval.TotalHours}|v{DisclosureRules.Version}|k{k}";
 
-    public Task<PublishOutcome> RunDueAsync(CancellationToken ct) => RunDueAsync(ct, StandardDisclosurePolicy.Instance);
+    public Task<PublishOutcome> RunDueAsync(CancellationToken ct) => RunAsync(ct, StandardDisclosurePolicy.Instance, force: false);
 
-    internal async Task<PublishOutcome> RunDueAsync(CancellationToken ct, IDisclosurePolicy policy)
+    /// <summary>
+    /// Publishes a new snapshot now, even inside a period that already has one. For operator and development tooling only (the demo
+    /// seeder after it resets its data); nothing on the request path calls it, so a submission can never trigger a publication.
+    /// </summary>
+    public Task<PublishOutcome> RepublishAsync(CancellationToken ct) => RunAsync(ct, StandardDisclosurePolicy.Instance, force: true);
+
+    internal Task<PublishOutcome> RunDueAsync(CancellationToken ct, IDisclosurePolicy policy) => RunAsync(ct, policy, force: false);
+
+    private async Task<PublishOutcome> RunAsync(CancellationToken ct, IDisclosurePolicy policy, bool force)
     {
         await state.RunLock.WaitAsync(ct);
         var clock = Stopwatch.StartNew();
@@ -45,10 +53,14 @@ public sealed class SnapshotPublisher(
         {
             var settings = options.Value;
             var periodStart = PeriodStart(time.GetUtcNow(), settings.PublishInterval);
-            var fingerprint = FingerprintOf(periodStart, settings.PublishInterval, settings.MinimumGroupSize);
-
             var current = await db.Snapshots.AsNoTracking().OrderByDescending(s => s.Seq).FirstOrDefaultAsync(ct);
-            if (current?.Fingerprint == fingerprint)
+            var fingerprint = FingerprintOf(periodStart, settings.PublishInterval, settings.MinimumGroupSize);
+            if (force)
+            {
+                fingerprint += $"|r{(current?.Seq ?? 0) + 1}";
+            }
+            // A forced republish appends "|r<seq>" to the batch fingerprint; it still counts as this batch's snapshot.
+            if (!force && current is not null && (current.Fingerprint == fingerprint || current.Fingerprint.StartsWith(fingerprint + "|r", StringComparison.Ordinal)))
             {
                 state.Succeeded();
                 metrics.Record(SignalsMetrics.Skipped);

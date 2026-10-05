@@ -152,6 +152,25 @@ public sealed class PublisherTests
         => Assert.Equal(DateTimeOffset.Parse(expected), SnapshotPublisher.PeriodStart(Noon, TimeSpan.FromHours(hours)));
 
     [Fact]
+    public async Task Republish_makes_a_new_snapshot_inside_the_period_but_only_when_asked_for_by_name()
+    {
+        using var rig = new Rig();
+        rig.Source.Items.AddRange(Employer("acme", 5));
+        await rig.Publisher().RunDueAsync(default);
+        var before = (await rig.Reader().CurrentAsync(default))!;
+        rig.Source.Items.AddRange(Employer("bravo", 5));
+
+        Assert.Equal(PublishOutcome.Skipped, await rig.Publisher().RunDueAsync(default));   // the ordinary path never rebuilds inside a period
+        Assert.Equal(PublishOutcome.Published, await rig.Publisher().RepublishAsync(default));
+
+        var after = (await rig.Reader().CurrentAsync(default))!;
+        Assert.Equal(before.Seq + 1, after.Seq);
+        Assert.Equal(before.GeneratedAt, after.GeneratedAt);                                 // still the same coarse period
+        Assert.Equal(["acme", "bravo"], (await rig.Reader().ListAsync(1, 25, default)).Employers);
+        Assert.Equal(PublishOutcome.Skipped, await rig.Publisher().RunDueAsync(default));    // and the next ordinary tick is quiet again
+    }
+
+    [Fact]
     public async Task A_new_period_replaces_the_snapshot_and_removes_the_old_rows()
     {
         using var rig = new Rig();

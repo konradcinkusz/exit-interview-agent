@@ -24,8 +24,6 @@ public sealed class SignalsOptions
     [Range(1, 6000)]
     public int RequestsPerMinute { get; set; } = 30;
 
-    public DemoOptions Demo { get; set; } = new();
-
     public static readonly TimeSpan MinimumPublishInterval = TimeSpan.FromHours(1);
 
     public IEnumerable<string> Problems()
@@ -39,14 +37,4 @@ public sealed class SignalsOptions
             yield return "Signals:CheckInterval must be between one second and the publish interval.";
         }
     }
-}
-
-/// <summary>Demo data (DEMO-DATA-AND-SEEDING). Development only; see the demo seeder in the host.</summary>
-public sealed class DemoOptions
-{
-    /// <summary><c>Off</c> (default), <c>Seed</c> (reset the demo namespace, then seed it) or <c>Remove</c> (reset it and stop).</summary>
-    public string Mode { get; set; } = "Off";
-
-    /// <summary>Seed of the generator. Two runs with the same seed produce the same dataset.</summary>
-    public int Seed { get; set; } = 42;
 }

@@ -33,9 +33,3 @@ public interface IObservationSource
 {
     IAsyncEnumerable<Observation> ReadAsync(CancellationToken ct);
 }
-
-/// <summary>Optional gate the host may register: the publisher waits for it before its first run (used by the demo seeder so a demo never publishes half a seed).</summary>
-public interface IPublicationGate
-{
-    Task WaitAsync(CancellationToken ct);
-}

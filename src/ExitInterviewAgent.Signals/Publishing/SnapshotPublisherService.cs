@@ -7,7 +7,7 @@ namespace ExitInterviewAgent.Signals;
 
 /// <summary>
 /// Looks at the clock every <see cref="SignalsOptions.CheckInterval"/> and runs the publisher, which decides whether a batch is due.
-/// Waits for both schemas (the interview store it reads and its own) and for an optional host gate before the first run
+/// Waits for both schemas (the interview store it reads and its own) before the first run
 /// (SERVICE-API-PATTERNS section 7). The publisher itself is what tests drive with a fake clock.
 /// </summary>
 public sealed class SnapshotPublisherService(
@@ -28,11 +28,6 @@ public sealed class SnapshotPublisherService(
         {
             return;
         }
-        foreach (var gate in scopes.CreateScope().ServiceProvider.GetServices<IPublicationGate>())
-        {
-            await gate.WaitAsync(stoppingToken);
-        }
-
         using var timer = new PeriodicTimer(options.Value.CheckInterval);
         do
         {

@@ -22,7 +22,7 @@ public sealed class SignalsBoundaryTests
             .Order()
             .ToArray();
 
-        Assert.Equal(["RecordStoreObservationSource", "SignalsEndpoints", "SignalsMapping"], users); // signatures only: SignalsHostExtensions uses the module inside a method body
+        Assert.Equal(["DemoDataService", "RecordStoreObservationSource", "SignalsEndpoints", "SignalsMapping"], users); // signatures only: SignalsHostExtensions uses the module inside a method body
     }
 
     private static bool Touches(Type type, string assemblyName)
