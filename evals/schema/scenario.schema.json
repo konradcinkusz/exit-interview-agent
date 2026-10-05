@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/exit-interview-agent/evals/scenario.v1.schema.json",
+  "title": "Evaluation scenario v1",
+  "description": "One scenario = one persona run against the interview agent, with scenario-level deltas (seeds, faults at the model seam, a canary) and what is expected of the trace and the artifacts. Strict: an unknown key fails loudly. Synthetic content only. docs/eval/SPEC.md is the contract this file is graded against.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "class", "gate", "title", "why", "persona", "expect", "spec"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^(hap|amb|hos|adv|deg|con)-[0-9]{3}-[a-z0-9]+(-[a-z0-9]+)*$", "description": "Prefix names the class and must agree with `class` and the directory; the file is <id>.yaml." },
+    "class": { "enum": ["happy", "ambiguity", "hostile", "adversarial", "degradation", "consent"] },
+    "gate": { "enum": ["constraint", "behaviour"], "description": "`constraint`: the group must pass at 100%. `behaviour`: its metrics are compared with the baseline. Constraint assertions block in every scenario regardless." },
+    "title": { "type": "string", "minLength": 8, "maxLength": 120 },
+    "why": { "type": "string", "minLength": 40, "description": "What breaks if this scenario stops passing. A scenario that cannot say is decoration." },
+    "persona": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A PersonaCatalog id." },
+    "seeds": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "type": "integer", "minimum": 0, "maximum": 1000000 }, "description": "One run per seed. Default [1]." },
+    "canary": { "type": "boolean", "description": "Plant a marker string in every interviewee reply; constraint C-08 then scans every span, event and log line for it." },
+    "control": { "enum": ["strip-injection"], "description": "Also run a control interview with the instruction-like sentences removed from the interviewee replies; the turn-kind sequences must be identical (C-05)." },
+    "probe_reply": { "type": "string", "minLength": 8, "description": "Scenario-level delta: whenever the persona answers a concrete-example probe, it says this instead (so the interviewee stays vague after the probe). The text must be in evals/labels/vagueness.yaml." },
+    "faults": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "roles"],
+        "properties": {
+          "kind": { "enum": ["timeout", "server_error", "empty_answer", "malformed_json", "usage_missing", "usage_inflated", "compromised"] },
+          "roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["interviewer", "prober", "extractor"] } },
+          "times": { "type": "integer", "minimum": 1, "maximum": 100, "description": "Only the first N matching calls are faulted; omitted = every matching call." },
+          "variants": { "type": "array", "minItems": 1, "items": { "enum": ["leading", "loaded", "closed", "prompt_leak", "name_echo", "obeys_injection", "fabricates", "affect_field", "pii_quote"] }, "description": "For kind `compromised`: how the model misbehaves; interviewer variants are cycled by call." },
+          "tokens": { "type": "integer", "minimum": 1, "maximum": 1000000, "description": "For kind `usage_inflated`: tokens reported per call." }
+        }
+      }
+    },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "record"],
+      "properties": {
+        "outcome": { "enum": ["completed", "withdrawn", "consent_not_given", "abandoned", "pii_guard_failed", "extraction_failed"] },
+        "end_reason": { "type": "string", "pattern": "^[a-z_]+$" },
+        "record": { "enum": ["present", "absent"], "description": "Stated explicitly so a scenario cannot pass by the agent doing nothing." },
+        "min": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "probes": { "type": "integer", "minimum": 0 },
+            "clarifications": { "type": "integer", "minimum": 0 },
+            "redirects": { "type": "integer", "minimum": 0 },
+            "questions_rejected": { "type": "integer", "minimum": 0 },
+            "names_masked": { "type": "integer", "minimum": 0 },
+            "topics_covered": { "type": "integer", "minimum": 0, "maximum": 6 },
+            "extraction_attempts": { "type": "integer", "minimum": 1, "maximum": 2 }
+          }
+        },
+        "max": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "probes": { "type": "integer", "minimum": 0 },
+            "extraction_attempts": { "type": "integer", "minimum": 1, "maximum": 2 }
+          }
+        },
+        "events_present": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^interview\\.[a-z_.]+$" } },
+        "absent": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The second assertion of the two-assertion rule: what must NOT have happened.",
+          "properties": {
+            "spans": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^interview\\.[a-z_]+$" } },
+            "events": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^interview\\.[a-z_.]+$" } },
+            "turn_kinds": { "type": "array", "uniqueItems": true, "items": { "enum": ["opening", "consent_reask", "topic", "probe", "clarification", "redirect", "close", "stop"] } }
+          }
+        }
+      }
+    },
+    "measure": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["coverage", "lqr", "fuv", "clarified", "released", "budget_graceful", "degraded_ok", "redirected", "edge_case"] },
+      "description": "The behaviour metrics this scenario's runs belong to (SPEC §4). `edge_case` is always measured and need not be listed."
+    },
+    "spec": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^(C|B)-[0-9]{2}$" }, "description": "Spec ids this scenario proves; each must cite this scenario back in docs/eval/SPEC.md." },
+    "rubrics": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^R-[0-9]{2}$" } },
+    "skip": { "type": "string", "minLength": 8, "description": "Reason this scenario is not run (`skipped:unimplemented`). Never a silent pass." },
+    "origin": { "type": "string", "description": "Where the scenario came from, e.g. a designed case or an incident." }
+  }
+}

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The evaluation harness: scenarios as data, an in-process runner, trace capture, Layer 1 graders, a Layer 2 judge, gates and the
+       conformance report (ADR-0037..0041). Library and console tool. It builds on the IChatClient seam; the only code that touches the Providers project is ProviderRegistration (called by Program), which registers one factory per provider name (ADR-0037, ADR-0032). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>exit-interview-eval</AssemblyName>
+    <RootNamespace>ExitInterviewAgent.Eval</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="LateApexEarlySpeed.Json.Schema" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Personas\ExitInterviewAgent.Personas.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Providers\ExitInterviewAgent.Providers.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Privacy\ExitInterviewAgent.Privacy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Eval.Tests" />
+  </ItemGroup>
+</Project>

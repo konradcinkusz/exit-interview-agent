@@ -113,7 +113,8 @@ internal sealed class TraceCapture : IDisposable
         {
             ShouldListenTo = s => s.Name == InterviewTelemetry.ActivitySourceName || s.Name == RootName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = a => { if (a.TraceId == _root!.TraceId && a != _root) lock (_activities) _activities.Add(a); },
+            // The listener is registered process-wide before _root exists, so another test's activity can stop first: null-safe.
+            ActivityStopped = a => { if (_root is { } root && a.TraceId == root.TraceId && a != root) lock (_activities) _activities.Add(a); },
         };
         ActivitySource.AddActivityListener(_listener);
         _root = RootSource.StartActivity("test-root", ActivityKind.Internal)!;

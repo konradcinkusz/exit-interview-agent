@@ -5,7 +5,7 @@ tested; section 7 says what the rules do **not** do. Decisions: [ADR-0052](../ad
 [ADR-0053](../adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md) (the rules), [ADR-0054](../adr/0054-statistics-regularised-t-interval-and-reliability.md) (statistics),
 [ADR-0055](../adr/0055-publication-batches-snapshot-and-deletion-semantics.md) (publication), [ADR-0056](../adr/0056-signals-api-caching-rate-limits-and-demo-data.md) (API).
 Companions: [signals module](../architecture/signals.md), [privacy design §5.5](DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-implemented-t10), [threat model T-01](../security/THREAT-MODEL.md),
-[open problems](../OPEN-PROBLEMS.md), [metric ethics in the methodology](../eval/METHODOLOGY.md#11-aggregate-counter-metrics-t10).
+[open problems](../OPEN-PROBLEMS.md), [metric ethics in the methodology](../eval/METHODOLOGY.md#14-aggregate-counter-metrics-t10).
 
 Records are personal data and are never called anonymous ([ADR-0018](../adr/0018-records-are-treated-as-personal-data.md)). **Aggregates may be called "aggregated"**, and nothing stronger:
 the rules below make small groups hard to isolate; they do not make anyone anonymous.
@@ -97,11 +97,11 @@ K is a convention, not a guarantee. Stated candidly, each with the test or open 
    `The_known_boundary_k_minus_one_other_records_are_recoverable...` documents the boundary instead of hiding it. Raise k for small employers; the real fix is verification.
 2. **Side knowledge.** An adversary who knows who else submitted, or that a group of five contains four known people, can eliminate ([T-01](../security/THREAT-MODEL.md), [OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups)).
 3. **Homogeneity.** A unanimous cell is shown (with a wide interval): everyone in it gave that rating, so a person known to be in the cell has a known rating. Suppressing unanimous cells would be an l-diversity rule, would
-   bias what is shown towards polarised employers, and the pattern of suppression would itself tell ([OP-16](../OPEN-PROBLEMS.md#op-16-homogeneous-cells-are-shown)).
-4. **The pattern of what is withheld.** A withheld cut says that some band in it has between 1 and k - 1 ratings, or that a group left out of the band has. It does not say which ([OP-17](../OPEN-PROBLEMS.md#op-17-what-is-withheld-is-itself-a-signal)).
+   bias what is shown towards polarised employers, and the pattern of suppression would itself tell ([OP-19](../OPEN-PROBLEMS.md#op-19-homogeneous-cells-are-shown)).
+4. **The pattern of what is withheld.** A withheld cut says that some band in it has between 1 and k - 1 ratings, or that a group left out of the band has. It does not say which ([OP-20](../OPEN-PROBLEMS.md#op-20-what-is-withheld-is-itself-a-signal)).
 5. **Differences across more than one record.** The cross-snapshot guarantee is for one record of the adversary's own moving between two batches. A batch in which a handful of known people submitted, with nothing else changing,
-   exposes their joint contribution (it is bounded by the batch size and the period: a longer period dilutes it; [OP-15](../OPEN-PROBLEMS.md#op-15-k-is-a-convention-and-small-batches-expose-small-differences)).
-6. **Utility.** At employers with a small band, whole cuts disappear (R3). That is the price of 1, and it is visible in the demo ([OP-18](../OPEN-PROBLEMS.md#op-18-clean-partitions-withhold-more-than-a-textbook-rule-would)).
+   exposes their joint contribution (it is bounded by the batch size and the period: a longer period dilutes it; [OP-18](../OPEN-PROBLEMS.md#op-18-k-is-a-convention-and-small-batches-expose-small-differences)).
+6. **Utility.** At employers with a small band, whole cuts disappear (R3). That is the price of 1, and it is visible in the demo ([OP-21](../OPEN-PROBLEMS.md#op-21-clean-partitions-withhold-more-than-a-textbook-rule-would)).
 7. **Not covered at all:** fabricated records (T-10), model error in ratings (OP-5), who the respondents are (OP-4), and an operator with the database, the key and live traffic (T-13).
 
 ## 8. API contract and UI copy contract

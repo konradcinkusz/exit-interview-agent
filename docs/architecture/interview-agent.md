@@ -159,7 +159,7 @@ judge, must treat them as inert data (the record schema already says so). The cu
 ## Budgets
 
 Numbers live in the protocol's `limits`: interviewer turns (40), model calls (60), estimated tokens (60,000), reply length (2,000 characters), terse threshold (3 words) and streak (3), hostile replies to close (2), probes, clarifications and redirects per topic (1 each), consent asks (2). The model-call and token budgets count through
-`MeteredChatClient` (provider-reported usage when present, otherwise four characters per token); reaching one closes the interview gracefully and extraction still runs (its two calls are not counted against the budget). The defaults are starting values, not measured optima; `InterviewProtocol.WithLimits` overrides them.
+`MeteredChatClient` (provider-reported usage when present, otherwise four characters per token); reaching one closes the interview gracefully and extraction still runs (its two calls are not counted against the budget). The defaults are starting values, not measured optima; `InterviewProtocol.WithLimits` overrides them. With a real provider ([providers](providers.md), T6) a **hard** ceiling sits above this graceful one (twice the tokens, the calls plus the extractor's attempts) and stops the next call outright; a fatal provider failure (bad key, spent budget, a provider that fails three calls in a row) ends the interview with nothing kept instead of degrading to the protocol's wording ([ADR-0034](../adr/0034-resilience-budget-and-failure-semantics.md)).
 
 ## What the deterministic heuristics can and cannot do
 
@@ -179,7 +179,7 @@ It is **a seam for tests and demos, not a quality baseline**.
 
 - It **can** show that the plumbing works end to end: the state machine, masking, the data block, the schema, the quote step, validation, tracing, determinism and the invariants hold on every persona.
 - It **cannot** show that a real model words neutral questions, resists injection, extracts faithfully, or produces useful ratings: it understands nothing, so it cannot be talked into anything, and its ratings are word counts. A clean run with the mock says nothing about those; the obedient-model double in the tests probes the *code-side* defences only.
-- Any number from a mock run (quotes per topic, ratings) describes the mock. Real providers are T6; model-behaviour measurement is T7 and is not done.
+- Any number from a mock run (quotes per topic, ratings) describes the mock. Real providers exist since T6 ([providers](providers.md), not run live); model-behaviour measurement is T7 and is not done.
 
 ## Personas
 
@@ -206,7 +206,7 @@ The public API for T7 is `PersonaCatalog` (`All`, `Get`, `TryGet`, `Parse`), `Pe
 ## Known limits
 
 - English only (protocol, cue lists, personas); Polish appears only in a few withdrawal and consent phrases.
-- No interactive terminal interviewee yet; the CLI runs personas. A person at a terminal arrives with T6/T11.
+- The interactive terminal interviewee exists (T6, [ADR-0036](../adr/0036-cli-interview-and-providers-commands.md)); the CLI submits nothing until T11.
 - Heuristic reading of vagueness and contradiction (above), with no measured accuracy yet.
 - The quote step guards fidelity, not truth: a verbatim quote can still be a lie the interviewee told ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)).
 - The token budget uses an estimate when the provider reports no usage.

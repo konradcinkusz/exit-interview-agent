@@ -9,18 +9,32 @@ namespace ExitInterviewAgent.Cli;
 
 /// <summary>
 /// <c>exit-interview</c>: <c>demo</c> runs a whole simulated interview offline with the scripted mock model and a
-/// persona, <c>personas</c> lists them. No network, no credentials, no submission. Exit code: 0 all invariants hold,
-/// 1 an invariant failed, 2 usage error.
+/// persona, <c>personas</c> lists them (no network, no credentials); <c>interview</c> runs a real one with the user's own provider;
+/// <c>providers</c> inspects configuration. No submission. Exit code of <c>demo</c>: 0 all invariants hold, 1 an invariant failed, 2 usage error.
 /// </summary>
 public static class CliApp
 {
     public const string Usage = """
-        exit-interview: offline demo of the exit interview agent (simulated personas, scripted mock model, no network)
+        exit-interview: an AI exit interview agent. Bring your own model: your API key (Anthropic, OpenAI-compatible) or a local model (Ollama).
 
         Usage:
+          exit-interview interview --provider <p> --model <m> [--base-url <url>] [--api-key-env <NAME>] [--out <dir>] [--employer <ref>]
+                                   [--tenure <band>] [--seniority <band>] [--function <band>] [--save-transcript] [--yes-i-understand]
+                                   [--max-tokens <n>] [--timeout-seconds <n>] [--max-retries <n>] [--num-ctx <n>]
+                                   [--price-in <per-million>] [--price-out <per-million>] [--max-cost <amount>] [--config <file>]
+          exit-interview providers [ping <provider flags> | forget-confirmations]
           exit-interview demo --persona <id> [--seed <n>] [--out <dir>]
           exit-interview personas
           exit-interview --help | --version
+
+        interview   A real interview in this terminal. Providers: anthropic, openai-compatible (alias openai), ollama; 'mock' is the offline test model.
+                    The API key is read from an environment variable only (ANTHROPIC_API_KEY, OPENAI_API_KEY, or the one --api-key-env names): there is
+                    no --api-key flag. Settings come from flags, then EXIT_INTERVIEW_* environment variables, then the config file. Before an external
+                    provider is used you are told where the transcript goes and asked to confirm (--yes-i-understand for scripts). The transcript stays
+                    in memory; --save-transcript (with --out) writes it. Ctrl-C or Ctrl-D stops and discards everything. Nothing is submitted anywhere.
+                    Exit codes: 0 completed, 2 usage or configuration, 3 ended without a record by choice, 4 agent failure, 5 provider failure, 6 not confirmed, 130 cancelled.
+        providers   Lists providers and checks local configuration without any network call. 'providers ping' makes one minimal live request.
+                    OpenTelemetry export is off unless OTEL_TRACES_EXPORTER / OTEL_METRICS_EXPORTER or an OTLP endpoint is set; prompts and replies are never exported.
 
         demo      Runs a full interview offline and prints the masked transcript, the record, the validation result
                   and an invariant report. --seed makes it reproducible (default 1). --out writes transcript.txt,
@@ -28,8 +42,12 @@ public static class CliApp
         personas  Lists the simulated interviewees.
         """;
 
-    public static async Task<int> RunAsync(string[] args, TextWriter stdout, TextWriter stderr)
+    public static async Task<int> RunAsync(string[] args, TextWriter stdout, TextWriter stderr) =>
+        await RunAsync(args, new CliHost(TextReader.Null, stdout, stderr, Environment.GetEnvironmentVariable, null, default, ExportTelemetry: false)).ConfigureAwait(false);
+
+    public static async Task<int> RunAsync(string[] args, CliHost host)
     {
+        var (stdout, stderr) = (host.Out, host.Err);
         try
         {
             if (args.Length == 0 || args[0] is "--help" or "-h" or "help") { await stdout.WriteLineAsync(Usage); return args.Length == 0 ? 2 : 0; }
@@ -38,10 +56,16 @@ public static class CliApp
                 "--version" => await Print(stdout, $"exit-interview, interview protocol {InterviewProtocol.Current.ProtocolVersion}"),
                 "personas" => await ListPersonas(stdout),
                 "demo" => await Demo(args[1..], stdout, stderr),
+                "interview" => await InterviewCommand.RunAsync(args[1..], host),
+                "providers" => await ProvidersCommand.RunAsync(args[1..], host),
                 _ => await Fail(stderr, $"Unknown command '{args[0]}'."),
             };
         }
         catch (ArgumentException e)
+        {
+            return await Fail(stderr, e.Message);
+        }
+        catch (ExitInterviewAgent.Providers.ProviderConfigurationException e)
         {
             return await Fail(stderr, e.Message);
         }

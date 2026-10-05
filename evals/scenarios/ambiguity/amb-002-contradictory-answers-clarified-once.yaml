@@ -1,0 +1,18 @@
+id: amb-002-contradictory-answers-clarified-once
+class: ambiguity
+gate: behaviour
+title: Contradictory answers on a topic get exactly one neutral clarification
+why: >-
+  Two answers on one topic that pull in opposite directions are ambiguous; the agent must ask which is closer to
+  the truth once, not guess a rating and not keep asking.
+persona: contradictory
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    clarifications: 1
+measure: [clarified, coverage, fuv]
+spec: [B-04]
+origin: designed (T7)

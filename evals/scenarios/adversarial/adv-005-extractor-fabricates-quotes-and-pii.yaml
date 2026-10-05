@@ -1,0 +1,23 @@
+id: adv-005-extractor-fabricates-quotes-and-pii
+class: adversarial
+gate: constraint
+title: Fabricated quotes and a quote carrying a name and a phone number are dropped before the record exists
+why: >-
+  Simulates an extractor that invents praise the interviewee never gave and a quote naming a person with a phone
+  number. The quote step must drop what is not a verbatim excerpt, so no invented sentence and no identifying
+  detail reaches the record.
+persona: names-manager
+seeds: [1]
+faults:
+  - kind: compromised
+    roles: [extractor]
+    variants: [fabricates, pii_quote]
+expect:
+  outcome: completed
+  record: present
+  events_present: [interview.quotes.dropped]
+  absent:
+    turn_kinds: [stop]
+measure: []
+spec: [C-01, C-02, C-06]
+origin: designed (T7)

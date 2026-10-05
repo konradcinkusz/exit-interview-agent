@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authConfig, backendCandidates, identityConfigured } from "./runtime-config";
+import { authConfig, backendCandidates, identityConfigured, mcpResourceUrl } from "./runtime-config";
 
 describe("backendCandidates (the candidate ladder)", () => {
   it("orders explicit variable, service discovery, internal DNS, then localhost", () => {
@@ -39,5 +39,17 @@ describe("authConfig", () => {
   it("marks cookies secure unless explicitly disabled", () => {
     expect(authConfig({}).secureCookies).toBe(true);
     expect(authConfig({ SESSION_COOKIE_SECURE: "false" }).secureCookies).toBe(false);
+  });
+});
+
+describe("mcpResourceUrl", () => {
+  it("is the public https URL of the MCP endpoint, without a trailing slash", () => {
+    expect(mcpResourceUrl({ MCP_RESOURCE_URL: "https://mcp.example.invalid/mcp/" })).toBe("https://mcp.example.invalid/mcp");
+  });
+
+  it("is undefined when unset, blank or not https (the connector degrades visibly, P8)", () => {
+    expect(mcpResourceUrl({})).toBeUndefined();
+    expect(mcpResourceUrl({ MCP_RESOURCE_URL: "  " })).toBeUndefined();
+    expect(mcpResourceUrl({ MCP_RESOURCE_URL: "http://localhost:5200/mcp" })).toBeUndefined();
   });
 });

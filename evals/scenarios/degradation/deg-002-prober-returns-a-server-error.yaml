@@ -1,0 +1,22 @@
+id: deg-002-prober-returns-a-server-error
+class: degradation
+gate: behaviour
+title: A prober that fails with a server error is replaced by the protocol probe
+why: >-
+  The concrete-example follow-up is the only thing the prober does; when its provider answers 500 the agent must
+  ask the protocol's own probe and carry on, not skip the follow-up and not loop.
+persona: vague
+seeds: [1]
+faults:
+  - kind: server_error
+    roles: [prober]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    probes: 6
+    questions_rejected: 6
+measure: [fuv, degraded_ok]
+spec: [B-03, B-08]
+origin: designed (T7)

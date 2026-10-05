@@ -1,6 +1,6 @@
 # Interview trace schema
 
-Status: **Implemented** on this branch (T4); consumed by T6 (providers) and T7 (eval harness). Companion documents:
+Status: **Implemented** (T4 agent layer, T6 provider layer); consumed by the T7 eval harness (`src/ExitInterviewAgent.Eval`, [ADR-0037](../adr/0037-eval-harness-architecture.md)): `TraceRecorder` captures one trace per run and the Layer 1 graders read only the names and attributes in this file. The operation table the harness derives constraint C-10 from is [SPEC §2](SPEC.md#2-the-operation-table-normative). Companion documents:
 [interview agent](../architecture/interview-agent.md), [eval methodology](METHODOLOGY.md),
 [privacy design](../privacy/DESIGN.md) (no PII or interview content in logs or traces, brief §6).
 
@@ -75,7 +75,7 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 | `gen_ai.operation.name` | string code | `invoke_agent` on the session, `chat` on a model call |
 | `gen_ai.agent.name` | string code | the agent's name, `exit-interview-agent` |
 | `gen_ai.request.model` | string code | the model id the client reports (the mock reports `scripted-mock`), passed through `SafeCode` |
-| `gen_ai.provider.name` | string code | the provider name the client reports (`mock` for the mock) |
+| `gen_ai.provider.name` | string code | the provider name the client reports (`mock` for the mock; `anthropic`, `openai_compatible`, `ollama` for the providers) |
 | `gen_ai.usage.input_tokens` | int | provider-reported, or a four-characters-per-token estimate |
 | `gen_ai.usage.output_tokens` | int | as above |
 | `interview.protocol.version` | string code | for example `1.0` |
@@ -129,10 +129,64 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 Transcript fidelity, leading-question rate and PII leakage are *artifact* measures (the record and the transcript), not trace
 measures; `InterviewInvariants` (in the Agent project) computes the artifact checks and the harness reuses it.
 
+## Provider layer (T6)
+
+Model providers add a second, lower layer from their own source, **`ExitInterviewAgent.Providers`** (version `1.0`), and a meter of the
+same name. It obeys the same rule (metadata only) and adds one thing the agent layer cannot know: what happened on the wire. The
+vocabulary lives in `src/ExitInterviewAgent.Providers/ProviderTelemetry.cs`; a test fails when this section and that file disagree, and
+another when a provider run emits a name that is not listed here. Design: [ADR-0035](../adr/0035-provider-telemetry-and-export.md),
+[providers](../architecture/providers.md).
+
+**No content capture, and no switch for it.** Nothing in the Providers source can record a prompt or a completion: no option, no
+environment variable (the standard GenAI content-capture switch is ignored), no `gen_ai.input.messages`-style attribute. The only
+string a tag can take is a sanitised code (`[A-Za-z0-9_.:-]`, at most 48 characters; anything else becomes `_`). The canary test runs every
+provider client with the key, a header, a base-URL path, an echoing error body and the interviewee's marker planted, scanning every
+activity of every source in the process, every metric label, every log line and every exception.
+
+| Span | When | Key attributes |
+|---|---|---|
+| `provider.call` (kind client) | one model call through a provider client, retries included; a child of the agent's `chat <role>` span | `gen_ai.operation.name` = `chat`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.response.model`, `gen_ai.response.finish_reasons`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `exit_interview.provider.attempts`, `exit_interview.provider.usage_estimated`, and on failure `error.type` and `http.response.status_code` |
+
+| Event | On | Meaning | Event attributes |
+|---|---|---|---|
+| `provider.retry` | `provider.call` | one HTTP attempt failed transiently and will be retried after a backoff | `exit_interview.provider.retry.attempt` (int), `http.response.status_code` (int, 0 when there was no response) |
+
+| Attribute | Type | Meaning |
+|---|---|---|
+| `gen_ai.response.model` | string code | the model id the provider reports, sanitised |
+| `gen_ai.response.finish_reasons` | string list | one of `stop`, `length`, `tool_calls`, `content_filter`, `other`, `none` |
+| `gen_ai.token.type` | string code | metric label: `input` or `output` |
+| `error.type` | string code | on a failed call: `provider.auth_failed`, `provider.rate_limited`, `provider.server_error`, `provider.bad_request`, `provider.timeout`, `provider.network`, `provider.invalid_response`, `provider.budget_exceeded`, `provider.unavailable`, or `cancelled`. The agent's `chat` span carries the same code in `error.type` when a provider failure was reported to it |
+| `http.response.status_code` | int | the last HTTP status seen for the call |
+| `exit_interview.provider.attempts` | int | HTTP attempts made (1 means no retry) |
+| `exit_interview.provider.usage_estimated` | bool | the provider reported no token counts, so the figures are four characters per token |
+| `exit_interview.provider.retry.attempt` | int | the attempt number that failed |
+| `exit_interview.provider.retry.reason` | string code | metric label: the HTTP status, or `timeout` / `network` |
+| `exit_interview.provider.budget.limit` | string code | metric label: `tokens`, `calls` or `cost` |
+
+`gen_ai.provider.name` takes `anthropic`, `openai_compatible` or `ollama` (the conventions allow custom values where no well-known one
+fits). No server address or URL is recorded: where a user's gateway lives is theirs.
+
+**Metrics** (meter `ExitInterviewAgent.Providers`). Labels are low-cardinality by construction: a closed set of keys (operation, provider,
+model, token type, error type, retry reason, budget limit) and short controlled values; a test checks every measurement.
+
+| Instrument | Unit | Meaning | Labels |
+|---|---|---|---|
+| `gen_ai.client.operation.duration` | s | duration of one model call, retries included | `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `error.type` (failures only) |
+| `gen_ai.client.token.usage` | {token} | tokens used per call, provider-reported or estimated | the above plus `gen_ai.token.type` |
+| `exit_interview.provider.retries` | {retry} | retried HTTP attempts | `gen_ai.provider.name`, `exit_interview.provider.retry.reason` |
+| `exit_interview.provider.budget_exceeded` | {event} | calls refused because the hard budget was reached | `exit_interview.provider.budget.limit` |
+
+**Reading usage from a trace.** The agent's `chat` span and the `provider.call` span both carry token counts (the second is the provider's own
+accounting, the first is what the budget meter counted). A harness sums **one** of them per interview, never both. Latency from the
+`provider.call` span includes retries and waits; per-attempt latency is not recorded.
+
+**Export** is the CLI's concern and is off unless asked ([ADR-0035](../adr/0035-provider-telemetry-and-export.md)): `OTEL_TRACES_EXPORTER` and
+`OTEL_METRICS_EXPORTER` (`otlp`, `console`, `none`), or an OTLP endpoint in `OTEL_EXPORTER_OTLP_ENDPOINT`; `OTEL_SDK_DISABLED=true` turns it off.
+Only the two sources above and the one meter are registered.
+
 ## Not yet covered
 
-- Model providers (T6) will add provider-specific attributes through the same `chat` span; they must obey the same rule, and
-  must wrap provider exceptions the way `MeteredChatClient` does.
 - The reserved attributes (`interview.probes`, `interview.clarifications`, `interview.redirects`, `interview.questions.rejected`,
   `interview.reason`) are declared so the names are stable, and are not emitted yet; the counts are in `RunDiagnostics`.
 - Sampling, export and the collector are the kernel's concern (P15) and are not configured by the Agent project.

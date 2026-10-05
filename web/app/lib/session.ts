@@ -15,7 +15,13 @@ export const CONSENT_COOKIE = "eia_consent";
 /** Set for a few seconds after a redirect-style refresh so a refresh that cannot stick never loops. */
 export const REFRESHED_COOKIE = "eia_refreshed";
 
-const ALL_COOKIES = [ACCESS_COOKIE, REFRESH_COOKIE, CONSENT_COOKIE, REFRESHED_COOKIE];
+/**
+ * The second-factor challenge between the password step and the code step. authservice issues it with a 5-minute life; it
+ * is useless for anything but completing that one sign-in, and it stays in this cookie so page JavaScript never holds it.
+ */
+export const TWO_FACTOR_COOKIE = "eia_2fa";
+
+const ALL_COOKIES = [ACCESS_COOKIE, REFRESH_COOKIE, CONSENT_COOKIE, REFRESHED_COOKIE, TWO_FACTOR_COOKIE];
 const REFRESH_COOKIE_SECONDS = 7 * 24 * 3600;
 
 export function cookieAttributes(secure: boolean, maxAge?: number) {
@@ -55,4 +61,12 @@ export function clearSession(res: NextResponse, secure: boolean): void {
   for (const name of ALL_COOKIES) {
     res.cookies.set(name, "", cookieAttributes(secure, 0));
   }
+}
+
+export function setTwoFactorChallenge(res: NextResponse, challengeToken: string, expiresIn: number, secure: boolean): void {
+  res.cookies.set(TWO_FACTOR_COOKIE, challengeToken, cookieAttributes(secure, Math.min(Math.max(expiresIn, 1), 300)));
+}
+
+export function clearTwoFactorChallenge(res: NextResponse, secure: boolean): void {
+  res.cookies.set(TWO_FACTOR_COOKIE, "", cookieAttributes(secure, 0));
 }

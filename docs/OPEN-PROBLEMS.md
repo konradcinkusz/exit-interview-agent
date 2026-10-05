@@ -21,10 +21,13 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-12 | Receipt codes: access without a list of records | Medium |
 | OP-13 | Storage-level correlation between the ledger and the records | Medium |
 | OP-14 | One submission per employer is time-limited by the ledger window | Medium |
-| OP-15 | K is a convention, and small batches expose small differences | High |
-| OP-16 | Homogeneous cells are shown | Medium |
-| OP-17 | What is withheld is itself a signal | Low |
-| OP-18 | Clean partitions withhold more than a textbook rule would | Medium |
+| OP-15 | Anonymous receipt deletion behind the BFF shares one rate-limit key | Medium |
+| OP-16 | Manual accessibility pass | Low |
+| OP-17 | Two-factor sign-in has been tested only against the stub | Low |
+| OP-18 | K is a convention, and small batches expose small differences | High |
+| OP-19 | Homogeneous cells are shown | Medium |
+| OP-20 | What is withheld is itself a signal | Low |
+| OP-21 | Clean partitions withhold more than a textbook rule would | Medium |
 
 ## OP-1. Real employment verification
 
@@ -120,8 +123,8 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 
 - **Why it matters.** An LLM judge that was never compared with people is a measuring stick nobody has checked
   ([METHODOLOGY §7](eval/METHODOLOGY.md); the reference repository's own labels were AI-written and are described there as a rehearsal).
-- **What we do now.** Judge scores are reported and trended; they gate nothing (Planned, T7).
-- **What would close it.** ≥ 40 human labels over ≥ 8 scenarios under a named human handle, κ ≥ 0.6 (starting thresholds), recorded in the repository.
+- **What we do now.** **Implemented (T7, [ADR-0039](adr/0039-layer-2-judge-and-calibration-policy.md)).** The judge is built, pinned and hashed, and its scores gate nothing. 48 judge items and 74 replies / 16 pairs are hand-labelled **by the AI session that wrote the harness**: an author-labelled rehearsal that counts for nothing towards the gate (the gate also requires `labeller_kind: human` under the owner's handle). No judge credential has been available, so the judge has scored nothing (`skipped:no-credential`); what is computed offline is the rule screens' and the reply analyser's agreement with the same labels (`eval calibrate`).
+- **What would close it.** ≥ 40 human labels (the starting thresholds, taken from the reference implementation: ≥ 40 labels, ≥ 8 items, κ ≥ 0.6) under a named human handle in `evals/labels/judge.yaml` with `labeller_kind: human`, `calibration.owner_handle` set in `evals/rubrics/judge.yaml`, and a keyed run that computes κ.
 
 ## OP-12. Receipt codes: access without a list of records
 
@@ -149,7 +152,30 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** A configurable window and an honest statement. The default is an assumption, not a measurement.
 - **What would close it.** Either a window at least as long as the record age (more exposure), or an aggregate that counts accounts rather than records (needs a link the design refuses).
 
-## OP-15. K is a convention, and small batches expose small differences
+## OP-15. Anonymous receipt deletion behind the BFF shares one rate-limit key
+
+- **Why it matters.** The interview-service limits receipt deletion per client address (default 6 a minute) and keys on the socket address unless `Submission:ClientIpHeader`
+  names a forwarded header ([ADR-0029](adr/0029-receipt-deletion-semantics.md)). Every web request reaches it from the web server, so for people using the portal the
+  per-client window behaves as one budget for everyone, and one person's retries can lock others out for a minute. Found by T9 ([ADR-0049](adr/0049-anonymous-receipt-route-and-the-header-contract.md)); not visible locally.
+- **What we do now.** Nothing: the BFF does not forward the visitor's address, because that puts an IP into a second service for a limiter key, which is a privacy choice for the operator.
+- **What would close it.** A deployment ADR that decides between forwarding a client-address header (and configuring `Submission:ClientIpHeader` to read only that header from the BFF's network)
+  and accepting the shared budget with a larger global allowance; plus a load test of the chosen setting.
+
+## OP-16. Manual accessibility pass
+
+- **Why it matters.** The browser suite runs axe-core (WCAG 2.0/2.1 A and AA rules) on every page and state, which finds a subset of problems. It cannot judge reading order, whether
+  the copy is understandable, focus order across a whole flow, or what a screen reader announces ([ADR-0051](adr/0051-message-catalog-accessibility-gate-and-stub-contract.md)).
+- **What we do now.** The automated floor, a keyboard-only login test, a 320 px overflow test, visible focus, a skip link, `role="alert"` for errors.
+- **What would close it.** A person running the flows with a screen reader and keyboard only, at 200% zoom and in forced-colours mode, recorded in the repository.
+
+## OP-17. Two-factor sign-in has been tested only against the stub
+
+- **Why it matters.** The BFF's second step relies on authservice's `2fa/login` contract as read from its source (ADR-0050), including telling a wrong code, a dead challenge and a lockout apart by the
+  text of a `401`. The browser suite runs against a stub that mirrors that source; no session here could run the real image.
+- **What we do now.** Unit tests pin the three texts; the stub carries a contract note.
+- **What would close it.** The full-stack journey against the AppHost with a two-factor account enrolled through authservice (a later e2e layer).
+
+## OP-18. K is a convention, and small batches expose small differences
 
 - **Why it matters.** K = 5 is the brief's number, not a measured privacy level. Three limits of any k-threshold remain after T10: (1) an adversary who adds one record of their own to an employer with k - 1 others sees
   the cell appear, and "everything minus mine" is exactly those k - 1 people; with *m* accounts it is k - m, and the ledger limits one submission per employer per account, not the number of accounts ([OP-1](#op-1-real-employment-verification),
@@ -159,21 +185,21 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What would close it.** Verification that makes an account cost something (OP-1); a minimum number of *changes* per batch before a cell is republished (this conflicts with deleting a record "at the next batch", so it needs
   a decision about erasure); noise addition evaluated against simulated re-identification, if the project later wants a formal guarantee instead of a convention; an employer-size floor from a registry ([OP-2](#op-2-employer-registry-and-identity)).
 
-## OP-16. Homogeneous cells are shown
+## OP-19. Homogeneous cells are shown
 
 - **Why it matters.** A cell where everyone gave the same rating is displayed (with a wide interval, never a point): a person known to be in the cell has a known rating. That is the homogeneity limit of k-anonymity (the l-diversity gap).
-- **What we do now.** Nothing suppresses it, on purpose: suppressing unanimous cells would show only polarised employers, and the pattern of suppression would itself tell (OP-17). The interval is wide at small n; the copy contract says what the
+- **What we do now.** Nothing suppresses it, on purpose: suppressing unanimous cells would show only polarised employers, and the pattern of suppression would itself tell (OP-20). The interval is wide at small n; the copy contract says what the
   numbers describe.
 - **What would close it.** A diversity rule evaluated for its cost in coverage, or showing only cells whose spread is above a floor, with the bias that introduces written down.
 
-## OP-17. What is withheld is itself a signal
+## OP-20. What is withheld is itself a signal
 
 - **Why it matters.** A withheld cut says some band in it has between 1 and k - 1 ratings, or that a group left out of the band does; an `insufficient_data` topic says fewer than k people rated it. Which band, and how many, are not said.
 - **What we do now.** Statuses are a fixed vocabulary; the response always has six topics and three cuts per displayable topic; no count of withheld cells is returned, logged or emitted as a metric; an employer below k and an unknown one get
   byte-identical answers.
-- **What would close it.** Publishing every cut in a fixed shape regardless of what it hides (not possible without noise), or recoding bands so withholding is rarer ([OP-18](#op-18-clean-partitions-withhold-more-than-a-textbook-rule-would)).
+- **What would close it.** Publishing every cut in a fixed shape regardless of what it hides (not possible without noise), or recoding bands so withholding is rarer ([OP-21](#op-21-clean-partitions-withhold-more-than-a-textbook-rule-would)).
 
-## OP-18. Clean partitions withhold more than a textbook rule would
+## OP-21. Clean partitions withhold more than a textbook rule would
 
 - **Why it matters.** A clean partition is withheld whole when any band holds 1 to k - 1 ratings, so at a mid-sized employer a single small band (a tenure band of three people) removes that topic's whole tenure cut. Distribution and
   verification breakdowns appear only from about 3k ratings. The cuts will often be empty for small employers, which weakens what the product says about *why* a topic is rated as it is.

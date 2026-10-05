@@ -7,6 +7,18 @@ namespace ExitInterviewAgent.Agent.Roles;
 
 public enum Role { Interviewer, Prober, Extractor }
 
+/// <summary>
+/// Implemented by an exception a model client throws when it can describe the failure without content: a controlled
+/// <see cref="FailureCode"/> (letters, digits, <c>_ . : -</c>) and whether continuing is pointless (<see cref="IsFatal"/>).
+/// The metered client carries the code, never the message.
+/// </summary>
+public interface IModelFailure
+{
+    string FailureCode { get; }
+
+    bool IsFatal { get; }
+}
+
 /// <summary>A request to word one interviewer turn. <see cref="Seed"/> is the protocol's own wording, also the fallback.</summary>
 public sealed record QuestionRequest(TurnKind Kind, Topic? Topic, string Seed, Transcript History);
 
