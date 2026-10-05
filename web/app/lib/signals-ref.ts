@@ -12,3 +12,8 @@ export function isEmployerRef(value: unknown): value is string {
 export function employerPath(employerRef: string): string | null {
   return isEmployerRef(employerRef) ? `/signals/employers/${encodeURIComponent(employerRef)}` : null;
 }
+
+/** The page of an employer on this site (`/signals/<ref>`), for a reference the API listed. Null when the string is not a reference: it is then shown as text, never as a link. */
+export function employerPagePath(employerRef: string): string | null {
+  return isEmployerRef(employerRef) ? `/signals/${encodeURIComponent(employerRef)}` : null;
+}

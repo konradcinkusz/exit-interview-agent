@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/", label: m.nav.home, gated: false },
   { href: "/connect", label: m.nav.connect, gated: false },
   { href: "/cli", label: m.nav.cli, gated: true },
+  { href: "/signals", label: m.nav.signals, gated: true },
   { href: "/delete-submission", label: m.nav.deleteSubmission, gated: false },
   { href: "/privacy", label: m.nav.privacy, gated: false },
   { href: "/account", label: m.nav.account, gated: true },
