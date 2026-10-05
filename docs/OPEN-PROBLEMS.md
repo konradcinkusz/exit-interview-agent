@@ -21,6 +21,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-12 | Receipt codes: access without a list of records | Medium |
 | OP-13 | Storage-level correlation between the ledger and the records | Medium |
 | OP-14 | One submission per employer is time-limited by the ledger window | Medium |
+| OP-15 | Mode A: host fidelity, the opening text, and the unverified Claude run | High |
 
 ## OP-1. Real employment verification
 
@@ -91,8 +92,9 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 ## OP-8. MCP sampling support
 
 - **Why it matters.** Sampling would let our server ask the user's host model to run parts of the protocol, but client support is uneven.
-- **What we do now.** The brief says not to rely on it unless verified and recorded in an ADR ([brief §4](architecture/PROJECT-BRIEF.md)). We do not use it; support
-  in the host was **not verified** in this session.
+- **What we do now.** Not used, referenced or possible: the server is stateless and a test scans the assembly ([ADR-0042](adr/0042-mcp-sdk-and-streamable-http-stateless.md)). Anthropic's connector documentation,
+  read 2026-10-05 ([Build an MCP server for Claude](https://claude.com/docs/connectors/building/index)), says Claude "doesn't yet support" resource subscriptions, sampling and advanced or draft capabilities, which is why the design is right for now.
+  Elicitation is not listed as supported either way; also unused. Other hosts: not checked.
 - **What would close it.** Read the host's published documentation for the supported MCP features, record the result and date in an ADR, and
   add it only if it brings a privacy or quality benefit.
 
@@ -107,7 +109,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **Why it matters.** authservice registers MCP clients statically from configuration (its ADR-0005: no dynamic registration); each host needs its own
   client id, secret, redirect URIs, scopes and resource, held by the operator.
 - **What we do now.** Wired for Claude (T2, [ADR-0012](adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)): the AppHost configures one client, the service validates its tokens and
-  serves RFC 9728 metadata; the MCP transport is Planned (T8). Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
+  serves RFC 9728 metadata; the MCP transport is Implemented (T8, [mcp.md](architecture/mcp.md)). The operator runbook is [`guides/connect-claude.md`](guides/connect-claude.md): it marks every step not verified live. Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
 - **What would close it.** A documented operator runbook per host and a startup check that fails loudly on a missing client; dynamic registration
   would need authservice to change its stance.
 
@@ -143,3 +145,13 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
   ([ADR-0028](adr/0028-submission-ledger-hmac-rotation-and-window.md); [threat model T-10](security/THREAT-MODEL.md)).
 - **What we do now.** A configurable window and an honest statement. The default is an assumption, not a measurement.
 - **What would close it.** Either a window at least as long as the record age (more exposure), or an aggregate that counts accounts rather than records (needs a link the design refuses).
+
+## OP-15. Mode A: host fidelity, the opening text, and the unverified Claude run
+
+- **Why it matters.** In mode A the host model, not this project, conducts the interview. The server checks the record (schema, PII re-scan, AI-disclosure flag, size, one per employer) but cannot see whether consent was
+  obtained or withdrawn, whether the AI disclosure was said, whether questions were neutral, or whether quotes are verbatim ([mcp.md](architecture/mcp.md)). The protocol's opening says "the full conversation is not stored", which is true of this
+  service and not of the user's AI provider; the prompt adds a fixed note ([ADR-0045](adr/0045-mode-a-host-fidelity-and-opening-note.md)) whose wording has had no legal review. Nobody has run a real Claude client against this server,
+  so the connector flow, the prompt's discoverability to users and the host's adherence to the instructions are all **unverified**.
+- **What we do now.** Server-side validation, the confirm-before-submit instruction, a pinned and reviewed contract, an operator runbook that says what was and was not verified, and the README/connect copy that says mode A is the weakest of the three modes.
+- **What would close it.** (1) A live run against Claude with the real authservice image and two tunnels, recorded with date and versions. (2) The T7 harness running the personas against mode A hosts and reporting the same metrics as mode B.
+  (3) A lawyer's reading of the opening plus note. (4) A server-observable signal that is not the transcript (for example the interview's own turn and duration bands, already in the record) compared with what hosts report.
