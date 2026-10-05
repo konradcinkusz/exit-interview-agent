@@ -137,6 +137,18 @@ public class ReportTests
     }
 
     [Fact]
+    public async Task Two_cli_runs_into_different_directories_write_byte_identical_json_so_the_ci_cmp_check_holds()
+    {
+        var a = Path.Combine(Path.GetTempPath(), $"rep-a-{Guid.NewGuid():N}");
+        var b = Path.Combine(Path.GetTempPath(), $"rep-b-{Guid.NewGuid():N}");
+
+        await EvalCli.RunAsync(["run", "--profile", "mock", "--deterministic", "--out", a], new StringWriter(), new StringWriter());
+        await EvalCli.RunAsync(["run", "--profile", "mock", "--deterministic", "--out", b], new StringWriter(), new StringWriter());
+
+        Assert.Equal(await File.ReadAllTextAsync(Path.Combine(a, "report.json")), await File.ReadAllTextAsync(Path.Combine(b, "report.json")));
+    }
+
+    [Fact]
     public async Task The_cli_calibrate_command_states_the_label_provenance_and_the_skips_and_computes_the_offline_numbers()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"calib-{Guid.NewGuid():N}");

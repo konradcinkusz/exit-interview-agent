@@ -137,7 +137,7 @@ public static class EvalCli
         if (o.NoJudge) l2 = l2 with { Status = "skipped:disabled (--no-judge)" };
 
         var input = new ReportInput(Corpus.SpecVersion(), Corpus.Digest(corpus), corpus, profiles, l2, o.Prices is null ? null : PriceTable.Load(o.Prices),
-            "exit-interview-eval " + string.Join(' ', args.Where(a => a != "--prices" && !(o.Prices is not null && a == o.Prices))), o.Deterministic);
+            "exit-interview-eval " + string.Join(' ', Recorded(args)), o.Deterministic);
         var md = ConformanceReport.ToMarkdown(input);
         if (o.Out is { } dir)
         {
@@ -151,6 +151,16 @@ public static class EvalCli
         var failed = profiles.Where(p => p.Ran).Sum(p => p.Grades.Count(g => g.Failures.Any(f => f.Kind == Layer1.AssertionResult.Constraint)) + p.Errors.Count);
         await w.WriteLineAsync(failed == 0 ? "constraints: held in every run of every ran profile" : $"constraints: {failed} run(s) violated a constraint or errored (see the report); `gate` is the command that blocks");
         return 0;
+    }
+
+    /// <summary>The command as recorded in the report: without the output directory and the price file path, which are machine-specific and would break byte-identical reports.</summary>
+    private static IEnumerable<string> Recorded(string[] args)
+    {
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] is "--out" or "--prices") { i++; continue; }
+            yield return args[i];
+        }
     }
 
     private static async Task<int> GateAsync(Options o, TextWriter w, TextWriter err, CancellationToken ct)
