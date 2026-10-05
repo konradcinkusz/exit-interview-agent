@@ -17,6 +17,18 @@ primary_region = "fra"
   Jwt__Issuer = "ExitInterviewAgent"
   Jwt__Audience = "ExitInterviewAgent"
   Jwt__PublicBaseUrl = "https://exit-interview-agent-authservice-dev.fly.dev"
+  # MCP client for Claude (ADR-0012). The client secret and the encryption key are Fly secrets (flyio/SECRETS.md).
+  AuthorizationServer__Clients__0__ClientId = "claude-exit-interview-dev"
+  AuthorizationServer__Clients__0__DisplayName = "Claude"
+  AuthorizationServer__Clients__0__RedirectUris__0 = "https://claude.ai/api/mcp/auth_callback"
+  AuthorizationServer__Clients__0__AllowedScopes__0 = "interview:submit"
+  AuthorizationServer__Clients__0__AllowedScopes__1 = "offline_access"
+  AuthorizationServer__Clients__0__AllowedResources__0 = "https://exit-interview-agent-interview-service-dev.fly.dev/mcp"
+  AuthorizationServer__Scopes__0__Name = "interview:submit"
+  AuthorizationServer__Scopes__0__Description = "Submit a structured interview record on your behalf"
+  App__Name = "Exit Interview Agent"
+  # The OAuth endpoints refuse plain http; Fly terminates TLS, so trust X-Forwarded-Proto (authservice DEPLOYMENT.md).
+  Network__TrustAllProxies = "true"
 
 [http_service]
   internal_port = 8080

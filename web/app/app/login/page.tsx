@@ -29,7 +29,9 @@ function LoginForm() {
       body: JSON.stringify({ email: form.get("email"), password: form.get("password") }),
     });
     if (response.ok) {
-      router.push(redirect);
+      // Consent before anything else: an account that has not accepted the versions in force goes to that step first.
+      const { consentRequired } = (await response.json().catch(() => ({}))) as { consentRequired?: boolean };
+      router.push(consentRequired ? `/consent?redirect=${encodeURIComponent(redirect)}` : redirect);
       return;
     }
     const { error: code } = (await response.json().catch(() => ({}))) as { error?: string };

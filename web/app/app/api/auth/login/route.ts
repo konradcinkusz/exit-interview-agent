@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authConfig, identityConfigured } from "@/lib/runtime-config";
-import { setSession } from "@/lib/session";
+import { fetchConsentStatus } from "@/lib/identity";
+import { establishSession } from "@/lib/session-flow";
 
 export const dynamic = "force-dynamic";
 
@@ -50,11 +51,15 @@ export async function POST(request: Request) {
   }
   if (!data?.accessToken) return NextResponse.json({ error: "identity_error" }, { status: 502 });
 
-  const response = NextResponse.json({ authenticated: true });
-  setSession(
+  // Consent before anything else (ADR-0013): ask authservice whether the Terms/Privacy versions in force are accepted
+  // and tell the page, which routes to the consent step instead of the app. Unknown counts as "required".
+  const consent = await fetchConsentStatus(cfg, data.accessToken);
+  const response = NextResponse.json({ authenticated: true, consentRequired: !consent || consent.required });
+  establishSession(
     response,
     { accessToken: data.accessToken, refreshToken: data.refreshToken, expiresIn: data.expiresIn ?? 3600 },
-    cfg.secureCookies,
+    consent,
+    cfg,
   );
   return response;
 }

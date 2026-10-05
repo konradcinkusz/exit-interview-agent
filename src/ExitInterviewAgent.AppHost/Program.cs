@@ -42,15 +42,18 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
 
     var authDb = postgres.AddDatabase("authdb");
 
-    // DEV-ONLY signing key. Source order: user-secrets (written by scripts/setup.*) -> a throwaway key
-    // generated for this run. It is held by the authservice container and nothing else.
-    var devKeyPem = builder.Configuration["Parameters:authservice-jwt-private-key"];
-    if (string.IsNullOrWhiteSpace(devKeyPem))
+    // DEV-ONLY secrets. Source order for each: user-secrets (written by scripts/setup.*) -> a throwaway value
+    // generated for this run. They are held by the authservice container and nothing else.
+    string DevSecret(string name, Func<string> generate)
+    {
+        var configured = builder.Configuration[$"Parameters:{name}"];
+        return string.IsNullOrWhiteSpace(configured) ? generate() : configured;
+    }
+    var signingKey = builder.AddParameter("authservice-jwt-private-key", DevSecret("authservice-jwt-private-key", () =>
     {
         using var rsa = RSA.Create(2048);
-        devKeyPem = rsa.ExportPkcs8PrivateKeyPem();
-    }
-    var signingKey = builder.AddParameter("authservice-jwt-private-key", devKeyPem, secret: true);
+        return rsa.ExportPkcs8PrivateKeyPem();
+    }), secret: true);
 
     var authservice = builder.AddContainer("authservice", AuthserviceImage, AuthserviceTag)
         .WithHttpEndpoint(port: AuthservicePort, targetPort: 8080, name: "http")
@@ -64,6 +67,44 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
         .WithEnvironment("Jwt__Issuer", "ExitInterviewAgent")
         .WithEnvironment("Jwt__Audience", "ExitInterviewAgent")
         .WithHttpHealthCheck("/health/ready");
+
+    // MCP (Claude connector) path, ADR-0012. authservice only becomes an OAuth authorization server when a client is
+    // configured, and it insists on https for its issuer and for every resource, so this needs two public https
+    // URLs (a tunnel or a dev domain in front of ports 5100 and 5200). Neither can be invented here: without both,
+    // the MCP path is simply off, the rest of the stack is unchanged and /health says mcp-auth is not configured (P8).
+    //   Mcp:AuthPublicBaseUrl  https origin that reaches authservice (= its Jwt:PublicBaseUrl, the MCP token issuer)
+    //   Mcp:ResourceUrl        https URL of the MCP endpoint on interview-service, with a path, for example <origin>/mcp
+    var mcpIssuer = builder.Configuration["Mcp:AuthPublicBaseUrl"]?.Trim().TrimEnd('/');
+    var mcpResource = builder.Configuration["Mcp:ResourceUrl"]?.Trim().TrimEnd('/');
+    if (!string.IsNullOrEmpty(mcpIssuer) && !string.IsNullOrEmpty(mcpResource))
+    {
+        var clientSecret = builder.AddParameter("authservice-mcp-client-secret",
+            DevSecret("authservice-mcp-client-secret", () => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant()),
+            secret: true);
+        var encryptionKey = builder.AddParameter("authservice-encryption-key",
+            DevSecret("authservice-encryption-key", () => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))),
+            secret: true);
+
+        authservice
+            .WithEnvironment("Jwt__PublicBaseUrl", mcpIssuer)
+            .WithEnvironment("App__Name", "Exit Interview Agent")
+            .WithEnvironment("Network__TrustAllProxies", "true") // dev only: TLS ends at the tunnel in front of port 5100
+            .WithEnvironment("AuthorizationServer__EncryptionKey", encryptionKey)
+            // The one client: Claude (web, desktop and mobile share this callback). Confidential: the id and the
+            // secret are entered under "Advanced settings" when the connector is added. The id is a public label.
+            .WithEnvironment("AuthorizationServer__Clients__0__ClientId", "claude-exit-interview-dev")
+            .WithEnvironment("AuthorizationServer__Clients__0__DisplayName", "Claude")
+            .WithEnvironment("AuthorizationServer__Clients__0__ClientSecret", clientSecret)
+            .WithEnvironment("AuthorizationServer__Clients__0__RedirectUris__0", "https://claude.ai/api/mcp/auth_callback")
+            .WithEnvironment("AuthorizationServer__Clients__0__AllowedScopes__0", "interview:submit")
+            .WithEnvironment("AuthorizationServer__Clients__0__AllowedScopes__1", "offline_access")
+            .WithEnvironment("AuthorizationServer__Clients__0__AllowedResources__0", mcpResource)
+            .WithEnvironment("AuthorizationServer__Scopes__0__Name", "interview:submit")
+            .WithEnvironment("AuthorizationServer__Scopes__0__Description", "Submit a structured interview record on your behalf");
+        interviewService
+            .WithEnvironment("Mcp__Issuer", mcpIssuer)
+            .WithEnvironment("Mcp__Resource", mcpResource);
+    }
 
     var authority = $"http://localhost:{AuthservicePort}";
     interviewService

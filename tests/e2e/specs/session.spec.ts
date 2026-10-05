@@ -71,3 +71,15 @@ test("runtime config exposes the proxy base path and no backend address @smoke",
   expect(JSON.parse(text)).toEqual({ apiBase: "/api/proxy", identity: { enabled: true } });
   expect(text).not.toContain("4010");
 });
+
+test("every page and API response carries the security header set @smoke", async ({ request }) => {
+  for (const path of ["/login", "/api/config"]) {
+    const headers = (await request.get(path)).headers();
+
+    expect(headers["x-frame-options"], path).toBe("DENY");
+    expect(headers["x-content-type-options"], path).toBe("nosniff");
+    expect(headers["referrer-policy"], path).toBe("no-referrer");
+    expect(headers["content-security-policy"], path).toContain("frame-ancestors 'none'");
+    expect(headers["x-powered-by"], path).toBeUndefined();
+  }
+});
