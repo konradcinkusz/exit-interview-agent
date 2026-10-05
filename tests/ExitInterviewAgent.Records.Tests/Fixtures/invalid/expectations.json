@@ -1,0 +1,89 @@
+{
+  "missing-topic": [
+    "MISSING_FIELD@/topics"
+  ],
+  "unknown-user-id": [
+    "UNKNOWN_FIELD@"
+  ],
+  "unknown-ip-in-interview": [
+    "UNKNOWN_FIELD@/interview"
+  ],
+  "unknown-key-that-is-pii": [
+    "UNKNOWN_FIELD@"
+  ],
+  "context-free-text": [
+    "UNKNOWN_FIELD@/context"
+  ],
+  "tenure-free-text": [
+    "VALUE_NOT_ALLOWED@/context/tenureBand"
+  ],
+  "rating-6": [
+    "OUT_OF_RANGE@/topics/growth/rating"
+  ],
+  "rating-string": [
+    "WRONG_TYPE@/topics/growth/rating"
+  ],
+  "no-data-with-rating": [
+    "TOPIC_INCONSISTENT@/topics/culture/rating"
+  ],
+  "no-data-with-quote": [
+    "TOPIC_INCONSISTENT@/topics/culture/quotes"
+  ],
+  "covered-without-quotes": [
+    "TOPIC_INCONSISTENT@/topics/culture/quotes"
+  ],
+  "covered-without-confidence": [
+    "TOPIC_INCONSISTENT@/topics/culture/confidence"
+  ],
+  "six-quotes": [
+    "LENGTH_LIMIT@/topics/culture/quotes"
+  ],
+  "quote-401-chars": [
+    "LENGTH_LIMIT@/topics/culture/quotes/0"
+  ],
+  "quote-control-char": [
+    "BAD_FORMAT@/topics/culture/quotes/0"
+  ],
+  "quote-newline": [
+    "BAD_FORMAT@/topics/culture/quotes/0"
+  ],
+  "quote-bidi-override": [
+    "BAD_FORMAT@/topics/culture/quotes/0"
+  ],
+  "quote-blank": [
+    "BAD_FORMAT@/topics/culture/quotes/0"
+  ],
+  "interview-id-uppercase": [
+    "BAD_FORMAT@/interviewId"
+  ],
+  "interview-id-uuid-dashes": [
+    "BAD_FORMAT@/interviewId"
+  ],
+  "employer-ref-free-text": [
+    "BAD_FORMAT@/employerRef"
+  ],
+  "schema-version-2": [
+    "UNSUPPORTED_SCHEMA_VERSION@/schemaVersion"
+  ],
+  "pii-masked-false": [
+    "PII_NOT_MASKED@/piiMasked"
+  ],
+  "pii-masked-string": [
+    "WRONG_TYPE@/piiMasked"
+  ],
+  "language-not-code": [
+    "BAD_FORMAT@/interview/language"
+  ],
+  "root-is-array": [
+    "WRONG_TYPE@"
+  ],
+  "not-json": [
+    "NOT_JSON@"
+  ],
+  "duplicate-keys": [
+    "DUPLICATE_KEY@"
+  ],
+  "nesting-too-deep": [
+    "NESTING_TOO_DEEP@"
+  ]
+}

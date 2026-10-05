@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "interviewId": "0F3C9A1E7B2D4C58A6E1903FD2B47C11",
+  "employerRef": "acme-sp-zoo",
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "topics": {
+    "onboarding": {
+      "status": "covered",
+      "rating": 2,
+      "confidence": "medium",
+      "quotes": [
+        "The first two weeks nobody told me who to ask about access."
+      ]
+    },
+    "management": {
+      "status": "covered",
+      "rating": 1,
+      "confidence": "high",
+      "quotes": [
+        "My manager [PERSON] cancelled every one-to-one.",
+        "Feedback only came at the yearly review."
+      ]
+    },
+    "growth": {
+      "status": "covered",
+      "rating": null,
+      "confidence": "low",
+      "quotes": [
+        "Zastanawiałem się nad rozwojem, ale nie wiem, czy to było możliwe."
+      ]
+    },
+    "pay_vs_promises": {
+      "status": "covered",
+      "rating": 2,
+      "confidence": "high",
+      "quotes": [
+        "The offer said a review after six months; it never happened."
+      ]
+    },
+    "culture": {
+      "status": "covered",
+      "rating": 4,
+      "confidence": "medium",
+      "quotes": [
+        "The team itself was great and helped each other."
+      ]
+    },
+    "reason_for_leaving": {
+      "status": "covered",
+      "rating": 3,
+      "confidence": "high",
+      "quotes": [
+        "I left because the role I was promised never materialised."
+      ]
+    }
+  },
+  "piiMasked": true,
+  "interview": {
+    "protocolVersion": "1.0",
+    "language": "en",
+    "durationBand": "20m_40m",
+    "turnBand": "20_40"
+  }
+}

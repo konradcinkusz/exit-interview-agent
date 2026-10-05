@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1",
+  "interviewId": "ffffffffffffffffffffffffffffffff",
+  "employerRef": "abc",
+  "context": {
+    "tenureBand": "lt_6m"
+  },
+  "topics": {
+    "onboarding": {
+      "status": "no_data",
+      "rating": null,
+      "confidence": null,
+      "quotes": []
+    },
+    "management": {
+      "status": "no_data",
+      "rating": null,
+      "confidence": null,
+      "quotes": []
+    },
+    "growth": {
+      "status": "no_data",
+      "rating": null,
+      "confidence": null,
+      "quotes": []
+    },
+    "pay_vs_promises": {
+      "status": "no_data",
+      "rating": null,
+      "confidence": null,
+      "quotes": []
+    },
+    "culture": {
+      "status": "no_data",
+      "rating": null,
+      "confidence": null,
+      "quotes": []
+    },
+    "reason_for_leaving": {
+      "status": "no_data",
+      "rating": null,
+      "confidence": null,
+      "quotes": []
+    }
+  },
+  "piiMasked": true,
+  "interview": {
+    "protocolVersion": "1.0",
+    "language": "pl",
+    "durationBand": "lt_10m",
+    "turnBand": "lt_10"
+  }
+}

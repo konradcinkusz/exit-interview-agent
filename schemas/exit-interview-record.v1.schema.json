@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exit-interview-agent:schema:exit-interview-record:v1",
+  "title": "Exit interview record, version 1",
+  "description": "One structured, privacy-preserving exit-interview record. Immutable once released (docs/architecture/record-schema.md). Contains no per-person identifier by design: no user id, account id, email, IP address, name or timestamp.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "interviewId",
+    "employerRef",
+    "context",
+    "topics",
+    "piiMasked",
+    "interview"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1",
+      "description": "Major version of this schema. Always the string \"1\" in this file."
+    },
+    "interviewId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$",
+      "description": "Pseudonymous interview id: 128 random bits as 32 lowercase hex characters. Not derived from anything."
+    },
+    "employerRef": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Opaque employer reference. The registry that issues it is out of scope."
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenureBand"
+      ],
+      "description": "Coarse bands only; no free text. Optional bands are omitted, never null.",
+      "properties": {
+        "tenureBand": {
+          "enum": [
+            "lt_6m",
+            "6m_1y",
+            "1y_3y",
+            "3y_5y",
+            "5y_10y",
+            "gt_10y"
+          ]
+        },
+        "seniorityBand": {
+          "enum": [
+            "junior",
+            "mid",
+            "senior",
+            "management"
+          ]
+        },
+        "functionBand": {
+          "enum": [
+            "engineering",
+            "product_design",
+            "sales_marketing",
+            "operations_support",
+            "corporate_functions",
+            "other"
+          ]
+        }
+      }
+    },
+    "topics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "onboarding",
+        "management",
+        "growth",
+        "pay_vs_promises",
+        "culture",
+        "reason_for_leaving"
+      ],
+      "properties": {
+        "onboarding": {
+          "$ref": "#/$defs/topic"
+        },
+        "management": {
+          "$ref": "#/$defs/topic"
+        },
+        "growth": {
+          "$ref": "#/$defs/topic"
+        },
+        "pay_vs_promises": {
+          "$ref": "#/$defs/topic"
+        },
+        "culture": {
+          "$ref": "#/$defs/topic"
+        },
+        "reason_for_leaving": {
+          "$ref": "#/$defs/topic"
+        }
+      }
+    },
+    "piiMasked": {
+      "type": "boolean",
+      "description": "True when the transcript the quotes were taken from went through the PII masker. Ingest rejects false."
+    },
+    "interview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "language",
+        "durationBand",
+        "turnBand"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "type": "string",
+          "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}$",
+          "description": "Version of the interview protocol the agent followed."
+        },
+        "language": {
+          "type": "string",
+          "pattern": "^[a-z]{2,3}$",
+          "description": "ISO 639 language code of the interview."
+        },
+        "durationBand": {
+          "enum": [
+            "lt_10m",
+            "10m_20m",
+            "20m_40m",
+            "gt_40m"
+          ]
+        },
+        "turnBand": {
+          "enum": [
+            "lt_10",
+            "10_20",
+            "20_40",
+            "gt_40"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "topic": {
+      "description": "One topic. 'no_data' (not discussed, declined or not answerable) is distinct from a low rating: it carries no rating, no confidence and no quotes. 'covered' carries a confidence and 1-5 supporting quotes; its rating may be null when the topic was discussed but is not rateable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "rating",
+        "confidence",
+        "quotes"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "no_data",
+            "covered"
+          ]
+        },
+        "rating": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 5,
+          "description": "1 (very negative) to 5 (very positive), or null."
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            null
+          ]
+        },
+        "quotes": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/quote"
+          }
+        }
+      },
+      "if": {
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "no_data"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "rating": {
+            "type": "null"
+          },
+          "confidence": {
+            "type": "null"
+          },
+          "quotes": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "confidence": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "quotes": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400,
+      "pattern": "^(?=.*\\S)[^\\u0000-\\u001f\\u007f\\u0080-\\u009f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]+$",
+      "description": "A verbatim excerpt of the (PII-masked) transcript. Inert data: never interpreted, rendered raw or executed by any consumer. Control and bidirectional-override characters are rejected."
+    }
+  }
+}
