@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { m } from "@/lib/messages";
-import { LoginForm } from "./LoginForm";
+import { VerifyEmail } from "./VerifyEmail";
 
-export const metadata: Metadata = { title: m.login.title };
+export const metadata: Metadata = { title: m.verifyEmail.title };
 
-export default function LoginPage() {
+export default function VerifyEmailPage() {
   return (
     <Suspense fallback={<p>{m.site.loading}</p>}>
-      <LoginForm />
+      <VerifyEmail />
     </Suspense>
   );
 }

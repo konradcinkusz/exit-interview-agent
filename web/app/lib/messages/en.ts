@@ -1,0 +1,332 @@
+import { DELETION_FACTS } from "../copy";
+
+// The message catalog (English). Every user-facing string of the portal lives here, so a second language is a new file with
+// the same keys (see ./index.ts), not a refactor. Strings that state a precise fact about the system are asserted by tests
+// (the unit tests and the browser suite) so the facts and the words cannot drift apart. Plain text only: no markup, no
+// interpolation of user data. Polish is not shipped: a half translation is worse than none (docs/ux/UI-UX.md).
+
+export const en = {
+  site: {
+    name: "Exit Interview Agent",
+    description: "Structured exit interviews with privacy-preserving employer signals. Simulated data only.",
+    devBuild: "Development build: simulated interviews only. Nothing here is deployed, and no real personal data may be entered.",
+    skipToContent: "Skip to content",
+    loading: "Loading…",
+  },
+  nav: {
+    label: "Main",
+    home: "Home",
+    connect: "Connect your AI client",
+    cli: "Use the CLI",
+    deleteSubmission: "Delete a submission",
+    privacy: "Privacy",
+    account: "Account",
+    signIn: "Sign in",
+  },
+  landing: {
+    title: "Exit Interview Agent",
+    lead:
+      "An open-source AI agent that runs a structured exit interview with a former employee. You use it from your own AI " +
+      "client or from a command-line tool, with your own model. This website runs no model and never sees your interview.",
+    whatTitle: "What this website is for",
+    what: [
+      "Your account and your consents.",
+      "Connecting your AI client (Claude) so the interview can run there.",
+      "Creating a short-lived ticket so the command-line tool can submit a record for you.",
+      "Deleting a submission with its receipt code.",
+    ],
+    storedTitle: "What is stored",
+    stored: [
+      "Your account (email and credentials) and the consents you gave, held by the identity service.",
+      "A submitted record: ratings per topic, short supporting quotes, the employer, and coarse bands. It has no account, name or email in it.",
+      "A one-way marker per employer that stops the same account submitting twice. It holds no content and is removed automatically.",
+      "While a ticket is unused: a hash of it, the account it was made for, and its expiry.",
+    ],
+    notStoredTitle: "What is not stored",
+    notStored: [
+      "The interview transcript. It stays in your AI client or on your computer.",
+      "A link between your account and a submission. Nobody, including the operator, can list your submissions.",
+      "Your receipt code in readable form, or any record of which account a code came from.",
+      "Interview content, names or email addresses in logs.",
+    ],
+    recordsNote:
+      "A submitted record is treated as personal data. Quotes can be recognisable to people who know you, so this service never " +
+      "calls records anonymous.",
+    nonGoalsTitle: "What this is not",
+    nonGoals: [
+      "Not a public review site: individual records are never published, only aggregates above a minimum number of records.",
+      "Not a source of verified employment: verification is not implemented.",
+      "Not a model host: you bring the model, through your AI client or your own API key or local model.",
+      "Not for real people yet: this is a development build with simulated interviews.",
+    ],
+    ctaTitle: "Start",
+    ctaConnect: "Connect your AI client",
+    ctaCli: "Use the command line",
+    ctaDelete: "Delete a submission",
+    ctaPrivacy: "Read the privacy facts",
+    ctaSignIn: "Sign in",
+    ctaRegister: "Create an account",
+  },
+  login: {
+    title: "Sign in",
+    email: "Email",
+    password: "Password",
+    submit: "Sign in",
+    register: "No account yet? Create one",
+    twoFactorTitle: "Two-factor sign-in",
+    twoFactorIntro: "Enter the 6-digit code from your authenticator app.",
+    code: "Authenticator code",
+    useRecovery: "Use a recovery code instead",
+    useCode: "Use an authenticator code instead",
+    recoveryCode: "Recovery code",
+    recoveryHint: "A recovery code works once.",
+    twoFactorSubmit: "Verify and sign in",
+    twoFactorBack: "Start again",
+    errors: {
+      invalid_credentials: "Invalid email or password.",
+      email_not_verified: "Verify your email address first. Use the link in the message we sent, or ask for a new one.",
+      rate_limited: "Too many attempts. Try again in a minute.",
+      identity_not_configured: "Sign-in is not configured in this environment.",
+      invalid_code: "That code is not valid. Check the code and your device clock, then try again.",
+      challenge_expired: "That sign-in has expired. Start again with your email and password.",
+      locked: "This account is temporarily locked after too many failed attempts. Try again later.",
+      generic: "Sign-in failed. Try again.",
+    },
+  },
+  register: {
+    title: "Create an account",
+    intro: "An account is only a login. It is not linked to any employer, and it is not linked to what you submit.",
+    email: "Email",
+    password: "Password",
+    passwordHint: "At least 8 characters.",
+    termsPrefix: "I accept the Terms of Use, version",
+    privacyPrefix: "I accept the Privacy Policy, version",
+    submit: "Create account",
+    signIn: "Already have an account? Sign in",
+    created: "Account created. You can sign in now.",
+    createdVerify: "Account created. Check your email for a link to verify your address, then sign in.",
+    errors: {
+      invalid: "The account could not be created. Check the email address and choose a longer or different password.",
+      both_required: "Accept both documents to create an account.",
+      rate_limited: "Too many attempts. Try again in a minute.",
+      identity_not_configured: "Sign-up is not configured in this environment.",
+      generic: "The account could not be created. Try again.",
+    },
+  },
+  verifyEmail: {
+    title: "Verify your email address",
+    working: "Verifying…",
+    done: "Your email address is verified. You can sign in now.",
+    failed: "That link is invalid or has expired. Ask for a new one below.",
+    missing: "Open the link from the verification email, or ask for a new one below.",
+    resendTitle: "Send a new link",
+    email: "Email",
+    resend: "Send a new link",
+    resent: "If that address needs verification, a new link has been sent.",
+    rateLimited: "Too many attempts. Try again in a minute.",
+    signIn: "Go to sign in",
+    generic: "Something went wrong. Try again.",
+  },
+  consent: {
+    title: "Before you continue",
+    intro:
+      "To use this service you need to accept the current versions of these documents. If either has changed since you last " +
+      "accepted, you are asked again.",
+    termsPrefix: "I accept the Terms of Use, version",
+    privacyPrefix: "I accept the Privacy Policy, version",
+    accept: "Accept and continue",
+    decline: "Decline and sign out",
+    loadError: "Could not check your consent status. Try again.",
+    saveError: "Could not record your consent. Try again.",
+  },
+  connect: {
+    title: "Connect your AI client",
+    lead:
+      "You can run the interview inside Claude. Claude is the AI client that is supported today; other clients are future work. " +
+      "The interview happens in your conversation with Claude, under your own Claude account and its terms.",
+    urlTitle: "The connector address",
+    urlIntro: "Add this address as a custom connector in Claude:",
+    urlMissing:
+      "The connector is not set up in this environment, so there is no address to show. The operator turns it on by giving the " +
+      "web app a public HTTPS address for the MCP endpoint.",
+    copy: "Copy address",
+    copied: "Copied",
+    copyFailed: "Copy failed. Select the address and copy it yourself.",
+    stepsTitle: "How to add it",
+    steps: [
+      "In Claude, open Settings, then Connectors.",
+      "Choose to add a custom connector and paste the address above.",
+      "If the operator gave you a client ID and secret, enter them under Advanced settings. They are operator configuration, not part of your account.",
+      "Sign in with the same account you use on this website and approve the connection.",
+      "Start a new conversation and ask Claude to run an exit interview with the connector enabled.",
+    ],
+    plansNote: "Which Claude plans allow custom connectors is decided by Anthropic, not by this project.",
+    canTitle: "What the connector can do",
+    can: [
+      "Give Claude the interview protocol: how to open, which topics to cover, how to ask without leading, when to stop.",
+      "Accept one structured record at the end, if you agree to submit it.",
+    ],
+    cannotTitle: "What the connector cannot do",
+    cannot: [
+      "See your conversation. The server receives only the record that Claude submits, never the transcript.",
+      "Read, list or change records. There is no way to look up what you submitted.",
+      "Link a submission to your account: the record carries no account, and the receipt code is the only handle.",
+      "Verify that your quotes are word for word, or that you worked where you say you did.",
+    ],
+    privacyNote:
+      "Your conversation is visible to Claude and to Anthropic under your own agreement with them. Do not name individual people. " +
+      "After a submission, Claude shows you a receipt code once: keep it, because it is the only way to delete that submission.",
+    privacyLink: "Privacy facts",
+    deleteLink: "Delete a submission",
+    config: { loading: "Loading…", error: "The connector address could not be loaded." },
+  },
+  cli: {
+    title: "Use the command line",
+    lead:
+      "The command-line tool runs the whole interview on your computer with your own API key or a local model. It sends " +
+      "only the final record. To submit, it needs a ticket from this page.",
+    ticketTitle: "Submission ticket",
+    ticketFacts: [
+      "Single use: the first successful submission with it uses it up.",
+      "Short-lived: the countdown shows when it stops working; after that, make another.",
+      "Not tied to any employer or to a record. It only proves that a signed-in account made it.",
+      "A password-like secret: anyone who has it can use it once. Do not paste it into a chat, a ticket tracker or a shared file.",
+    ],
+    shownOnce: "It is shown once. This page does not store it and cannot show it again: reloading or leaving the page clears it.",
+    create: "Create a ticket",
+    creating: "Creating…",
+    yourTicket: "Your ticket",
+    copy: "Copy ticket",
+    copied: "Copied. Paste it into the CLI now; it is cleared from the clipboard only when you copy something else.",
+    copyFailed: "Copy failed. Select the ticket and copy it yourself.",
+    expiresIn: "Stops working in",
+    expired: "This ticket has expired and was cleared. Create a new one.",
+    clear: "Clear it now",
+    cleared: "Ticket cleared from this page.",
+    limitTitle: "No ticket created",
+    errors: {
+      TICKET_LIMIT:
+        "You already have the maximum number of unused tickets, or you made too many in the last hour. Use one or wait for one to expire, then try again.",
+      rate_limited: "Too many requests. Wait a little and try again.",
+      unauthenticated: "Your session has ended. Sign in again.",
+      consent_required: "Accept the current Terms and Privacy Policy first.",
+      unavailable: "The service could not be reached. Nothing was created; try again.",
+      generic: "A ticket could not be created. Try again.",
+    },
+    waitSeconds: "Try again in about",
+    seconds: "seconds",
+    commandsTitle: "The CLI today",
+    commandsIntro: "These are the commands the command-line tool has in this version:",
+    commands: [
+      { command: "exit-interview personas", what: "lists the simulated interviewees" },
+      { command: "exit-interview demo --persona <id> [--seed <n>] [--out <dir>]", what: "runs a full interview offline against a simulated person and prints the record" },
+      { command: "exit-interview --help", what: "shows the usage" },
+    ],
+    commandsNote:
+      "Submitting a record with a ticket is not in a released version of the tool yet, so a ticket cannot be redeemed today. " +
+      "This page will show the submit command when it is.",
+  },
+  deleteSubmission: {
+    title: "Delete a submission",
+    lead:
+      "Enter the receipt code you were given when you submitted. You do not need to sign in: the code is the only thing that " +
+      "identifies a submission, because submissions are not linked to accounts.",
+    label: "Receipt code",
+    hint: "46 characters. Letters, digits, hyphens and underscores.",
+    submit: "Delete this submission",
+    working: "Deleting…",
+    // The uniform answer (ADR-0029). Deliberately does not say whether a submission existed.
+    uniformAnswer: "If a submission with this receipt code existed, it is deleted now.",
+    uniformDetail:
+      "This answer is the same for every correctly typed code, so it does not tell you whether a submission existed. " +
+      "Deletion cannot be undone.",
+    lostCode: "A lost code cannot be recovered or replaced, and nobody can look up your submissions without it.",
+    errors: {
+      INVALID_RECEIPT_CODE:
+        "That is not a valid receipt code. Check for a missed or extra character. Nothing was deleted and no request about a submission was made.",
+      rate_limited: "Too many attempts. Wait a minute and try again.",
+      unavailable: "The service could not be reached. Nothing was deleted; try again.",
+      generic: "Something went wrong. Nothing was confirmed; try again.",
+    },
+    waitSeconds: "Try again in about",
+    seconds: "seconds",
+    accountNote: "Closing your account does not delete submissions. Only the receipt code does.",
+    again: "Delete another",
+  },
+  account: {
+    title: "My account",
+    signedInAs: "Signed in as account",
+    loadError: "Could not load your account",
+    signOut: "Sign out",
+    exportTitle: "Export your data",
+    exportIntro: "Download what the identity service holds about your account: profile, consents, sign-in methods and sessions.",
+    exportNot:
+      "Your submissions are not part of it. They are not linked to your account, so neither the identity service nor this website can find them.",
+    exportButton: "Download my data (JSON)",
+    deleteTitle: "Delete account",
+    deleteLabel: "Delete account",
+    password: "Password",
+    passwordHint: "(not needed if you sign in with an external provider)",
+    confirm: "Type DELETE to confirm",
+    deleteSubmit: "Delete my account",
+    deletion: DELETION_FACTS,
+    errors: {
+      password_required: "Enter your password to confirm.",
+      invalid_password: "That password is not correct.",
+      confirmation_required: "Type DELETE exactly to confirm.",
+      unauthenticated: "Your session has ended. Sign in again.",
+      identity_unavailable: "The identity service could not be reached. Nothing was deleted; try again.",
+      generic: "Could not delete the account. Try again.",
+    },
+  },
+  accountDeleted: {
+    title: "Your account is closed",
+    back: "Back to the start",
+    deleteSubmission: "Delete a submission with its receipt code",
+  },
+  privacy: {
+    title: "Privacy facts",
+    lead: "The short version of the privacy design. The full design, with its limits, is linked at the bottom and is the authority.",
+    factsTitle: "Key facts",
+    facts: [
+      "The interview transcript stays on your side: in your AI client or on your computer. This service receives only the final record.",
+      "A record has no account, name or email in it, but it is still personal data: quotes and the employer can point to a person in a small team. It is never called anonymous.",
+      "Your account is not linked to your submissions. There is no list of what you submitted, and nobody can produce one.",
+      "To stop the same account submitting twice for one employer, the service keeps a one-way marker per account and employer. It has no content and is deleted after a retention window.",
+      "A receipt code deletes the submission it belongs to. It is shown once and cannot be recovered. A deletion answer never reveals whether a submission existed.",
+      "Records are deleted automatically after a maximum age that the operator sets.",
+      "Logs, traces and metrics hold no interview content, names or email addresses.",
+      "Results are only ever shown as aggregates above a minimum number of records, with their uncertainty. Individual records are never published.",
+    ],
+    limitsTitle: "What this cannot promise",
+    limits: [
+      "An operator who has the database, the secret key for the markers and live traffic could, with effort, work out which account submitted for which employer. This is a limit of the design, stated openly.",
+      "The AI client or provider you use sees your conversation under your own terms with them.",
+      "Short records in small teams can be recognised by people who know the team.",
+    ],
+    linksTitle: "The full documents",
+    links: [
+      { label: "Privacy design", href: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/privacy/DESIGN.md" },
+      { label: "Threat model", href: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/security/THREAT-MODEL.md" },
+      { label: "Open problems", href: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/OPEN-PROBLEMS.md" },
+    ],
+    linksNote: "These links open the project repository on GitHub.",
+  },
+  errors: {
+    notFoundTitle: "Page not found",
+    notFound: "There is nothing at this address.",
+    errorTitle: "Something went wrong",
+    error: "The page could not be shown. Nothing you entered was saved. You can try again or go back to the start.",
+    retry: "Try again",
+    home: "Back to the start",
+  },
+} as const;
+
+type DeepString<T> = T extends string
+  ? string
+  : T extends readonly (infer U)[]
+    ? readonly DeepString<U>[]
+    : { [K in keyof T]: DeepString<T[K]> };
+
+/** The shape every language must provide: same keys, any strings. */
+export type Messages = DeepString<typeof en>;
