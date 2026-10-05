@@ -68,7 +68,7 @@ test("runtime config exposes the proxy base path and no backend address @smoke",
 
   expect(response.status()).toBe(200);
   const text = await response.text();
-  expect(JSON.parse(text)).toEqual({ apiBase: "/api/proxy", identity: { enabled: true } });
+  expect(JSON.parse(text)).toEqual({ apiBase: "/api/proxy", identity: { enabled: true }, mcp: { url: "https://mcp.example.invalid/mcp" } });
   expect(text).not.toContain("4010");
 });
 
