@@ -16,6 +16,8 @@ public static class SubmissionCodes
     public const string PiiCheckFailed = "PII_CHECK_FAILED";
     /// <summary>This account already submitted for this employer inside the ledger window.</summary>
     public const string AlreadySubmitted = "ALREADY_SUBMITTED";
+    /// <summary>The interview id is already a stored record (a replay, or a clash). Ids are 128 random bits, so a clash is not an accident.</summary>
+    public const string InterviewIdTaken = "INTERVIEW_ID_TAKEN";
     public const string EmploymentNotVerified = "EMPLOYMENT_NOT_VERIFIED";
     /// <summary>Unknown, expired and already-used tickets are indistinguishable.</summary>
     public const string TicketInvalid = "TICKET_INVALID";

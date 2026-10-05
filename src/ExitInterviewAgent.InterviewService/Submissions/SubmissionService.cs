@@ -63,7 +63,7 @@ public sealed class SubmissionService(
         }
         var record = validation.Record!;
 
-        var scan = await pii.ScanAsync(record, ct);
+        var scan = await ScanAsync(record, ct);
         if (scan.Failed)
         {
             return SubmissionOutcome.Reject(SubmissionCodes.PiiCheckFailed);
@@ -85,6 +85,23 @@ public sealed class SubmissionService(
         }
 
         return await PersistAsync(record, sub, ticket, level, ct);
+    }
+
+    /// <summary>Whatever the scanner does, an error is a failed check and the submission is refused (fail closed). The exception is dropped, not logged.</summary>
+    private async Task<PiiScanResult> ScanAsync(InterviewRecord record, CancellationToken ct)
+    {
+        try
+        {
+            return await pii.ScanAsync(record, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return new PiiScanResult([], Failed: true);
+        }
     }
 
     /// <summary>A verifier that is down, slow or broken must not break submission (P8): the record is stored as <c>Unchecked</c>.</summary>
@@ -119,6 +136,21 @@ public sealed class SubmissionService(
             db.ChangeTracker.Clear();
             await using var tx = mode.IsRelational ? await db.Database.BeginTransactionAsync(ct) : null;
 
+            // Every check that can reject runs BEFORE the ticket is consumed. On PostgreSQL the rollback would restore it
+            // anyway; the in-process path has no transaction, and a rejected submission must leave the ticket usable there too.
+            if (await db.Records.AnyAsync(r => r.Id == record.InterviewId.Value, ct))
+            {
+                return SubmissionOutcome.Reject(SubmissionCodes.InterviewIdTaken);
+            }
+
+            foreach (var tag in ledgerKeys.AllTags(sub, record.EmployerRef))
+            {
+                if (await db.SubmissionLedger.AnyAsync(l => l.Tag == tag, ct))
+                {
+                    return SubmissionOutcome.Reject(SubmissionCodes.AlreadySubmitted);
+                }
+            }
+
             var subject = sub;
             if (ticket is not null)
             {
@@ -126,14 +158,6 @@ public sealed class SubmissionService(
                 if (subject is null)
                 {
                     return SubmissionOutcome.Reject(SubmissionCodes.TicketInvalid);
-                }
-            }
-
-            foreach (var tag in ledgerKeys.AllTags(subject, record.EmployerRef))
-            {
-                if (await db.SubmissionLedger.AnyAsync(l => l.Tag == tag, ct))
-                {
-                    return SubmissionOutcome.Reject(SubmissionCodes.AlreadySubmitted); // rolls back: a ticket stays usable
                 }
             }
 
@@ -158,9 +182,9 @@ public sealed class SubmissionService(
             {
                 await db.SaveChangesAsync(ct);
             }
-            catch (DbUpdateException ex) when (IsLedgerConflict(ex))
+            catch (DbUpdateException ex) when (ConflictCode(ex) is { } conflict)
             {
-                return SubmissionOutcome.Reject(SubmissionCodes.AlreadySubmitted);
+                return SubmissionOutcome.Reject(conflict);
             }
             if (tx is not null)
             {
@@ -170,8 +194,13 @@ public sealed class SubmissionService(
         });
     }
 
-    private static bool IsLedgerConflict(DbUpdateException ex) =>
-        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: InterviewDbContext.LedgerTagIndex };
+    /// <summary>A lost race on a unique index: the ledger tag (duplicate submission) or the record key (interview id).</summary>
+    private static string? ConflictCode(DbUpdateException ex) => ex.InnerException switch
+    {
+        PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: InterviewDbContext.LedgerTagIndex } => SubmissionCodes.AlreadySubmitted,
+        PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "PK_Records" } => SubmissionCodes.InterviewIdTaken,
+        _ => null,
+    };
 }
 
 /// <summary>

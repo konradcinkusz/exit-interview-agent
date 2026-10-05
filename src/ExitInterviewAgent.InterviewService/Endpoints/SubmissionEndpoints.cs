@@ -112,7 +112,7 @@ public static class SubmissionEndpoints
     public static int StatusFor(string code) => code switch
     {
         SubmissionCodes.PayloadTooLarge => StatusCodes.Status413PayloadTooLarge,
-        SubmissionCodes.AlreadySubmitted => StatusCodes.Status409Conflict,
+        SubmissionCodes.AlreadySubmitted or SubmissionCodes.InterviewIdTaken => StatusCodes.Status409Conflict,
         SubmissionCodes.TicketInvalid => StatusCodes.Status401Unauthorized,
         SubmissionCodes.EmploymentNotVerified => StatusCodes.Status403Forbidden,
         SubmissionCodes.TicketLimit => StatusCodes.Status429TooManyRequests,

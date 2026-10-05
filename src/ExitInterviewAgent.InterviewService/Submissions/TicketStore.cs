@@ -70,7 +70,7 @@ public sealed class TicketStore(InterviewDbContext db, DatabaseMode mode, TimePr
         return row.Sub;
     }
 
-    internal static DateTimeOffset RoundUp(DateTimeOffset value, TimeSpan step)
+    public static DateTimeOffset RoundUp(DateTimeOffset value, TimeSpan step)
     {
         var ticks = (value.UtcTicks + step.Ticks - 1) / step.Ticks * step.Ticks;
         return new DateTimeOffset(ticks, TimeSpan.Zero);
