@@ -27,6 +27,14 @@ the record is, or can be joined to, a per-person identifier.
   The guard's own test feeds it known-bad names (`userId`, `account_id`, `ipAddress`, `createdAt`, ...) and requires it to flag
   them, so the check cannot pass vacuously; it was also exercised once against the real schema with an `accountId`
   property added, and failed as intended.
+- **No emotion, sentiment or affect field** in the record or its schema (decision of T3, ADR-0017/0018): the guard's word list also
+  rejects emotion, sentiment, mood, affect, feeling, tone, anger, stress and similar. Ratings and confidence describe topics and
+  evidence, never the person. The model-side extractor schema (T4) must follow the same rule and should reuse this test's word list.
+- **Timestamps:** the privacy design permits at most an ISO-week bucket; this schema carries **none**. Storage time is the store's concern.
+- **Interview metadata carries `aiDisclosed`** (the interviewer must tell the interviewee it is an AI; ingest rejects `false`) and the
+  protocol version.
+- Records are never called "anonymous" in code, schema descriptions or documents ([ADR-0018](0018-records-are-treated-as-personal-data.md));
+  the words are "pseudonymous" and "unlinked from the account".
 - The word list is a list of names, so it can be evaded by a field called `x`. The closed-object rule and review are the
   other layers; the test is a tripwire against the common mistake, not a proof.
 

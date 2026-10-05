@@ -111,6 +111,7 @@
       "required": [
         "protocolVersion",
         "language",
+        "aiDisclosed",
         "durationBand",
         "turnBand"
       ],
@@ -124,6 +125,10 @@
           "type": "string",
           "pattern": "^[a-z]{2,3}$",
           "description": "ISO 639 language code of the interview."
+        },
+        "aiDisclosed": {
+          "type": "boolean",
+          "description": "True when the interviewer told the interviewee it is an AI before the interview began. Ingest rejects false."
         },
         "durationBand": {
           "enum": [

@@ -42,6 +42,7 @@ public static class RecordSerializer
             w.WriteStartObject("interview");
             w.WriteString("protocolVersion", record.Interview.ProtocolVersion);
             w.WriteString("language", record.Interview.Language);
+            w.WriteBoolean("aiDisclosed", record.Interview.AiDisclosed);
             w.WriteString("durationBand", Wire.Name(record.Interview.DurationBand));
             w.WriteString("turnBand", Wire.Name(record.Interview.TurnBand));
             w.WriteEndObject();

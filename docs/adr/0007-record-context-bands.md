@@ -38,6 +38,22 @@ Reasoning for the shape:
 - **Interview metadata is banded too:** duration (`lt_10m`..`gt_40m`) and turn count (`lt_10`..`gt_40`) are bands,
   because an exact turn count or duration is a fingerprint of the session and nothing downstream needs more.
 
+### Caps on quotes and on the record
+
+Free-text quotes are the main re-identification vector (a former colleague recognises a person by a turn of phrase), so the caps
+are part of the privacy contract, not a UX choice:
+
+| Cap | Value | Reasoning |
+|---|---|---|
+| Quotes per topic | 5 | A rating needs evidence, not a transcript. Five excerpts show a pattern without reproducing the interview. |
+| Length of a quote | 400 Unicode code points | About three to four sentences: enough to hold one concrete example, too short to carry a long identifying anecdote. Counted in code points so that emoji and diacritics do not change the cap. |
+| Quotes per record | at most 30 (6 topics x 5), 12,000 code points | Follows from the two caps above; a topic with `no_data` carries none. |
+| Payload size | 160 KiB | Transport bound sized for the worst valid record (30 quotes of 400 code points, each escaped as a surrogate pair, is about 144 kB); anything larger is not a record. |
+| Quote content | no control, line-break or bidirectional-override characters | One line of inert text; keeps log injection and display spoofing out. |
+
+The numbers are judgements, not measurements: nothing here has been tested against real interviews (none exist, brief section 2).
+Lowering a cap is a breaking change (ADR-0009); raising one is additive.
+
 What this does **not** do: bands do not make a record anonymous. The record stays pseudonymous. Two things still
 carry re-identification risk and are handled elsewhere: the verbatim quotes (free text by nature; PII masking,
 length caps, ADR-0010) and the combination of `employerRef` with the bands in a small employer.

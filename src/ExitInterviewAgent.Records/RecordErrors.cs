@@ -20,6 +20,7 @@ public static class RecordErrorCodes
     public const string LengthLimit = "LENGTH_LIMIT";
     public const string TopicInconsistent = "TOPIC_INCONSISTENT";
     public const string PiiNotMasked = "PII_NOT_MASKED";
+    public const string AiNotDisclosed = "AI_NOT_DISCLOSED";
     public const string ValidationTimeout = "VALIDATION_TIMEOUT";
     public const string SchemaViolation = "SCHEMA_VIOLATION";
     public const string QuoteNotVerbatim = "QUOTE_NOT_VERBATIM";
@@ -27,7 +28,7 @@ public static class RecordErrorCodes
     public static IReadOnlyList<string> All { get; } =
     [
         PayloadTooLarge, NotJson, DuplicateKey, NestingTooDeep, UnsupportedSchemaVersion, MissingField, UnknownField,
-        WrongType, ValueNotAllowed, BadFormat, OutOfRange, LengthLimit, TopicInconsistent, PiiNotMasked,
+        WrongType, ValueNotAllowed, BadFormat, OutOfRange, LengthLimit, TopicInconsistent, PiiNotMasked, AiNotDisclosed,
         ValidationTimeout, SchemaViolation, QuoteNotVerbatim,
     ];
 }
@@ -59,6 +60,9 @@ public sealed record RecordLimits
 
     /// <summary>Ingest policy: reject records whose quotes were not taken from a PII-masked transcript.</summary>
     public bool RequirePiiMasked { get; init; } = true;
+
+    /// <summary>Ingest policy: reject records of interviews where the interviewee was not told the interviewer is an AI.</summary>
+    public bool RequireAiDisclosed { get; init; } = true;
 }
 
 public sealed record ValidationOutcome(InterviewRecord? Record, IReadOnlyList<RecordError> Errors, bool ErrorsTruncated = false)

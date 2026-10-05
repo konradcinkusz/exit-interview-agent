@@ -6,7 +6,8 @@ namespace ExitInterviewAgent.Records.Tests.Architecture;
 
 /// <summary>
 /// The record must not carry, and its schema must not be able to carry, anything that identifies a person or
-/// links records to one: user id, account id, email, IP, name, device, timestamp (ADR-0011, brief section 6).
+/// links records to one (user id, account id, email, IP, name, device, timestamp), nor any emotion, sentiment or affect
+/// field (ADR-0011, ADR-0017/0018, brief section 6).
 /// An anti-goal enforced by architecture: adding such a field fails this build.
 /// </summary>
 public class NoPersonIdentifierTests
@@ -16,6 +17,7 @@ public class NoPersonIdentifierTests
         "user", "username", "account", "acct", "email", "mail", "ip", "ipv4", "ipv6", "address", "phone", "mobile", "msisdn",
         "login", "subject", "sub", "device", "fingerprint", "cookie", "session", "token", "jwt", "name", "firstname", "lastname",
         "surname", "person", "employee", "staff", "worker", "pesel", "nip", "ssn", "passport", "timestamp", "created", "updated",
+        "emotion", "emotional", "sentiment", "mood", "affect", "feeling", "tone", "anger", "angry", "stress", "satisfaction", "happiness",
         "submitted", "submission", "ticket", "receipt", "hmac", "hash", "geo", "lat", "lon", "latitude", "longitude",
     };
 
@@ -31,7 +33,7 @@ public class NoPersonIdentifierTests
     [Fact]
     public void The_guard_can_fail_it_flags_identifier_shaped_names()
     {
-        var bad = new[] { "userId", "user_id", "accountId", "email", "ipAddress", "clientIp", "sub", "createdAt", "submittedAt", "employeeId", "displayName", "deviceId", "ssn", "pesel", "id", "sessionId" };
+        var bad = new[] { "userId", "user_id", "accountId", "email", "ipAddress", "clientIp", "sub", "createdAt", "submittedAt", "employeeId", "displayName", "deviceId", "ssn", "pesel", "id", "sessionId", "sentiment", "emotionScore", "mood", "affect" };
 
         Assert.Equal(bad.Order(), Violations(bad).Order());
     }

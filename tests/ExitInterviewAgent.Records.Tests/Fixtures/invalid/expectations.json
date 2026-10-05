@@ -71,6 +71,15 @@
   "pii-masked-string": [
     "WRONG_TYPE@/piiMasked"
   ],
+  "ai-not-disclosed": [
+    "AI_NOT_DISCLOSED@/interview/aiDisclosed"
+  ],
+  "ai-disclosed-missing": [
+    "MISSING_FIELD@/interview"
+  ],
+  "affect-field": [
+    "UNKNOWN_FIELD@/topics/culture"
+  ],
   "language-not-code": [
     "BAD_FORMAT@/interview/language"
   ],

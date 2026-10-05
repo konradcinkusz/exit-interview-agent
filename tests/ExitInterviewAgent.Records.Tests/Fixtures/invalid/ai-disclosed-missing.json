@@ -3,7 +3,7 @@
   "interviewId": "0f3c9a1e7b2d4c58a6e1903fd2b47c11",
   "employerRef": "acme-sp-zoo",
   "context": {
-    "tenureBand": "five years in Gdansk",
+    "tenureBand": "1y_3y",
     "seniorityBand": "mid",
     "functionBand": "engineering"
   },
@@ -62,7 +62,6 @@
   "interview": {
     "protocolVersion": "1.0",
     "language": "en",
-    "aiDisclosed": true,
     "durationBand": "20m_40m",
     "turnBand": "20_40"
   }

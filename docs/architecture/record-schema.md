@@ -55,6 +55,7 @@ An example (shortened; the full golden records are in `tests/ExitInterviewAgent.
 | `piiMasked` | boolean | True when the quotes came from a transcript that went through the PII masker. Ingest rejects `false` by default. |
 | `interview.protocolVersion` | `^[0-9]{1,3}\.[0-9]{1,3}$` | Which interview protocol the agent followed, so quality can be compared by protocol. |
 | `interview.language` | `^[a-z]{2,3}$` | ISO 639 language code of the interview. |
+| `interview.aiDisclosed` | boolean | True when the interviewer told the interviewee it is an AI before the interview began. Ingest rejects `false` by default (`RecordLimits.RequireAiDisclosed`). Recorded so the disclosure can be audited by the eval harness. |
 | `interview.durationBand`, `interview.turnBand` | enums, four values each | Coarse shape of the session. Bands, not exact numbers: an exact duration or turn count is a fingerprint of the session. |
 
 ### Topic semantics (enforced by the schema)
@@ -69,8 +70,11 @@ member. Aggregation must count `no_data` as missing, never as a low score; that 
 
 ## Privacy reasoning
 
+0. **No emotion, sentiment or affect field.** Ratings are about topics, never inferences about the person's feelings; the same
+   architecture test that forbids identifiers rejects such names ([ADR-0011](../adr/0011-no-per-person-identifier-in-the-record.md)).
 1. **No per-person identifier, anywhere.** No user id, account id, email, IP address, name, device or session id, and no
-   timestamp (a timestamp is a join key to access logs). The only identifier is the random `interviewId`. This is enforced,
+   timestamp (a timestamp is a join key to access logs; the privacy design allows at most an ISO-week bucket and this schema
+   carries none, which is stricter). The only identifier is the random `interviewId`. This is enforced,
    not promised: architecture tests fail the build if a schema property or model member resembles such an identifier, if any
    schema object is open to extra properties, or if a context field is not an enum
    ([ADR-0011](../adr/0011-no-per-person-identifier-in-the-record.md)).
@@ -110,6 +114,7 @@ array indexes (anything else becomes `*`). Order of checks: payload size, JSON s
 | `OUT_OF_RANGE` | A number is outside its range (rating not 1-5). |
 | `LENGTH_LIMIT` | Too many or too few items, or a string that is too long. |
 | `TOPIC_INCONSISTENT` | A topic breaks the `no_data` / `covered` rules above. |
+| `AI_NOT_DISCLOSED` | `aiDisclosed` is `false` and the policy requires `true` (`RecordLimits.RequireAiDisclosed`). |
 | `PII_NOT_MASKED` | `piiMasked` is `false` and the policy requires `true` (`RecordLimits.RequirePiiMasked`). |
 | `VALIDATION_TIMEOUT` | Schema pattern matching exceeded `RecordLimits.RegexTimeout` (denial-of-service guard). |
 | `SCHEMA_VIOLATION` | Fallback for a violation without a more specific code. |
@@ -130,7 +135,10 @@ golden record.
 **after one normalization, applied to both sides**: every maximal run of Unicode white space becomes one space, and the ends
 are trimmed. Nothing else changes: case, punctuation, diacritics and Unicode composition are compared ordinally, so a
 paraphrase, a case change, a stripped diacritic or a skipped turn fails. The result lists mismatches by topic and quote
-index, never by text. Run it against the **masked** transcript, the one the extractor saw. Limitation: text that is
+index, never by text. Run it against the **masked** transcript, the one the extractor saw.
+**It is client-side and eval-side only: the server never holds the transcript, so it cannot verify quotes.** What the server
+can and does check is the schema, the caps and the `piiMasked` and `aiDisclosed` flags; a fabricated quote that passes the schema is
+indistinguishable from a real one at ingest (a hostile client can submit anything; see the threat model). Limitation: text that is
 canonically equivalent but differently composed (a precomposed "ą" against "a" plus a combining ogonek) is a
 mismatch; that fails closed.
 

@@ -12,7 +12,8 @@ public static class EmployerRef
 
 public sealed record RecordContext(TenureBand TenureBand, SeniorityBand? SeniorityBand = null, FunctionBand? FunctionBand = null);
 
-public sealed record InterviewMetadata(string ProtocolVersion, string Language, DurationBand DurationBand, TurnBand TurnBand);
+/// <summary>Safe session metadata. <paramref name="AiDisclosed"/>: the interviewer told the interviewee it is an AI.</summary>
+public sealed record InterviewMetadata(string ProtocolVersion, string Language, bool AiDisclosed, DurationBand DurationBand, TurnBand TurnBand);
 
 /// <summary>One topic. Build with <see cref="NoData"/> or <see cref="Covered"/>; both enforce the schema's invariants.</summary>
 public sealed record TopicEntry

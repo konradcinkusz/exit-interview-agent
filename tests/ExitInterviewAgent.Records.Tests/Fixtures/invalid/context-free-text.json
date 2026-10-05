@@ -63,6 +63,7 @@
   "interview": {
     "protocolVersion": "1.0",
     "language": "en",
+    "aiDisclosed": true,
     "durationBand": "20m_40m",
     "turnBand": "20_40"
   }

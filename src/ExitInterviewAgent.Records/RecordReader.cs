@@ -24,6 +24,7 @@ internal static class RecordReader
             new InterviewMetadata(
                 interview.GetProperty("protocolVersion").GetString()!,
                 interview.GetProperty("language").GetString()!,
+                interview.GetProperty("aiDisclosed").GetBoolean(),
                 Enum<DurationBand>(interview.GetProperty("durationBand")),
                 Enum<TurnBand>(interview.GetProperty("turnBand"))));
     }

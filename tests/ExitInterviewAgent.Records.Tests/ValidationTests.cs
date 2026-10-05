@@ -142,6 +142,16 @@ public class ValidationTests
     }
 
     [Fact]
+    public void Ai_disclosure_is_required_by_default_and_can_be_relaxed_for_internal_tooling()
+    {
+        var json = Fixtures.Read("valid/full.json").Replace("\"aiDisclosed\": true", "\"aiDisclosed\": false");
+
+        Assert.Equal(RecordErrorCodes.AiNotDisclosed, Validator.Validate(json).Errors.Single().Code);
+        Assert.True(new RecordValidator(new RecordLimits { RequireAiDisclosed = false }).Validate(json).IsValid);
+        Assert.True(Fixtures.Sample().Interview.AiDisclosed);
+    }
+
+    [Fact]
     public void Many_errors_are_capped_and_flagged()
     {
         var json = Fixtures.Read("valid/full.json");

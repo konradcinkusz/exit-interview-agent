@@ -55,6 +55,8 @@ public sealed class RecordValidator
             var record = RecordReader.Read(root);
             if (_limits.RequirePiiMasked && !record.PiiMasked)
                 return new ValidationOutcome(null, [new RecordError(RecordErrorCodes.PiiNotMasked, "/piiMasked")]);
+            if (_limits.RequireAiDisclosed && !record.Interview.AiDisclosed)
+                return new ValidationOutcome(null, [new RecordError(RecordErrorCodes.AiNotDisclosed, "/interview/aiDisclosed")]);
             return new ValidationOutcome(record, []);
         }
     }
