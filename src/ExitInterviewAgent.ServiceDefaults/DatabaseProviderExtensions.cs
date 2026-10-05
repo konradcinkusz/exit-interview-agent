@@ -7,7 +7,7 @@ namespace ExitInterviewAgent.ServiceDefaults;
 /// <summary>
 /// Provider-portable persistence (P4): <c>DATABASE_PROVIDER=PostgreSQL</c> with a connection string,
 /// otherwise InMemory so tests and a fresh clone need no container. Only PostgreSQL and InMemory
-/// are supported (ADR-004).
+/// are supported (ADR-006).
 /// </summary>
 public static class DatabaseProviderExtensions
 {

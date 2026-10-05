@@ -13,7 +13,7 @@ permissions:
 env:
   # Code scanning results upload needs GitHub Advanced Security on a private repository. The repo is
   # private by decision, so SARIF is kept as a run artifact instead. Flip to `always` when the
-  # repository is public or GHAS is enabled (an owner decision; see docs/adr/0004-...).
+  # repository is public or GHAS is enabled (an owner decision; see docs/adr/0004-deployment-topology-and-registry.md).
   CODEQL_UPLOAD: never
 
 jobs:

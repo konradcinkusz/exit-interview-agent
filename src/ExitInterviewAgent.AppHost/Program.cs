@@ -8,7 +8,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // One Postgres server, one logical database per service (P3). Dev-only: both databases share the
 // server's superuser; a deployment uses one role per database (flyio/SECRETS.md).
-var postgres = builder.AddPostgres("postgres").WithDataVolume("exit-interview-agent-pgdata");
+// Same major as flyio/postgres.fly.toml (postgres:17-alpine), so development and deployment do not drift.
+var postgres = builder.AddPostgres("postgres").WithImageTag("17-alpine").WithDataVolume("exit-interview-agent-pgdata");
 var interviewDb = postgres.AddDatabase("interviewdb");
 
 var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewService>("interview-service")

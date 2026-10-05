@@ -7,6 +7,7 @@ describe("backendCandidates (the candidate ladder)", () => {
       INTERVIEW_SERVICE_URL: "https://public.example.invalid/",
       "services__interview-service__https__0": "https://discovered.example.invalid",
       "services__interview-service__http__0": "http://localhost:5201",
+      INTERVIEW_SERVICE_HTTP: "http://localhost:5202",
       FLY_APP_NAME: "exit-interview-agent-web-dev",
     };
 
@@ -14,6 +15,7 @@ describe("backendCandidates (the candidate ladder)", () => {
       "https://public.example.invalid",
       "https://discovered.example.invalid",
       "http://localhost:5201",
+      "http://localhost:5202",
       "http://exit-interview-agent-interview-service-dev.internal:8080",
       "http://localhost:5200",
     ]);

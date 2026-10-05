@@ -32,7 +32,10 @@ export type BackendName = "interview-service";
 interface BackendSpec {
   /** Explicit address, set by the platform config (the public URL on Fly). First rung of the ladder. */
   explicitVar: string;
-  /** Service name as Aspire publishes it: services__<name>__<scheme>__0. */
+  /**
+   * Service name as the AppHost publishes it: `services__<name>__<scheme>__0` for .NET consumers and
+   * `<NAME>_<SCHEME>` (upper snake case) for JavaScript apps.
+   */
   discoveryName: string;
   /** Internal DNS name derived from the Fly app name, e.g. `<slug>-web-<env>` -> `<slug>-interview-service-<env>`. */
   flyInternal: (flyApp: string) => string | undefined;
@@ -62,6 +65,8 @@ export function backendCandidates(name: BackendName, env: Env = process.env): st
     trimSlash(env[spec.explicitVar]),
     trimSlash(env[`services__${spec.discoveryName}__https__0`]),
     trimSlash(env[`services__${spec.discoveryName}__http__0`]),
+    trimSlash(env[`${spec.discoveryName.toUpperCase().replace(/-/g, "_")}_HTTPS`]),
+    trimSlash(env[`${spec.discoveryName.toUpperCase().replace(/-/g, "_")}_HTTP`]),
     env.FLY_APP_NAME ? spec.flyInternal(env.FLY_APP_NAME) : undefined,
     spec.localhost,
   ];

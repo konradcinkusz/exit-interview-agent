@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph Browser
+        B[Browser]
+    end
+    subgraph Web["web (Next.js, BFF)"]
+        GATE["edge gate (proxy.ts)<br/>verifies JWT"]
+        BFF["route handlers<br/>/api/auth/*, /api/config, /api/proxy/*"]
+    end
+    subgraph Svc["interview-service (.NET)"]
+        API["/api/v1/*, /health, /alive"]
+        DBX[("interviewdb")]
+    end
+    subgraph Auth["authservice (pinned image, own instance)"]
+        AUTHAPI["/api/v1/auth/login, JWKS"]
+        AUTHDB[("authdb")]
+    end
+    B -->|"same origin only"| GATE --> BFF
+    BFF -->|"login (server side)"| AUTHAPI
+    BFF -->|"bearer from HttpOnly cookie"| API
+    API -->|"JWKS (validation only)"| AUTHAPI
+    API --> DBX
+    AUTHAPI --> AUTHDB
+    AH["AppHost (dev only)"] -.->|"composes"| Web
+    AH -.-> Svc
+    AH -.-> Auth

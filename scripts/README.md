@@ -43,3 +43,5 @@ must never be reused for one (identity guide §10).
 | authservice exits naming `Jwt:Algorithm` | The signing key did not reach authservice, so the symmetric path was selected | Run `scripts/setup.*`, or let the AppHost generate its ephemeral key; check `GET <authservice>/.well-known/jwks.json` returns a non-empty `keys` array |
 | `pnpm: command not found` | pnpm missing | `npm install -g pnpm` or `corepack enable` |
 | `scan-secrets: neither 'gitleaks' nor a running Docker daemon is available.` | Hook cannot run | Install gitleaks or start Docker |
+| `initdb: error: directory "/var/lib/postgresql/data" exists but is not empty` (Postgres container exits, AppHost never gets healthy) | The named volume `exit-interview-agent-pgdata` was initialised by a different Postgres major (the AppHost pins 17, matching `flyio/postgres.fly.toml`) | `docker volume rm exit-interview-agent-pgdata` (dev data only) and re-run |
+| `Pulling` stalls or `429 Too Many Requests` from Docker Hub | Anonymous pull rate limit | `docker login`, or retry later |
