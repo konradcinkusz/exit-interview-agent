@@ -1,0 +1,10 @@
+:root { color-scheme: light dark; --fg: #111; --bg: #fff; --muted: #555; --accent: #0b5fff; }
+@media (prefers-color-scheme: dark) { :root { --fg: #eee; --bg: #111; --muted: #aaa; --accent: #7aa7ff; } }
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+main { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem; }
+a { color: var(--accent); }
+label { display: block; margin: 0.75rem 0 0.25rem; }
+input { width: 100%; padding: 0.5rem; font: inherit; box-sizing: border-box; }
+button { margin-top: 1rem; padding: 0.5rem 1rem; font: inherit; cursor: pointer; }
+.muted { color: var(--muted); }
+[role="alert"] { color: #b00020; }

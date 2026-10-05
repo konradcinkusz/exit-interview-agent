@@ -1,0 +1,2 @@
+# Standalone package (not a web app): its own lockfile. Nothing here needs install scripts.
+packages: []
