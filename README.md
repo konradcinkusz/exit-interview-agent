@@ -13,16 +13,63 @@ Open-source AI agent for structured exit interviews with former employees. Bring
 
 A tool and a portfolio piece, not a company and not a public review platform. The project hosts no model: you bring the compute. The goal, the non-goals and the decisions already taken are in the binding [project brief](docs/architecture/PROJECT-BRIEF.md).
 
-## Status: scaffold only
+## Status
 
-This repository is at **phase 0**: the estate's default containerized application, initialized and green, with **no interview logic yet**. What exists today is the mechanism: an Aspire composition root, a shared kernel, one service that owns its database, a Next.js portal with its BFF, containers, and CI. The interview agent, the record schema, the ingest path, the MCP adapter, the CLI and the eval harness are later tasks (see the backlog in the brief §10).
+Kept honest: **Implemented** means on `main`; everything else is a plan owned by a task in the [brief's backlog](docs/architecture/PROJECT-BRIEF.md#10-backlog-and-dependency-graph-orchestrator-assigns-sessions-may-add-rows-via-pr).
+
+| Area | State |
+|---|---|
+| Scaffold: Aspire AppHost, shared kernel, one service with its own database, Next.js portal with BFF, containers, CI, secret scan | **Implemented** (T0) |
+| Identity: `authservice` as a pinned image, RS256-only JWT validation against its JWKS, `GET /api/v1/me` | **Implemented** (T0, [ADR-0003](docs/adr/0003-identity-authservice-as-pinned-image.md)) |
+| Documentation foundation: [privacy design](docs/privacy/DESIGN.md), [threat model](docs/security/THREAT-MODEL.md), [legal considerations](docs/legal/CONSIDERATIONS.md), [open problems](docs/OPEN-PROBLEMS.md), [evaluation methodology](docs/eval/METHODOLOGY.md) | **Implemented** (T3, documents only: they describe a design) |
+| Record schema, PII detector | Planned (T1) |
+| Second JWT scheme for MCP, consents, account deletion hooks | Planned (T2) |
+| Interview agent core, persona simulator, mock model, offline CLI demo | Planned (T4) |
+| Ingest, ledger, receipt-code deletion, submission tickets, `EmploymentVerifier` mock | Planned (T5) |
+| Model providers behind `IChatClient` and PII-free tracing | Planned (T6) |
+| Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
+| MCP adapter | Planned (T8) |
+| Web panel features: consents, submissions, deletion, tickets | Planned (T9) |
+| Signals (aggregates with uncertainty) | Planned (T10) |
+| CLI submission with a ticket | Planned (T11) |
+| Security review, release gate, results write-up | Planned (T12) |
+
+There is **no interview logic on `main` yet**. Nothing is deployed, and no real person's data is processed anywhere.
 
 ## Non-goals, stated up front
 
 - **Nothing is deployed, and nothing will be in this phase.** Everything is built and tested locally. The Fly.io files and the `flyio*.yml` workflows are generated and syntax-checked, never triggered: no `v*` tag, no Fly app, no GitHub secret. The repository is private; making it public is the owner's decision.
-- **No Claude subscription tokens and no GitHub Copilot as a model backend.** Anthropic prohibits subscription OAuth tokens (Free/Pro/Max) in third-party tools, and the terms for using Copilot as a backend could not be verified. Supported model access will be API keys (Anthropic, OpenAI-compatible endpoints) and local models (Ollama).
+- **No Claude subscription tokens and no GitHub Copilot as a model backend.** See [Supported model access](#supported-model-access) for what was read and what could not be verified.
 - **No real interviews and no real personal data.** Simulated personas only.
 - No blockchain, tokens or DAO; no public publication of individual reviews (aggregates only above a minimum count); no real employment verification (an interface and a mock, real verification is an open problem).
+
+## Supported model access
+
+The project hosts no model: you bring the compute.
+
+| Access | Supported | Notes |
+|---|---|---|
+| Anthropic API key | **Yes** (planned, T6) | Anthropic's Commercial Terms permit powering products with the API; whether bring-your-own-key distribution is addressed was not read. Employment-related uses carry Anthropic's high-risk requirements: see [legal considerations §1](docs/legal/CONSIDERATIONS.md#1-model-provider-terms-what-we-may-and-may-not-support) |
+| OpenAI-compatible endpoint | **Yes** (planned, T6) | The terms are those of whoever hosts the endpoint. OpenAI's own terms could **not be read** (blocked) and are *Unverified* |
+| Local models (Ollama) | **Yes** (planned, T6) | Ollama is MIT-licensed (read). The licence of the weights you download governs their use; none are bundled |
+| Claude Free/Pro/Max subscription tokens | **No** | Anthropic's own documentation says third parties may not offer Claude.ai login or route requests through Free, Pro or Max credentials (read 2026-10-05) |
+| GitHub Copilot as a backend | **No** | Not because it was found to be forbidden: GitHub's terms for this use **could not be verified** (2026-10-05) |
+| Claude as an MCP host (mode A) | **Yes** (planned, T8) | You sign in to Claude with Anthropic's own client; we never see a Claude credential. The host sees your whole interview ([privacy at a glance](#privacy-at-a-glance)) |
+
+Row-by-row evidence, with dates, sources and what could not be read: [`docs/legal/CONSIDERATIONS.md`](docs/legal/CONSIDERATIONS.md). Considerations, not legal advice.
+
+## Privacy at a glance
+
+Design intent ([full design](docs/privacy/DESIGN.md)); each item is **Planned** unless the [Status](#status) table says otherwise.
+
+- The **record has no user id**. A separate **ledger** (keyed HMAC of account and employer, no content, purged after a window) enforces one submission per employer per account.
+- You get a **receipt code** once; presenting it deletes the record without linking it to your account. A lost code cannot be recovered; deleting your account cannot reach your records.
+- Aggregates are shown only with **at least K records** (default 5), **always with uncertainty**, and never as a composite ranking or per-person view. Single reviews are never published.
+- No interview content or personal data in logs, traces or audit events.
+- **Records are treated as personal data, not as anonymous** ([ADR-0018](docs/adr/0018-records-are-treated-as-personal-data.md)).
+- **Who sees your interview:** with the CLI, your AI provider (or nobody, with a local model); with MCP, your AI host and its provider. Our servers receive only the record, never the transcript.
+- **Honest limits:** an operator with the database, the signing key and live traffic can correlate accounts and records; small groups can be identified; we cannot verify that a submitter ever worked at the employer. See the [threat model](docs/security/THREAT-MODEL.md) and [open problems](docs/OPEN-PROBLEMS.md).
+- **No real interviews** until a privacy policy, a lawful basis, working deletion and a lawyer's review exist ([legal §4](docs/legal/CONSIDERATIONS.md#4-why-real-interviews-are-out-of-scope)).
 
 ## Run it
 
@@ -64,7 +111,7 @@ CI runs the same (plus container image builds and workflow linting): [`.github/w
 | `web/app` | Next.js portal and BFF (HttpOnly-cookie sessions, runtime config, verifying edge gate, catch-all proxy) |
 | `tests/` | xUnit project for the service and kernel; Playwright journeys in `tests/e2e` |
 | `flyio/` | generated Fly.io topology, secrets and cost analysis (not deployed) |
-| `docs/` | [architecture and deviation register](docs/architecture/00-ARCHITECTURE.md), [ADRs](docs/adr/), [UI/UX and backlog](docs/ux/UI-UX.md), diagrams |
+| `docs/` | [architecture and deviation register](docs/architecture/00-ARCHITECTURE.md), [ADRs](docs/adr/), [UI/UX and backlog](docs/ux/UI-UX.md), diagrams; [privacy design](docs/privacy/DESIGN.md), [threat model](docs/security/THREAT-MODEL.md), [legal considerations](docs/legal/CONSIDERATIONS.md), [open problems](docs/OPEN-PROBLEMS.md), [evaluation methodology](docs/eval/METHODOLOGY.md) |
 
 How the brief's service layout (`interview-service` with a future `Signals` module, `authservice`, `cli`, `eval`, `web`) maps onto this tree is [ADR-002](docs/adr/0002-service-layout.md).
 
