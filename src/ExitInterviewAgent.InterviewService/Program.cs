@@ -15,6 +15,7 @@ builder.Services.AddStandardRateLimiting();
 builder.Services.AddOpenApiDocument("interview-service", "v1", "Structured exit-interview records and employer signals.");
 builder.Services.AddInterviewPersistence(builder.Configuration);
 builder.Services.AddSubmissions(builder.Configuration, builder.Environment);
+builder.Services.AddSignalsModule(builder.Configuration);
 
 var app = builder.Build();
 

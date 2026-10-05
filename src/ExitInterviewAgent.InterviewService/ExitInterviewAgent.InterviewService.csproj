@@ -8,6 +8,7 @@
     <ProjectReference Include="..\ExitInterviewAgent.Contracts\ExitInterviewAgent.Contracts.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Privacy\ExitInterviewAgent.Privacy.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Signals\ExitInterviewAgent.Signals.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
