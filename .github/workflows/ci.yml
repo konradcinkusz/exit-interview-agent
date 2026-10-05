@@ -1,0 +1,126 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: build, format, test, kernel guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore
+      - run: dotnet format --verify-no-changes --no-restore
+      # Warnings are errors (Directory.Build.props); NuGet audit fails the restore on vulnerable packages.
+      - run: dotnet build --no-restore -c Release -warnaserror
+      # Includes the kernel architecture tests (tests/**/Architecture).
+      - run: dotnet test --no-build -c Release
+      - name: Kernel size ceiling (P2)
+        run: scripts/check-kernel-size.sh
+
+  web:
+    name: web lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g pnpm@12.9.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  e2e:
+    name: e2e smoke (Playwright, production artifact, stub backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g pnpm@12.9.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the web artifact
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Install e2e dependencies and browser
+        working-directory: tests/e2e
+        run: |
+          pnpm install --frozen-lockfile
+          npx playwright install --with-deps chromium
+      - name: Run the journeys
+        working-directory: tests/e2e
+        run: pnpm test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report
+          retention-days: 7
+
+  images:
+    name: images build and answer their health endpoint on the declared port
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: interview-service
+        run: |
+          docker build -f src/ExitInterviewAgent.InterviewService/Dockerfile -t interview-service:ci .
+          docker run -d --name interview-service -p 8080:8080 interview-service:ci
+          for _ in $(seq 1 30); do curl -fsS http://localhost:8080/health && break; sleep 2; done
+          curl -fsS http://localhost:8080/health | grep -q '"schema":"Healthy"'
+          docker logs interview-service
+      - name: web
+        run: |
+          docker build -f web/app/Dockerfile -t web:ci web
+          docker run -d --name web -p 3000:3000 -e AUTH_ISSUER=i -e AUTH_AUDIENCE=a -e AUTH_SERVICE_URL=http://auth.invalid web:ci
+          for _ in $(seq 1 30); do curl -fsS http://localhost:3000/healthz && break; sleep 2; done
+          # Addresses are read at request time, not baked in: the same image answers differently per environment.
+          curl -fsS http://localhost:3000/api/config | grep -q '"enabled":true'
+          docker run -d --name web-noidentity -p 3001:3000 web:ci
+          for _ in $(seq 1 30); do curl -fsS http://localhost:3001/healthz && break; sleep 2; done
+          curl -fsS http://localhost:3001/api/config | grep -q '"enabled":false'
+
+  hygiene:
+    name: workflow syntax, doc links, fly.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -color
+      - name: Relative links in Markdown resolve
+        run: python3 scripts/check-doc-links.py
+      - name: fly.toml files parse and declare dockerfile + context
+        run: |
+          python3 - <<'PY'
+          import pathlib, tomllib
+          for f in sorted(pathlib.Path("flyio").glob("*.fly.toml")):
+              d = tomllib.loads(f.read_text())
+              b = d.get("build", {})
+              ok = "image" in b or ("dockerfile" in b and "context" in b)
+              print(f"{f}: app={d['app']} build={'image' if 'image' in b else 'dockerfile+context'}")
+              assert ok, f"{f}: [build] needs image, or both dockerfile and context"
+              assert "http_service" in d or f.name == "postgres.fly.toml", f"{f}: no [http_service]"
+              assert "http_service" not in d or f.name != "postgres.fly.toml", "postgres must have no public listener"
+          PY

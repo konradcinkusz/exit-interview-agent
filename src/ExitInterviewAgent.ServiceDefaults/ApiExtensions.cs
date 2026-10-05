@@ -26,7 +26,9 @@ public static class ApiExtensions
         static string Key(HttpContext c) => c.User.FindFirst("sub")?.Value ?? c.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
         static FixedWindowRateLimiterOptions Window(int permits) => new()
         {
-            PermitLimit = permits, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            PermitLimit = permits,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
         };
         return services.AddRateLimiter(o =>
         {

@@ -1,0 +1,35 @@
+# GENERATED TOPOLOGY, NEVER TRIGGERED in this phase (PROJECT-BRIEF §2: no deployment of any kind).
+app = "exit-interview-agent-web-dev"
+primary_region = "fra"
+
+[build]
+  dockerfile = "../web/app/Dockerfile"
+  context = "../web"
+
+[env]
+  PORT = "3000"
+  HOSTNAME = "0.0.0.0"
+  # Read per request by /api/config and the BFF proxy: one image, N environments (P12).
+  # Service-to-service HTTP uses the PUBLIC URL: the Fly proxy starts a stopped machine, .internal does not.
+  INTERVIEW_SERVICE_URL = "https://exit-interview-agent-interview-service-dev.fly.dev"
+  AUTH_SERVICE_URL = "https://exit-interview-agent-authservice-dev.fly.dev"
+  AUTH_ISSUER = "ExitInterviewAgent"
+  AUTH_AUDIENCE = "ExitInterviewAgent"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # 0: entered only from a browser. A cold start is a slow first page, not a failed call.
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    path = "/healthz"      # a dedicated probe, not "/": a broken bundle still serves "/"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

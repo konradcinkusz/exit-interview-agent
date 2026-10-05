@@ -1,0 +1,5 @@
+# Context is web/: ship neither installed modules nor build output.
+**/node_modules
+**/.next
+**/*.md
+**/coverage

@@ -1,0 +1,40 @@
+# Manual machine-count normalisation (FLY-IO-DEPLOYMENT §12). NEVER TRIGGERED in this phase.
+# Stateful apps are excluded on purpose: `scale count 2` on an app with a volume creates a second,
+# EMPTY database. Scaling to zero machines is not the same as min_machines_running = 0.
+name: flyio-scale
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "normalize = declared counts | wind-down = stop stateless apps"
+        type: choice
+        options: [normalize, wind-down]
+        default: normalize
+
+permissions:
+  contents: read
+
+env:
+  SLUG: exit-interview-agent
+  ENVIRONMENT_NAME: dev
+
+jobs:
+  scale:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          # Pinned apps (a synchronous in-request caller exists) and the scale-to-zero frontend.
+          for app in authservice interview-service; do
+            name="$SLUG-$app-$ENVIRONMENT_NAME"
+            if [ "$MODE" = normalize ]; then flyctl scale count 1 --app "$name" --yes; else flyctl scale count 0 --app "$name" --yes; fi
+          done
+          web="$SLUG-web-$ENVIRONMENT_NAME"
+          if [ "$MODE" = normalize ]; then flyctl scale count 1 --app "$web" --yes; else flyctl scale count 0 --app "$web" --yes; fi
+          echo "postgres ($SLUG-postgres) is stateful and deliberately not touched."
