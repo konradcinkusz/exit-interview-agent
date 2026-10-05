@@ -215,7 +215,7 @@ risk, not as solved.
   has its own project, schema and DbContext with no shared domain types (brief §4, [ADR-0002](../adr/0002-service-layout.md)).
 - Individual reviews are never published (brief §2). See [CONSIDERATIONS §3](../legal/CONSIDERATIONS.md).
 
-### 5.6 Consents and accounts (Planned, T2/T9)
+### 5.6 Consents and accounts (T2 Implemented: consent gate, account deletion semantics; T9 Planned: the rest of the portal)
 
 Portal login is an **account only**, with no link to an employer (brief §3.1). Versioned legal consents live in
 authservice ([identity guide §9](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/IDENTITY-AND-ACCOUNTS.md)): immutable rows with document, version, timestamp, IP, user agent, locale.
@@ -227,11 +227,19 @@ Two design consequences:
   stops the interview and discards the transcript on the client (agent rule, brief §6; T4/T7 test it as a persona).
   What is withdrawn after submission is handled by receipt-code deletion.
 
-### 5.7 Telemetry and audit without content (Planned, T5/T6; scaffold partly Implemented)
+**Implemented (T2).** The BFF shows a consent step before anything else when authservice says the Terms or Privacy version in force has not
+been accepted, and the API proxy refuses calls until then ([ADR-0013](../adr/0013-bff-session-refresh-rotation-and-consent-gate.md)). Account
+deletion goes through authservice and removes the login only; the table of what it does and does not remove (records untouched and
+unfindable, ledger purged by its window, issued tokens valid until expiry) is in [ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md),
+and the portal says so before and after deletion.
+
+### 5.7 Telemetry and audit without content (Planned, T5/T6; scaffold and T2 email scrubbing Implemented)
 
 Brief §6: no PII or interview content in logs, traces or authservice audit events. The scaffold already exports
 traces by OTLP only when configured and filters probes ([`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md), P15 row);
-that is plumbing, not yet a content guarantee. The enforceable form (T5/T6):
+that is plumbing, not yet a content guarantee. T2 added data minimisation (the principal drops the `email` claim) and an email-address scrubber on every
+log line ([ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)); authservice's own audit rows still include the actor's email.
+The enforceable form for content (T5/T6):
 
 - spans and logs carry route, status, latency, size class, model name, token counts: never prompt text, quotes,
   employer, `sub`, receipt code or ticket;

@@ -103,7 +103,8 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 
 - **Why it matters.** authservice registers MCP clients statically from configuration (its ADR-0005: no dynamic registration); each host needs its own
   client id, secret, redirect URIs, scopes and resource, held by the operator.
-- **What we do now.** Documented in authservice's `DEPLOYMENT.md` ("Registering an MCP client"); wiring is Planned (T2/T8).
+- **What we do now.** Wired for Claude (T2, [ADR-0012](adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)): the AppHost configures one client, the service validates its tokens and
+  serves RFC 9728 metadata; the MCP transport is Planned (T8). Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
 - **What would close it.** A documented operator runbook per host and a startup check that fails loudly on a missing client; dynamic registration
   would need authservice to change its stance.
 
