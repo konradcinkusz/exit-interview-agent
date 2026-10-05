@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Secret scan (P5, REPO-BASELINE §2). Runs gitleaks over the working tree, or over the staged
-# changes only with --staged (used by the pre-commit hook). Uses a local `gitleaks` binary if
+# Secret scan (P5, REPO-BASELINE §2). Runs gitleaks over the commit history (what CI scans), or over
+# the staged changes only with --staged (used by the pre-commit hook). Git-aware on purpose: a plain
+# directory scan also reads gitignored build output (Next.js writes preview keys under .next/). Uses a local `gitleaks` binary if
 # present, otherwise the pinned container image. Fails closed: a scan that cannot run is a
 # failure, never a silent pass.
 set -euo pipefail
@@ -12,9 +13,9 @@ cd "$repo_root"
 if [[ "${1:-}" == "--staged" ]]; then
   cmd=(git --staged)
 else
-  cmd=(dir)
+  cmd=(git)
 fi
-# gitleaks v8.28: `git --staged` scans staged changes, `dir` scans files without history.
+# gitleaks v8.28: `git` scans commits, `git --staged` scans staged changes.
 sub="${cmd[0]}"; extra=("${cmd[@]:1}")
 
 if command -v gitleaks >/dev/null 2>&1; then
