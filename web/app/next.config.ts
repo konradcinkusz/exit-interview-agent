@@ -8,7 +8,7 @@ const config: NextConfig = {
   // The workspace root, so standalone tracing includes workspace packages.
   outputFileTracingRoot: path.join(__dirname, ".."),
   poweredByHeader: false,
-  headers: async () => [{ source: "/:path*", headers: securityHeaders(process.env.NODE_ENV === "production") }],
+  headers: async () => [{ source: "/:path*", headers: securityHeaders() }],
 };
 
 export default config;

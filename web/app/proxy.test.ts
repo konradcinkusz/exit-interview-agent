@@ -6,9 +6,10 @@ vi.mock("@/lib/jwt", () => ({ verifyAccessToken: (...args: unknown[]) => verify(
 
 const { proxy } = await import("./proxy");
 
-const request = (path: string, cookies: Record<string, string> = {}) =>
+const request = (path: string, cookies: Record<string, string> = {}, init: { method?: string; headers?: Record<string, string> } = {}) =>
   new NextRequest(`http://localhost:3000${path}`, {
-    headers: { cookie: Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ") },
+    method: init.method,
+    headers: { cookie: Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; "), ...init.headers },
   });
 
 const location = (res: Response) => new URL(res.headers.get("location") ?? "http://none").pathname + new URL(res.headers.get("location") ?? "http://none").search;
@@ -56,7 +57,10 @@ describe("edge gate: consent before anything else", () => {
   });
 
   it("keeps public pages public", async () => {
-    for (const path of ["/", "/login", "/account-deleted", "/api/auth/refresh"]) {
+    for (const path of [
+      "/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/delete-submission", "/account-deleted",
+      "/api/auth/refresh", "/api/auth/two-factor", "/api/auth/register", "/api/receipts",
+    ]) {
       expect((await proxy(request(path))).headers.get("x-middleware-next")).toBe("1");
     }
   });
@@ -92,5 +96,87 @@ describe("edge gate: refresh", () => {
     const res = await proxy(request("/account"));
 
     expect(location(res)).toBe(`/login?redirect=${encodeURIComponent("/account")}`);
+  });
+});
+
+describe("edge gate: protected product pages", () => {
+  it("sends a visitor with no session away from the pages that need one", async () => {
+    verify.mockResolvedValue(null);
+
+    for (const path of ["/account", "/cli", "/api/auth/export", "/api/proxy/v1/tickets"]) {
+      const res = await proxy(request(path));
+      expect(res.status, path).toBeOneOf([307, 401]);
+      expect(res.headers.get("x-middleware-next"), path).toBeNull();
+    }
+  });
+});
+
+describe("edge gate: nonce CSP and no-store on every response", () => {
+  const nonceOf = (res: Response) => /'nonce-([^']+)'/.exec(res.headers.get("content-security-policy") ?? "")?.[1];
+
+  it("sets a fresh nonce CSP, with no unsafe-inline for scripts, on public and gated answers alike", async () => {
+    verify.mockResolvedValue({ sub: "s" });
+    const responses = [
+      await proxy(request("/")),
+      await proxy(request("/")),
+      await proxy(request("/account", { eia_access: "t", eia_consent: "t1|p1" })),
+      await proxy(request("/account?x=1", { eia_access: "t" })), // a redirect to the consent step
+    ];
+
+    const nonces = responses.map(nonceOf);
+    expect(nonces.every((n) => n && n.length >= 22)).toBe(true);
+    expect(new Set(nonces).size).toBe(responses.length);
+    for (const res of responses) expect(res.headers.get("content-security-policy")).not.toMatch(/script-src[^;]*unsafe-inline/);
+  });
+
+  it("hands the same nonce to Next on the forwarded request, which is how Next stamps its own scripts", async () => {
+    const res = await proxy(request("/"));
+
+    const forwarded = res.headers.get("x-middleware-request-content-security-policy") ?? "";
+    expect(forwarded).toContain(`'nonce-${nonceOf(res)}'`);
+    expect(res.headers.get("x-middleware-request-x-nonce")).toBe(nonceOf(res));
+  });
+
+  it("marks everything no-store except the two probes that set their own lifetime", async () => {
+    verify.mockResolvedValue({ sub: "s" });
+
+    for (const path of ["/", "/login", "/connect", "/delete-submission", "/api/receipts", "/api/auth/session"]) {
+      expect((await proxy(request(path))).headers.get("cache-control"), path).toBe("no-store");
+    }
+    for (const path of ["/healthz", "/api/config"]) {
+      expect((await proxy(request(path))).headers.get("cache-control"), path).toBeNull();
+    }
+    expect((await proxy(request("/account"))).headers.get("cache-control")).toBe("no-store"); // the sign-in redirect too
+  });
+});
+
+describe("edge gate: CSRF on state-changing API routes", () => {
+  const post = (path: string, headers: Record<string, string>, method = "POST") => proxy(request(path, {}, { method, headers: { host: "localhost:3000", ...headers } }));
+
+  it("refuses a state-changing request whose Origin or Sec-Fetch-Site says another site", async () => {
+    for (const path of ["/api/auth/login", "/api/receipts", "/api/auth/account", "/api/proxy/v1/tickets"]) {
+      const foreign = await post(path, { origin: "https://evil.example.test" }, "DELETE");
+      expect(foreign.status, path).toBe(403);
+      expect(await foreign.json()).toEqual({ error: "cross_origin_request" });
+      expect((await post(path, { "sec-fetch-site": "cross-site" })).status, path).toBe(403);
+    }
+  });
+
+  it("lets a same-origin request and a request with no browser headers through to the next handler", async () => {
+    expect((await post("/api/auth/login", { origin: "http://localhost:3000" })).headers.get("x-middleware-next")).toBe("1");
+    expect((await post("/api/receipts", {}, "DELETE")).headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("never blocks a safe method, whatever it claims", async () => {
+    expect((await proxy(request("/api/config", {}, { headers: { origin: "https://evil.example.test" } }))).headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("checks before the session, so a forged cross-site call learns nothing about whether it was signed in", async () => {
+    verify.mockResolvedValue({ sub: "s" });
+
+    const res = await post("/api/proxy/v1/tickets", { origin: "https://evil.example.test" });
+
+    expect(res.status).toBe(403);
+    expect(verify).not.toHaveBeenCalled();
   });
 });

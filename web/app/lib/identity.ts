@@ -159,3 +159,152 @@ export async function revokeSessions(cfg: AuthConfig, accessToken: string, fetch
     return false;
   }
 }
+
+export type TwoFactorOutcome =
+  | { ok: true; tokens: Tokens }
+  /** The code (or recovery code) is wrong; the challenge is still good, so the user may try again. */
+  | { ok: false; error: "invalid_code" }
+  /** The challenge expired, was never valid, or the account can no longer sign in this way: start the sign-in again. */
+  | { ok: false; error: "challenge_expired" }
+  | { ok: false; error: "locked" | "rate_limited" | "identity_unavailable" };
+
+/**
+ * `POST /api/v1/auth/2fa/login` (authservice TwoFactorController): the challenge from the first step plus EITHER an
+ * authenticator `code` OR a single-use `recoveryCode`. 401 carries an `error` text; the three 401 meanings (wrong code,
+ * dead challenge, lockout) are told apart by it, because authservice gives them no code field.
+ */
+export async function loginWithTwoFactor(
+  cfg: AuthConfig,
+  challengeToken: string,
+  input: { code?: string; recoveryCode?: string },
+  fetchImpl: Fetch = fetch,
+): Promise<TwoFactorOutcome> {
+  let upstream: Response;
+  try {
+    upstream = await fetchImpl(identityUrl(cfg, "/2fa/login"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ challengeToken, code: input.code ?? null, recoveryCode: input.recoveryCode ?? null }),
+      redirect: "manual",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, error: "identity_unavailable" };
+  }
+  if (upstream.status === 429) return { ok: false, error: "rate_limited" };
+  if (upstream.status === 401 || upstream.status === 400) {
+    const detail = ((await upstream.json().catch(() => null)) as { error?: string } | null)?.error ?? "";
+    if (/challenge/i.test(detail)) return { ok: false, error: "challenge_expired" };
+    if (/locked/i.test(detail)) return { ok: false, error: "locked" };
+    return { ok: false, error: "invalid_code" };
+  }
+  if (!upstream.ok) return { ok: false, error: "identity_unavailable" };
+  const data = (await upstream.json().catch(() => null)) as { accessToken?: string; refreshToken?: string; expiresIn?: number } | null;
+  if (!data?.accessToken) return { ok: false, error: "identity_unavailable" };
+  return { ok: true, tokens: { accessToken: data.accessToken, refreshToken: data.refreshToken, expiresIn: data.expiresIn ?? 3600 } };
+}
+
+export interface ConsentVersions {
+  terms: string;
+  privacy: string;
+}
+
+/** `GET /api/v1/auth/consents/versions` (anonymous): what a registration must accept. Null when unavailable. */
+export async function fetchConsentVersions(cfg: AuthConfig, fetchImpl: Fetch = fetch): Promise<ConsentVersions | null> {
+  try {
+    const upstream = await fetchImpl(identityUrl(cfg, "/consents/versions"), {
+      headers: { accept: "application/json" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!upstream.ok) return null;
+    const b = (await upstream.json()) as { terms?: unknown; privacy?: unknown };
+    return typeof b.terms === "string" && typeof b.privacy === "string" ? { terms: b.terms, privacy: b.privacy } : null;
+  } catch {
+    return null;
+  }
+}
+
+export type RegisterOutcome =
+  /** Created. `verificationRequired` is true when an email was sent and must be followed before sign-in. */
+  | { ok: true; verificationRequired: boolean }
+  | { ok: false; error: "invalid" | "rate_limited" | "identity_unavailable"; messages?: string[] };
+
+/** `POST /api/v1/auth/register`: 200 (tokens, verification not needed) or 202 (check your email). Tokens are never used here. */
+export async function registerAccount(
+  cfg: AuthConfig,
+  input: { email: string; password: string; terms: string; privacy: string; locale?: string },
+  fetchImpl: Fetch = fetch,
+): Promise<RegisterOutcome> {
+  let upstream: Response;
+  try {
+    upstream = await fetchImpl(identityUrl(cfg, "/register"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: input.email,
+        password: input.password,
+        acceptedTermsVersion: input.terms,
+        acceptedPrivacyVersion: input.privacy,
+        locale: input.locale,
+      }),
+      redirect: "manual",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, error: "identity_unavailable" };
+  }
+  if (upstream.status === 202) return { ok: true, verificationRequired: true };
+  if (upstream.ok) return { ok: true, verificationRequired: false };
+  if (upstream.status === 429) return { ok: false, error: "rate_limited" };
+  if (upstream.status === 400) {
+    const detail = (await upstream.json().catch(() => null)) as { errors?: unknown } | null;
+    // authservice's messages describe password rules and the like; they never contain the submitted values.
+    const messages = Array.isArray(detail?.errors) ? detail.errors.filter((m): m is string => typeof m === "string").slice(0, 5) : [];
+    return { ok: false, error: "invalid", messages };
+  }
+  return { ok: false, error: "identity_unavailable" };
+}
+
+export type SimpleOutcome = { ok: true } | { ok: false; error: "invalid" | "rate_limited" | "identity_unavailable" };
+
+/** `POST /api/v1/auth/verify-email`: one answer for "no such account" and "bad token", so it is no existence oracle. */
+export async function verifyEmail(cfg: AuthConfig, email: string, token: string, fetchImpl: Fetch = fetch): Promise<SimpleOutcome> {
+  return simplePost(cfg, "/verify-email", { email, token }, fetchImpl);
+}
+
+/** `POST /api/v1/auth/resend-verification`: always 200 upstream, whether or not the address needs it. */
+export async function resendVerification(cfg: AuthConfig, email: string, fetchImpl: Fetch = fetch): Promise<SimpleOutcome> {
+  return simplePost(cfg, "/resend-verification", { email }, fetchImpl);
+}
+
+async function simplePost(cfg: AuthConfig, path: string, body: object, fetchImpl: Fetch): Promise<SimpleOutcome> {
+  try {
+    const upstream = await fetchImpl(identityUrl(cfg, path), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      redirect: "manual",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (upstream.ok) return { ok: true };
+    if (upstream.status === 429) return { ok: false, error: "rate_limited" };
+    if (upstream.status === 400) return { ok: false, error: "invalid" };
+    return { ok: false, error: "identity_unavailable" };
+  } catch {
+    return { ok: false, error: "identity_unavailable" };
+  }
+}
+
+/** `GET /api/v1/auth/export`: authservice's own data about the account, streamed. The caller owns the response. */
+export async function fetchExport(cfg: AuthConfig, accessToken: string, fetchImpl: Fetch = fetch): Promise<Response | null> {
+  try {
+    return await fetchImpl(identityUrl(cfg, "/export"), {
+      headers: authorized(accessToken, { accept: "application/json" }),
+      redirect: "manual",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch {
+    return null;
+  }
+}
