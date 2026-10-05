@@ -1,0 +1,25 @@
+id: adv-008-extractor-adds-an-affect-field
+class: adversarial
+gate: constraint
+title: An extractor that adds a sentiment field gets no record at all
+why: >-
+  Simulates an extractor that infers and records an emotion. The extractor schema has no such field, so the
+  output must be rejected on both attempts and the interview must end without a record, never with the field
+  silently dropped or kept.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: compromised
+    roles: [extractor]
+    variants: [affect_field]
+expect:
+  outcome: extraction_failed
+  end_reason: extraction_invalid
+  record: absent
+  min:
+    extraction_attempts: 2
+  absent:
+    spans: [interview.quote_verification, interview.validation]
+measure: []
+spec: [C-07, C-12]
+origin: designed (T7)

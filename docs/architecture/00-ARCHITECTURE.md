@@ -23,10 +23,12 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `src/ExitInterviewAgent.Personas` | seeded, data-driven interviewee simulators (ADR-0024) | 1 (JSON-Schema validator) |
 | `src/ExitInterviewAgent.Providers` | model providers behind `IChatClient`: Anthropic SDK, OpenAI-compatible, Ollama; transport policy, budget, disclosure, provider telemetry ([providers](providers.md), ADR-0032..0035) | 4 (Anthropic SDK, Microsoft's OpenAI adapter, model abstractions, logging abstractions) |
 | `src/ExitInterviewAgent.Cli` | `exit-interview`: offline demo (ADR-0026), interactive interview and `providers` (ADR-0036) | 3 (OpenTelemetry SDK, console exporter, OTLP exporter) |
+| `src/ExitInterviewAgent.Eval` | the evaluation harness, library and `exit-interview-eval` tool: scenarios as data, runner, Layer 1 and Layer 2, gate, baseline, report (ADR-0037..0041, [eval README](../eval/README.md)) | 2 (YAML reader, JSON-Schema validator) |
 | `schemas/` | published, versioned schemas: the record (v1 immutable once released, ADR-0009), the extractor output, the persona | n/a |
 | `tests/ExitInterviewAgent.Records.Tests`, `tests/ExitInterviewAgent.Privacy.Tests` | xUnit; golden fixtures; architecture tests; PII evaluation corpus | 3 each |
 | `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; architecture tests | 4 |
 | `tests/ExitInterviewAgent.Agent.Tests`, `tests/ExitInterviewAgent.Personas.Tests`, `tests/ExitInterviewAgent.Cli.Tests`, `tests/ExitInterviewAgent.Providers.Tests` | xUnit; state machine, per-rule and per-persona end-to-end tests, the canary trace test (extended to every provider client), fake-HTTP adapter tests on a fake clock, architecture tests | 3 each |
+| `tests/ExitInterviewAgent.Eval.Tests` | xUnit; corpus validation, statistics, fault injection, Layer 1, the broken-variant mutation tests, judge, calibration, gate, report, architecture (anti-goals) | 3 |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
 | `tests/e2e` | Playwright journeys against the production artifact | 1 runtime, 2 dev |
 
@@ -43,7 +45,8 @@ them (REPO-BASELINE §4b).
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
 `DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The providers task (T6, ADR-0032..0036) loaded the reference architecture (P5, P8, P10, P15), `AI-EVALS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and `SERVICE-API-PATTERNS`. (Not loaded here, loaded by the task that needs them:
-`open-source-release`, `research-documentation`.)
+The eval-harness task (T7, ADR-0037..0041) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`, `DEMO-DATA-AND-SEEDING`, `research-documentation` and P13 and P15 of the reference architecture. (Not loaded here, loaded by the task that needs them:
+`open-source-release`.)
 
 ## Where each principle lives
 

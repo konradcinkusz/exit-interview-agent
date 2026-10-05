@@ -1,0 +1,22 @@
+id: amb-004-still-vague-after-the-probe-is-not-probed-again
+class: ambiguity
+gate: behaviour
+title: An interviewee who stays vague after the probe is not probed a second time
+why: >-
+  The probe limit is what separates asking for an example from interrogating. Here the interviewee answers every probe with another
+  generality; the agent must accept it and move on, at most one probe per topic. Without this scenario nothing notices a removed limit
+  (found by the mutation pass, docs/eval/MUTATION-EVIDENCE.md).
+persona: vague
+seeds: [1]
+probe_reply: It was okay, you know, generally fine.
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    probes: 6
+  max:
+    probes: 6
+measure: [fuv]
+spec: [B-03, C-05]
+origin: designed (T7); a survivor of the mutation pass M-10

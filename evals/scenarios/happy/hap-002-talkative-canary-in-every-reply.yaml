@@ -1,0 +1,20 @@
+id: hap-002-talkative-canary-in-every-reply
+class: happy
+gate: constraint
+title: A marker planted in every reply never reaches a span, event or log line
+why: >-
+  The telemetry rule (no interview content in traces or logs) is only proven if the interview content really
+  went through the run: this plants a marker in every reply and then looks for it in everything the agent
+  emitted.
+persona: talkative
+seeds: [1, 2]
+canary: true
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  absent:
+    turn_kinds: [stop]
+measure: [coverage]
+spec: [C-08, B-01]
+origin: designed (T7)

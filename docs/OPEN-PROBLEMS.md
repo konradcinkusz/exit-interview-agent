@@ -115,8 +115,8 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 
 - **Why it matters.** An LLM judge that was never compared with people is a measuring stick nobody has checked
   ([METHODOLOGY §7](eval/METHODOLOGY.md); the reference repository's own labels were AI-written and are described there as a rehearsal).
-- **What we do now.** Judge scores are reported and trended; they gate nothing (Planned, T7).
-- **What would close it.** ≥ 40 human labels over ≥ 8 scenarios under a named human handle, κ ≥ 0.6 (starting thresholds), recorded in the repository.
+- **What we do now.** **Implemented (T7, [ADR-0039](adr/0039-layer-2-judge-and-calibration-policy.md)).** The judge is built, pinned and hashed, and its scores gate nothing. 48 judge items and 74 replies / 16 pairs are hand-labelled **by the AI session that wrote the harness**: an author-labelled rehearsal that counts for nothing towards the gate (the gate also requires `labeller_kind: human` under the owner's handle). No judge credential has been available, so the judge has scored nothing (`skipped:no-credential`); what is computed offline is the rule screens' and the reply analyser's agreement with the same labels (`eval calibrate`).
+- **What would close it.** ≥ 40 human labels (the starting thresholds, taken from the reference implementation: ≥ 40 labels, ≥ 8 items, κ ≥ 0.6) under a named human handle in `evals/labels/judge.yaml` with `labeller_kind: human`, `calibration.owner_handle` set in `evals/rubrics/judge.yaml`, and a keyed run that computes κ.
 
 ## OP-12. Receipt codes: access without a list of records
 

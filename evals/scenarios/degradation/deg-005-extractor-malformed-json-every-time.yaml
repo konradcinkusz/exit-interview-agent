@@ -1,0 +1,23 @@
+id: deg-005-extractor-malformed-json-every-time
+class: degradation
+gate: constraint
+title: Persistently malformed extractor output ends with no record
+why: >-
+  When both attempts are unparseable the interview must report extraction_failed and leave no record behind; a
+  repaired or partial record would be a fabrication.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: malformed_json
+    roles: [extractor]
+expect:
+  outcome: extraction_failed
+  end_reason: extraction_invalid
+  record: absent
+  min:
+    extraction_attempts: 2
+  absent:
+    spans: [interview.quote_verification, interview.validation]
+measure: []
+spec: [C-12]
+origin: designed (T7)

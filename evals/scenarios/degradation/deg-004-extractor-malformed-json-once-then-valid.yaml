@@ -1,0 +1,24 @@
+id: deg-004-extractor-malformed-json-once-then-valid
+class: degradation
+gate: behaviour
+title: One malformed extractor answer is retried once and the record is built from the retry
+why: >-
+  Models do return truncated JSON. The agent must retry exactly once with the error codes, never repair the text
+  itself, and produce a record only from the schema-valid second answer.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: malformed_json
+    roles: [extractor]
+    times: 1
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    extraction_attempts: 2
+  max:
+    extraction_attempts: 2
+measure: [degraded_ok]
+spec: [B-08, C-12]
+origin: designed (T7)
