@@ -32,6 +32,7 @@ public static partial class QuestionGuard
             var marks = t.Count(c => c == '?');
             if (marks == 0 && kind != TurnKind.Redirect && !(kind == TurnKind.Topic && Invitation().IsMatch(t))) return new(false, "no_question");
             if (marks > 2) return new(false, "multiple_questions");
+            if (marks == 2 || SecondInterrogative().IsMatch(t)) return new(false, "double_barrelled");
         }
 
         if (LeadingReason(t) is { } leading) return new(false, leading);
@@ -50,6 +51,10 @@ public static partial class QuestionGuard
     }
 
     private const RegexOptions Opt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+
+    /// <summary>A second interrogative clause coordinated onto the first ("... and how did ...", "..., or what would ..."): two asks in one turn.</summary>
+    [GeneratedRegex(@"\b(and|or)\s+(what|how|why|who|whom|when|where|which)\b", Opt, 200)]
+    private static partial Regex SecondInterrogative();
 
     [GeneratedRegex(@"\b(don'?t|doesn'?t|didn'?t|isn'?t|wasn'?t|aren'?t|weren'?t|wouldn'?t|couldn'?t|shouldn'?t|haven'?t|hasn'?t)\s+(you|they|he|she|it|that|there|the|your)\b[^?]*\?|\b(wouldn'?t|don'?t)\s+you\s+(say|agree|think|feel|find)\b", Opt, 200)]
     private static partial Regex NegativePolar();

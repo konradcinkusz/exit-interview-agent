@@ -13,22 +13,23 @@ namespace ExitInterviewAgent.Eval.Tests;
 public class FindingsTests
 {
     [Fact]
-    public void Finding_1_the_question_guard_lets_a_double_barrelled_question_through_and_the_independent_rules_flag_it()
+    public void Finding_1_the_question_guard_rejects_a_double_barrelled_question_that_the_independent_rules_also_flag()
     {
         var q = "What was onboarding like and how did your manager treat you?";
 
         var verdict = QuestionGuard.Check(q, TurnKind.Topic, new PiiGuard());
 
-        Assert.True(verdict.Ok);
+        Assert.False(verdict.Ok);
+        Assert.Equal("double_barrelled", verdict.Reason);
         Assert.True(IndependentRules.IsDoubleBarrelled(q));
     }
 
     [Fact]
-    public void Finding_2_two_of_the_protocols_six_topic_questions_are_double_barrelled_by_the_independent_rule()
+    public void Finding_2_none_of_the_protocols_six_topic_questions_is_double_barrelled_by_the_independent_rule()
     {
         var flagged = InterviewProtocol.Current.Topics.Where(t => IndependentRules.IsDoubleBarrelled(t.Question)).Select(t => t.Id);
 
-        Assert.Equal(["management", "culture"], flagged);
+        Assert.Empty(flagged);
     }
 
     [Fact]
