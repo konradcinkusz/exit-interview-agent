@@ -5,7 +5,7 @@ T7 ([brief §10](../architecture/PROJECT-BRIEF.md)) fills in the numbers and the
 **not yet measured**. Status vocabulary: [ADR-0017](../adr/0017-documentation-layout-and-claim-status.md). Guides
 loaded: [`ai-evals`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/AI-EVALS.md),
 [`metric-ethics`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md),
-[`research-documentation`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/RESEARCH-DOCUMENTATION.md).
+[`research-documentation`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/research/00-RESEARCH-DOCUMENTATION.md).
 
 ## 1. Unit of evaluation, and what is not evaluated
 
@@ -141,6 +141,6 @@ Read in this session (read-only clone of the public repository): `docs/SPEC.md`,
 
 ## 10. Reporting conventions (for the later write-up)
 
-Results are written following [`research-documentation`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/RESEARCH-DOCUMENTATION.md): every number traceable to a committed artifact and the
+Results are written following [`research-documentation`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/research/00-RESEARCH-DOCUMENTATION.md): every number traceable to a committed artifact and the
 command that reproduces it; claim separated from evidence; negative and surprising results are written up; a study pins the code it
 describes. **Reproduction commands will be listed here by T7**: `Planned (T7)`: none exists yet.
