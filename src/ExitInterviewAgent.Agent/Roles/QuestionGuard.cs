@@ -30,7 +30,7 @@ public static partial class QuestionGuard
         if (asks)
         {
             var marks = t.Count(c => c == '?');
-            if (marks == 0 && kind != TurnKind.Redirect) return new(false, "no_question");
+            if (marks == 0 && kind != TurnKind.Redirect && !(kind == TurnKind.Topic && Invitation().IsMatch(t))) return new(false, "no_question");
             if (marks > 2) return new(false, "multiple_questions");
         }
 
@@ -65,6 +65,10 @@ public static partial class QuestionGuard
 
     [GeneratedRegex(@"^\W*(did|do|does|was|were|is|are|have|has|had)\s+(you|they|your|the|it|there|that|he|she)\b", Opt, 200)]
     private static partial Regex ClosedStarter();
+
+    /// <summary>An open invitation is as good as a question for a topic opener ("Tell me about ...").</summary>
+    [GeneratedRegex(@"(^|[.!?]\s+)(tell\s+me|describe|walk\s+me\s+through|share|talk\s+me\s+through)\b", Opt, 200)]
+    private static partial Regex Invitation();
 
     [GeneratedRegex(@"\b(example|specific|instance|particular\s+(situation|moment|time))\b", Opt, 200)]
     private static partial Regex ExampleRequest();

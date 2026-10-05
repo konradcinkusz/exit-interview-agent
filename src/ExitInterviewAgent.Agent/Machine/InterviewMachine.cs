@@ -99,6 +99,9 @@ public sealed class InterviewMachine
         if (s.Hostile && HostileCount >= limits.HostileToClose) return Finish(CloseReason.Hostile);
         if (TerseStreak >= limits.TerseStreakToClose) return Finish(CloseReason.Unresponsive);
 
+        // A frustrated interviewee is never pressed: no redirect, probe or clarification, just a kind word and the next topic.
+        if (s.Hostile) return Advance(Preface.AcknowledgeFrustration);
+
         var topic = CurrentTopic!.Value;
 
         if (s.NamesPerson && Phase != Phase.AwaitingRedirectAnswer && RedirectsUsed < limits.MaxRedirectsPerTopic)
@@ -115,14 +118,14 @@ public sealed class InterviewMachine
             return Issue(new Step(TurnKind.Clarification, topic));
         }
 
-        if (s.Vague && ProbesUsed < limits.MaxProbesPerTopic && Phase is Phase.AwaitingAnswer or Phase.AwaitingRedirectAnswer)
+        if (s.Vague && ProbesUsed < limits.MaxProbesPerTopic && Phase != Phase.AwaitingClarification)
         {
             ProbesUsed++;
             Phase = Phase.AwaitingProbeAnswer;
             return Issue(new Step(TurnKind.Probe, topic));
         }
 
-        return Advance(s.Hostile ? Preface.AcknowledgeFrustration : Preface.None);
+        return Advance(Preface.None);
     }
 
     private Step Advance(Preface preface)

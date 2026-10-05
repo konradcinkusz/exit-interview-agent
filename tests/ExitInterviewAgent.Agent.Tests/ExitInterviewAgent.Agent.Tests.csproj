@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Personas is referenced by the tests only: the Agent project must never depend on it (architecture test). -->
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Personas\ExitInterviewAgent.Personas.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\ForbiddenFieldNames.cs" Link="Shared\ForbiddenFieldNames.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>
