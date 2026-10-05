@@ -32,7 +32,7 @@ price table you supply (the repository ships none; without one, tokens are repor
 | `evals/baseline.json` | the recorded state behaviours are compared with (pinned to spec version, corpus digest, harness version, profile) |
 | `evals/profiles.yaml` | the real-model profiles (declared; each skips unless configured) |
 | `src/ExitInterviewAgent.Eval` | the library and console tool: `Scenarios/` (model, loader, corpus rules), `Execution/` (runner, trace capture, fault injection, profiles), `Layer1/` (graders and the independent rule sets), `Layer2/` (judge, calibration, classifier experiment), `Reporting/` (metrics, gate, baseline, conformance report), `Cli/` |
-| `tests/ExitInterviewAgent.Eval.Tests` | 150 tests, including the broken-variant mutation tests |
+| `tests/ExitInterviewAgent.Eval.Tests` | xUnit tests, including `MutationTests` (the broken variants) |
 | `docs/eval/MUTATION-EVIDENCE.md` | the real-code mutation pass: what was weakened, what the gate said |
 | `scripts/run-evals.sh`, `scripts/mutate-agent.py`, `scripts/check-baseline-justification.sh` | the commands above, the mutation pass, and the regeneration rule |
 

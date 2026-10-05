@@ -31,7 +31,7 @@ jobs:
         run: scripts/check-kernel-size.sh
 
   evals:
-    name: eval harness (offline, mock profile): validate, gate, deterministic report
+    name: "eval harness (offline, mock profile): validate, gate, deterministic report"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
       # No model, no network, no credential: Layer 2 and the real-model profiles report skipped:*, and say so in the report.
       - name: Scenarios validate against the schema, the corpus rules and the spec
         run: dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- validate
-      - name: Gate (constraints at 100%, behaviours against evals/baseline.json; fails the build on regression)
+      - name: "Gate (constraints at 100%, behaviours against evals/baseline.json; fails the build on regression)"
         run: dotnet run --no-build -c Release --project src/ExitInterviewAgent.Eval -- gate
       - name: Conformance report, twice, byte-identical
         run: |

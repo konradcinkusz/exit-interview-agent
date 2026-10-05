@@ -27,7 +27,7 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Interview agent core (protocol, state machine, roles, PII guard, quote step, tracing seam), scripted mock model, eight simulated personas, offline CLI demo | **Implemented** (T4, [ADR-0022](docs/adr/0022-interview-agent-core.md) to [0026](docs/adr/0026-cli-project-and-ci-artifacts.md); design in [interview-agent.md](docs/architecture/interview-agent.md)). The mock is a test seam, not a quality baseline |
 | Ingest, ledger, receipt-code deletion, submission tickets, `EmploymentVerifier` mock | Planned (T5) |
 | Model providers behind `IChatClient` and PII-free tracing | Planned (T6) |
-| Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
+| Evaluation harness: [behaviour spec](docs/eval/SPEC.md), 27 scenarios as data in six classes, in-process runner with trace capture, Layer 1 deterministic assertions (twelve constraints on every run), a pinned Layer 2 judge and a classifier experiment, a committed baseline and CI gate, a conformance report, a mutation proof | **Implemented** (T7, [ADR-0037](docs/adr/0037-eval-harness-architecture.md) to [0041](docs/adr/0041-mutation-proof-and-independent-rules.md); [tour](docs/eval/README.md), numbers in [METHODOLOGY](docs/eval/METHODOLOGY.md)). Mock profile only: **no real model has been evaluated and Layer 2 has not scored anything** (`skipped:no-credential`); the judge labels are author-labelled, not human |
 | MCP adapter | Planned (T8) |
 | Web panel features: own submissions, receipt-code deletion, tickets (consent step and account deletion exist since T2) | Planned (T9) |
 | Signals (aggregates with uncertainty) | Planned (T10) |
