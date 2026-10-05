@@ -54,6 +54,7 @@ public sealed class TestHost : IDisposable
             {
                 b.UseSetting("Logging:LogLevel:Default", "Trace");
                 b.UseSetting("Logging:LogLevel:Microsoft.AspNetCore", "Trace");
+                b.UseSetting("Logging:LogLevel:Microsoft.EntityFrameworkCore", "Trace"); // appsettings quiets it; the canary test wants the SQL logs
                 b.ConfigureLogging(l => l.AddProvider(logs));
             }
             b.ConfigureTestServices(s =>
