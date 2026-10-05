@@ -32,27 +32,30 @@ All authenticated endpoints require `AuthPolicies.Account` or `AuthPolicies.McpS
 
 #### Account endpoints (policy: `Account`)
 
-| Endpoint | Method | Route | Rate Limit | Purpose |
+| Endpoint | Method | Policy | Rate Limit | Purpose |
 |---|---|---|---|---|
-| `/api/v1/me` | GET | Account | `auth` (10/min per account) | Get authenticated account details |
-| `/api/v1/submissions` | POST | Account | `auth` | Submit record as authenticated account |
-| `/api/v1/tickets` | POST | Account | `ticket-mint` (10/hour per account) | Mint CLI submission ticket |
-| `/api/v1/signals/employers` | GET | Account | `auth` | List employers in aggregates |
-| `/api/v1/signals/employers/{employerRef}` | GET | Account | `auth` | Get aggregates for one employer |
+| `/api/v1/me` | GET | Account | `api` (120/min per account) | Get authenticated account details |
+| `/api/v1/submissions` | POST | Account | `api` (120/min per account) | Submit record as authenticated account |
+| `/api/v1/tickets` | POST | Account | `ticket-mint` (10/hour per account); also global limit 3 live tickets, 10 mints/hour | Mint CLI submission ticket |
+| `/api/v1/signals/employers` | GET | Account | `signals` (30/min per account) | List employers in aggregates |
+| `/api/v1/signals/employers/{employerRef}` | GET | Account | `signals` (30/min per account) | Get aggregates for one employer |
 
 **Notes:**
-- All account endpoints verify `sub` claim from JWT (RS256 only, from authservice JWKS)
-- Ticket minting has tighter per-account limit (10/hour) and global limit (3 live tickets, 10 mints/hour)
+- All account endpoints verify `sub` claim from JWT (RS256 only, from authservice JWKS; src/ExitInterviewAgent.InterviewService/Infrastructure/Auth/JwtOptions.cs)
+- Ticket minting has per-account limit (10/hour); limits verified in src/ExitInterviewAgent.InterviewService/Submissions/SubmissionOptions.cs:49
+- Signals endpoints use separate rate limiter; limit verified in src/ExitInterviewAgent.Signals/SignalsOptions.cs:25
 
 #### MCP endpoints (policy: `McpSubmit`)
 
-| Endpoint | Method | Route | Rate Limit | Purpose |
+| Endpoint | Method | Transport | Rate Limit | Purpose |
 |---|---|---|---|---|
-| `/mcp/submit` | POST | MCP resource mount | `mcp` (120/min per resource) | Submit interview record via MCP |
+| Configurable path (default: `/mcp`) | — | Streamable HTTP (RFC 9545) with tools `validate_interview_record`, `submit_interview_record` | `api` (120/min per resource/account) | MCP resource mount for Claude and other MCP hosts |
 
 **Notes:**
+- Path configured via `Mcp:ResourcePath` (InMemory: `/mcp`, deployment configurable)
 - Validates MCP JWT: `iss` = `Jwt:PublicBaseUrl`, `aud` = MCP resource URI, `typ` = `at+jwt`, RS256, scope enforced
 - Token confusion tested exhaustively in `TokenMatrixTests` (wrong issuer, audience, `alg=none`, HS256 with public key, all variants)
+- No direct HTTP POST/GET endpoints; the Streamable HTTP transport implements the MCP protocol
 
 ### Implementation verification
 
@@ -85,22 +88,22 @@ All authenticated endpoints require `AuthPolicies.Account` or `AuthPolicies.McpS
 
 **Findings:**
 
-| Package | Version | Severity | CVE | Status |
+| Package | Version | Severity | Advisory | Status |
 |---|---|---|---|---|
-| `braces` | ≤3.0.3 | High | CVE-2024-22262 | **Open** |
+| `braces` | ≤3.0.3 | High | GHSA-vfj7-8cjw-p6xm | **Open** |
 
 **Details:**
 - **Vulnerability:** Stack exhaustion denial of service through deeply nested glob patterns
 - **Path:** `app > eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > braces`
 - **Root cause:** `braces` is a dev dependency of Next.js's linter, not a runtime dependency
+- **Dev-only verification:** `pnpm audit --prod` (web/) reports no vulnerabilities; `eslint-config-next` is in devDependencies
 - **Impact:** Dev builds and CI can be slowed; runtime is not affected (the library is not bundled into the app)
 - **Mitigation options:**
-  1. Await patch (vendor has not released one as of 2026-10-05; the package is not actively maintained for new features)
-  2. File exclusion: pin `braces@3.0.2` and patch out usage in transitive dependencies (fragile)
-  3. Update ESLint config (requires ESLint major update; Next.js dev dependency tree may also update)
+  1. Await patch (vendor has not released one as of 2026-10-05; no patched version exists per audit output)
+  2. Update ESLint major version (requires Next.js dev dependency tree refresh; higher risk than option 1)
 - **Recommendation:** Document as accepted risk for dev-only package; monitor for Next.js update that removes it
 
-**License audit:** Spot-checked `MIT` licenses in package.json (Anthropic SDK, Next.js, React, Tailwind, Vitest, Playwright, Prettier). All permissive. No GPL, AGPL or commercial licenses detected.
+**License audit:** Web package.json contains only development and runtime dependencies (Next.js, React, Tailwind, Vitest, Playwright, Prettier) with MIT or compatible permissive licenses. .NET dependencies verified in Directory.Packages.props are MIT or BSD licensed. No GPL, AGPL or commercial licenses detected.
 
 ## 3. Secrets handling
 
@@ -157,14 +160,14 @@ A unique marker string is submitted in every channel (submission body, custom he
 **File:** `.github/workflows/ci.yml`
 
 - ✓ Permissions: `contents: read` only (no secrets, no write)
-- ✓ Actions are pinned to v4 (`actions/checkout@v4`, `actions/setup-dotnet@v4`, `actions/upload-artifact@v4`)
+- ⚠ Actions are pinned to v4 by tag, not by SHA256 digest (`actions/checkout@v4`, `actions/setup-dotnet@v4`, `actions/upload-artifact@v4`); SHA pinning recommended for supply-chain hardening
 - ✓ dotnet version explicitly specified (10.0.x)
 - ✓ PostgreSQL test database uses dev-only credentials (ci-only, localhost only)
 - ✓ No secrets environment variables used
 - ✓ Secret scan runs on every push and PR
-- ✓ Build fails on format violations (`--verify-no-changes`), warnings treated as errors (`-warnaserror`), and vulnerable packages
+- ✓ Build fails on format violations (`--verify-no-changes`), warnings treated as errors (`-warnaserror`), and vulnerable packages (`dotnet build` fails if any vulnerable package is found)
 
-**Status: ✓ Secure**
+**Status: ✓ Secure (T12 finding: action SHAs are open, documented in threat model T-14)**
 
 ### Deployment workflow (flyio.yml)
 
@@ -188,7 +191,7 @@ A unique marker string is submitted in every channel (submission body, custom he
 **File:** `.github/workflows/secret-scan.yml`
 
 - ✓ Runs on every push and PR
-- ✓ Uses pinned `zricethezav/gitleaks:v8.28.0` container
+- ✓ Uses pinned `zricethezav/gitleaks:v8.28.0` container (line 21; verified exact image name)
 - ✓ Scans full history (`fetch-depth: 0`)
 - ✓ Configuration in `.gitleaks.toml` applied (custom rules)
 
@@ -196,9 +199,11 @@ A unique marker string is submitted in every channel (submission body, custom he
 
 ### CodeQL (SAST)
 
-**File:** `.github/workflows/codeql.yml` (assumed present; verify on `main`)
+**File:** `.github/workflows/codeql.yml`
 
-**Status:** Results kept as workflow artifacts, not uploaded to code scanning (private repo assumption). When made public, set `CODEQL_UPLOAD: true` in `.github/workflows/codeql.yml`.
+**Current state:** `CODEQL_UPLOAD: never` (line 17); results are not uploaded to GitHub code scanning.
+
+**Status:** Results kept as workflow artifacts while the repo is private. To enable upload when the repo becomes public: change line 17 from `CODEQL_UPLOAD: never` to `CODEQL_UPLOAD: true`.
 
 ## 5. Container image configuration
 
@@ -299,16 +304,16 @@ A unique marker string is submitted in every channel (submission body, custom he
 
 ### Detailed findings
 
-#### Finding 1: `braces` package DoS vulnerability (CVE-2024-22262)
+#### Finding 1: `braces` package DoS vulnerability (GHSA-vfj7-8cjw-p6xm)
 
 - **Severity:** High
-- **File/Line:** `web/app/package.json` → transitive path `eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > braces`
+- **Advisory:** https://github.com/advisories/GHSA-vfj7-8cjw-p6xm (from `pnpm audit` output)
+- **File/Line:** `web/app/package.json` → transitive path `eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > braces`; verified as devDependency
 - **Vulnerability:** Stack exhaustion on deeply nested glob patterns (e.g., `{a,{b,{c,{d,...}}}...}`)
-- **Risk:** Build-time slowdown or exhaustion of CI runner; runtime unaffected
+- **Risk:** Build-time slowdown or exhaustion of CI runner; runtime unaffected (devDependency only)
 - **Mitigation:**
   - Option A (Recommended): Accept as dev-only risk; monitor for Next.js update
-  - Option B: Pin `braces@3.0.2` with transitive dependency patch (fragile)
-  - Option C: Major ESLint/Next.js version bump (larger change)
+  - Option B: Major ESLint/Next.js version bump (higher risk)
 - **Decision:** Recommend Option A. Document in PR review if braces is still in the dependency tree at merge.
 
 #### Finding 2: Rate-limit key sharing for anonymous receipt deletion (OP-15)
@@ -327,30 +332,30 @@ A unique marker string is submitted in every channel (submission body, custom he
 
 ## 9. Threat model alignment
 
-The threat model (v0, written before implementation) has been updated as code was added. The following threat rows have been verified against the code on `main` and status updated:
+The threat model (v0, written before implementation) has been updated as code was added. Status values are carried from the threat model document and associated ADRs. The following are selected rows with verification status:
 
-| Threat ID | Title | T12 Verification | Status |
+| Threat ID | Title | Test Coverage | Status |
 |---|---|---|---|
-| T-01 | Small-group deanonymisation | Tested exhaustively in Signals module; single-snapshot and one-record-owned differencing provably closed in `DisclosureControlTests` | Mitigated in code |
-| T-02 | Re-identification from quotes | PII detection + ingest validation (T5); Signals module never carries quotes (T10) | Open (detection limits) |
-| T-03 | Prompt injection into interviewer | Code-side defences (T4); real models unmeasured | Open (T6/T7) |
-| T-04 | Injection into extractor | Schema validation + fidelity metric in evals (T7) | Open (client-side only) |
-| T-05 | Judge manipulation | Pinned judge, threshold-gated, human calibration planned (T7) | Open (no human labels yet) |
-| T-06 | Stored XSS | CSP with per-request nonce (T9), headers (T2) | Mitigated |
-| T-07 | MCP exfiltration | Server-side min, no `transcript` field, scope-enforced (T8) | Accepted, disclosed |
-| T-08 | Ledger correlation | Keyed HMAC, no content, week bucket, rotatable key (T5) | Accepted (storage layer residual) |
-| T-09 | Ticket redemption correlation | Narrowed (T5, T11), accepted (brief §4) | Accepted |
-| T-10 | Fabricated records, no verification | Mock verifier (T5), signals labelled and uncertain (T10) | Open (OP-1) |
-| T-11 | Receipt enumeration | Constant-time compare, 256-bit codes, rate limited (T5) | Mitigated |
-| T-12 | Account takeover | authservice 2FA, BFF rotation, tokens short-lived (T9) | Mitigated (MFA optional) |
-| T-13 | Insider with DB + key | Not preventable; trust in operator remains | Accepted |
-| T-14 | Supply chain | Pinned actions, digests to come, Dependabot off | Open (T12) |
-| T-15 | Log/trace leakage | Canary test (T5, T8, T11, T6); authservice email outside scope | Mitigated (T5/T8) |
-| T-16 | Consent withdrawal | Implemented in CLI (T4); mode A instructed (T8) | Open (behaviour unmeasured) |
-| T-17 | Token confusion | Cross-scheme matrix (T2), MCP tested (T8) | Mitigated |
-| T-18 | DoS / cost | Rate limits (T5), size caps, bounds (T10), single-instance limitation | Mitigated (single instance) |
-| T-19 | Legal compulsion | No real data, no link in records | Accepted (out of scope) |
-| T-20 | Transcript at provider | Out of control; disclosed (T6) | Accepted, disclosed |
+| T-01 | Small-group deanonymisation | `tests/ExitInterviewAgent.Signals.Tests/Disclosure/AdversaryTests.cs`, `PropertyTests.cs` (exhaustive k-anonymity with differencing and mutation tests) | Mitigated in code |
+| T-02 | Re-identification from quotes | `tests/ExitInterviewAgent.Records.Tests/` (PII detection); not verified (detection limits) | Open (detection limits) |
+| T-03 | Prompt injection into interviewer | Code-side defences in state machine; not verified (real models unmeasured) | Open (T6/T7) |
+| T-04 | Injection into extractor | Schema validation (`tests/ExitInterviewAgent.Records.Tests/ValidationTests.cs`); not verified (fidelity metric in evals T7) | Open (client-side only) |
+| T-05 | Judge manipulation | `tests/ExitInterviewAgent.Eval.Tests/JudgeTests.cs` (pinned judge, threshold gating); not verified (human calibration pending) | Open (no human labels yet) |
+| T-06 | Stored XSS | CSP nonce verified in code; e2e tests verify injection rejection; not verified at scale | Mitigated |
+| T-07 | MCP exfiltration | `tests/ExitInterviewAgent.InterviewService.Tests/Mcp/McpCanaryTests.cs` (no transcript field in MCP requests); scope enforcement verified in `TokenMatrixTests.cs` | Accepted, disclosed |
+| T-08 | Ledger correlation | Ledger design reviewed (keyed HMAC, coarse timestamp); architecture assumption, not tested | Accepted (storage layer residual) |
+| T-09 | Ticket redemption correlation | Single-use ticket implementation verified in code; correlation instant in `TokenMatrixTests.cs` | Accepted (documented in brief §4) |
+| T-10 | Fabricated records, no verification | Mock verifier (intentional design); signals labelled as uncertain (T10) | Open (OP-1) |
+| T-11 | Receipt enumeration | Constant-time comparison in code; `tests/ExitInterviewAgent.InterviewService.Tests/` (256-bit codes, rate limits verified) | Mitigated |
+| T-12 | Account takeover | Delegated to authservice; not verified (BFF rotation in `tests/ExitInterviewAgent.Web.Tests/` if present, or not run) | Mitigated (MFA optional in authservice) |
+| T-13 | Insider with DB + key | Operator trust model; not testable | Accepted |
+| T-14 | Supply chain | Actions pinned by tag (not SHA), gitleaks v8.28.0 verified in `.github/workflows/secret-scan.yml`:21 | Open (SHA pinning pending) |
+| T-15 | Log/trace leakage | `tests/ExitInterviewAgent.InterviewService.Tests/Logging/ContentCanaryTests.cs`, `McpCanaryTests.cs` (secrets not in logs, traces, spans, metrics, exceptions) | Mitigated (T5/T8/T11) |
+| T-16 | Consent withdrawal | Implemented in CLI; not verified (real model behaviour unmeasured) | Open (behaviour unmeasured) |
+| T-17 | Token confusion | `tests/ExitInterviewAgent.InterviewService.Tests/Auth/TokenMatrixTests.cs` (exhaustive wrong-issuer, wrong-audience, alg=none, HS256-with-public-key, scheme mismatch tests) | Mitigated |
+| T-18 | DoS / cost | Rate limits from `AnonymousLimits.cs`, `SignalsServiceCollectionExtensions.cs`; single-instance design assumption not tested under load | Mitigated (single instance) |
+| T-19 | Legal compulsion | Design: no real data, no person-record link; assumption, not tested | Accepted (out of scope) |
+| T-20 | Transcript at provider | Out of control (user's AI host); disclosed in MCP prompt (T8, ADR-0045) | Accepted, disclosed |
 
 ## 10. Residual risks
 

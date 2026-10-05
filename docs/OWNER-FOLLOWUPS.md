@@ -45,7 +45,7 @@ Prepared 2026-10-05 for the owner to action after T12 merges. Each item lists **
 ### Licence audit
 
 - [ ] Review `LICENSE` file: verify copyright line reads exactly:
-  > Copyright Konrad Cinkusz
+  > Copyright (c) 2026 Konrad Cinkusz
 
 - [ ] Review main `package.json` and `Directory.Packages.props` for any GPL, AGPL or proprietary licences
   - `grep -i "GPL\|AGPL\|proprietary"` over the files
@@ -86,16 +86,14 @@ Run each command in the README's "Try it" and "Run it" sections locally and veri
 **Why:** `ghcr.io/konradcinkusz/authservice:v0.3.4` is a mutable tag. When the repo is public and you later deploy, the tag could be updated by the authservice project, changing behaviour silently.
 
 Before any deployment (Task G, not yet):
-- [ ] Pin authservice by digest instead of tag. Example:
-  ```
-  ghcr.io/konradcinkusz/authservice@sha256:abc123...
-  ```
-  Steps:
-  1. Pull the current tag: `docker pull ghcr.io/konradcinkusz/authservice:v0.3.4`
-  2. Inspect it: `docker inspect ghcr.io/konradcinkusz/authservice:v0.3.4 --format='{{index .RepoDigests 0}}'`
-  3. Update the digest in `src/ExitInterviewAgent.AppHost/Program.cs` in the `.WithImage()` call
-  4. Test: `dotnet run --project src/ExitInterviewAgent.AppHost` should still start authservice
-  5. Commit this change before any deployment
+- [ ] Pin authservice by digest instead of tag. 
+  - Current location: `src/ExitInterviewAgent.AppHost/Program.cs` lines 39-40 (const `AuthserviceImage` and `AuthserviceTag`)
+  - Steps:
+    1. Pull the current tag: `docker pull ghcr.io/konradcinkusz/authservice:v0.3.4`
+    2. Inspect it: `docker inspect ghcr.io/konradcinkusz/authservice:v0.3.4 --format='{{index .RepoDigests 0}}'`
+    3. Update `Program.cs` line 39 to use the full digest: `const string AuthserviceImage = "ghcr.io/konradcinkusz/authservice@sha256:abc123..."`; or update line 40 to remove the tag (it will be in the digest)
+    4. Test: `dotnet run --project src/ExitInterviewAgent.AppHost` should still start authservice
+    5. Commit this change before any deployment
 
 ### CodeQL configuration (for public repo)
 
@@ -198,14 +196,18 @@ These are blocking for mode B (CLI with your own model) and especially mode C (w
 
 (OP-17, not yet done)
 
-- [ ] Start the real `ghcr.io/konradcinkusz/authservice:v0.3.4` container locally:
+- [ ] Start the real `ghcr.io/konradcinkusz/authservice:v0.3.4` container locally (environment variables from src/ExitInterviewAgent.AppHost/Program.cs:58-69):
   ```bash
-  docker run -p 5080:8080 \
-    -e "AuthorizationServer__Issuer=http://localhost:5080" \
-    -e "Jwt__Issuer=http://localhost:5080" \
-    -e "Jwt__PublicBaseUrl=http://localhost:5080" \
+  # Note: this is a minimal example for manual testing. For full setup (Postgres, MCP OAuth), see scripts/README.md
+  docker run -p 5100:8080 \
+    -e "DATABASE_PROVIDER=PostgreSQL" \
+    -e "Jwt__PrivateKeyPem=<base64-encoded-rsa-private-key>" \
+    -e "Jwt__Issuer=ExitInterviewAgent" \
+    -e "Jwt__Audience=ExitInterviewAgent" \
+    -e "ConnectionStrings__DefaultConnection=<postgres-connection-string>" \
     ghcr.io/konradcinkusz/authservice:v0.3.4
   ```
+  - For a full integration test with Postgres, see `scripts/README.md` (authservice is normally started via the Aspire AppHost which provides all dependencies)
 
 - [ ] Configure the AppHost to use it: set `Identity__Enabled=true` and the authservice connection
 
@@ -269,7 +271,7 @@ These are blocking for mode B (CLI with your own model) and especially mode C (w
 
 - [ ] Verify:
   - Certificate validation fails on untrusted cert (expected)
-  - Second run with `--yes` continues (or use `INSECURE_SKIP_VERIFY` if implemented)
+  - Second run with `--yes` continues (to accept the certificate permanently, or accept once)
   - Submission succeeds
   - Receipt code is displayed
 
@@ -281,7 +283,7 @@ These are blocking for mode B (CLI with your own model) and especially mode C (w
 
 | Item | Options | Blocker for |
 |---|---|---|
-| **Braces CVE (dev package)** | Await patch (unlikely); update ESLint/Next.js major version; accept risk | Public visibility if you claim "no vulnerabilities" |
+| **Braces CVE (dev package)** | GHSA-vfj7-8cjw-p6xm: dev-only, no patch (verified via `pnpm audit --prod`); await Next.js update or accept risk | Public visibility claim; see SECURITY-REVIEW.md Finding 1 |
 | **Employment verification** (OP-1) | Implement a verifier (email challenge, 3rd-party attestation, etc.); stay "claimed by accounts" | First real submission; legal review |
 | **Employer registry** (OP-2) | Free-text employer field (current); curated list with merge policy | Production aggregates; risk of ID issues at K = 5 |
 | **Rate-limit key sharing** (OP-15) | Forward client IP from BFF (ops decision); accept shared budget | Deployment behind a proxy |
@@ -333,6 +335,44 @@ These are blocking for mode B (CLI with your own model) and especially mode C (w
 - [ ] Load test: verify single-instance assumptions or upgrade to multi-instance
 - [ ] Disaster recovery tested
 - [ ] Rate-limit tuning from production data (if possible with test traffic)
+
+## Cleanup and upstream work
+
+### Session branches (can be deleted after merge to main)
+
+The following remote branches were created by build sessions T0-T12 and can be deleted once their PRs are merged to main. Deletion must be done via GitHub UI or `gh cli` (local session cannot delete remote branches):
+
+```
+origin/claude/project-brief
+origin/claude/t0-scaffold
+origin/claude/t1-record-schema
+origin/claude/t2-auth-wiring
+origin/claude/t3-docs-foundation
+origin/claude/t3b-brief-amendments
+origin/claude/t4-interview-agent
+origin/claude/t5-ingest
+origin/claude/t6-providers
+origin/claude/t7-eval-harness
+origin/claude/t8-mcp-adapter
+origin/claude/t9-web-panel
+origin/claude/t10-signals
+origin/claude/t10b-signals-web
+origin/claude/t11-cli-submit
+origin/claude/t12-question-guard
+origin/claude/t12-security-review
+```
+
+- [ ] After T12 PRs (question-guard and security-review) merge to main, delete all session branches via GitHub UI
+
+### Upstream proposals for authservice
+
+The following are proposals that would reduce operational burden and are out of scope for exit-interview-agent but belong in `konradcinkusz/authservice`:
+
+- [ ] **Public-client support** (ADR, code change in authservice): allow CLIs to use OAuth without a client secret. Currently exits-interview-agent works around this with submission tickets. A public client in authservice with PKCE would simplify mode B. ADR link: https://github.com/konradcinkusz/authservice/blob/main/docs/adr/0005-confidential-client-mandate.md
+
+- [ ] **Device grant flow** (RFC 8628): mode B (CLI) would benefit; currently uses tickets as a workaround. Consider as an alternative to public clients. Would need authservice changes.
+
+- [ ] **Email verification templates customization**: currently authservice sends hardcoded emails. For this repo, templates should be customizable or externalized so the owner can white-label verification flow.
 
 ---
 
