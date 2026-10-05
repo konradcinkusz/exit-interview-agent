@@ -82,6 +82,7 @@ public static class SubmissionEndpoints
                 ? Results.NoContent()
                 : Problem(SubmissionCodes.InvalidReceiptCode, StatusCodes.Status400BadRequest))
             .AllowAnonymous()
+            .RequireRateLimiting(AnonymousLimits.ReceiptDelete)
             .WithGlobalBudget(AnonymousLimits.ReceiptDelete)
             .WithName(EndpointNames.DeleteReceipt)
             .WithSummary($"Delete the record behind the receipt code in the {SubmissionHeaders.ReceiptCode} header. 204 for every well-formed code, found or not.")

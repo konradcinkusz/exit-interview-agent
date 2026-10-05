@@ -184,6 +184,23 @@ public sealed class PostgresSubmissionTests
     }
 
     [PostgresFact]
+    public async Task The_atomic_delete_alone_lets_exactly_one_of_many_simultaneous_redeemers_win()
+    {
+        // Bypasses HTTP so every caller reaches the delete at once: the affected-row count, not request timing, decides.
+        await using var pg = await PostgresTestDatabase.CreateAsync();
+        using var host = new TestHost(postgres: pg.ConnectionString);
+        await host.WaitReadyAsync();
+        var sub = TestRecords.NewSub();
+        var (_, mintBody) = await host.Client(host.WebToken(sub)).PostAsync("/api/v1/tickets", null).ReadAsync();
+        var peek = await host.InScopeAsync(sp => sp.GetRequiredService<TicketStore>().PeekAsync(TestRecords.TicketOf(mintBody).Ticket, default));
+        Assert.NotNull(peek);
+
+        var results = await RaceAsync(Parallel, _ => host.InScopeAsync(sp => sp.GetRequiredService<TicketStore>().RedeemAsync(peek!, default)));
+
+        Assert.Equal(sub, Assert.Single(results, r => r is not null));
+    }
+
+    [PostgresFact]
     public async Task A_ticket_rejected_for_a_duplicate_is_restored_by_the_rollback()
     {
         await using var pg = await PostgresTestDatabase.CreateAsync();
