@@ -29,6 +29,9 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-20 | Homogeneous cells are shown | Medium |
 | OP-21 | What is withheld is itself a signal | Low |
 | OP-22 | Clean partitions withhold more than a textbook rule would | Medium |
+| OP-23 | CLI secrets are protected by discipline, not by the platform | Medium |
+| OP-24 | A submission can end with an unknown outcome and a lost receipt | Medium |
+| OP-25 | CLI submission has not run over real TLS, on Windows/macOS, or against a deployment | Medium |
 
 ## OP-1. Real employment verification
 
@@ -132,7 +135,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 
 - **Why it matters.** A person cannot list their own records (there is no link), so "access" rights depend on a code the person must have kept
   ([legal §2](legal/CONSIDERATIONS.md)). A lost code means the record cannot be deleted by its author.
-- **What we do now.** The server returns the code once (Implemented, T5); the warning and any receipt file are the client's job (Planned, T9/T11). A `204` from the
+- **What we do now.** The server returns the code once (Implemented, T5); the warning and any receipt file are the client's job (Implemented: the web page, T9; the CLI shows the code once and `--save-receipt` writes an optional private file, T11, [ADR-0061](adr/0061-cli-receipt-handling.md)). A `204` from the
   deletion endpoint does not confirm a record existed ([ADR-0029](adr/0029-receipt-deletion-semantics.md)), so a person who kept the wrong code is not told.
 - **What would close it.** An *optional*, client-side-only receipt store (the CLI writes encrypted receipts to local disk; the web app offers a
   downloadable receipt file) so the server never learns the link, and a lawyer's view on whether that satisfies the rights it is meant to serve.
@@ -218,3 +221,26 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** The textbook rule would show more and is unsafe across two snapshots ([ADR-0053](adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md)); the loss is chosen, documented and visible in the demo data.
 - **What would close it.** Recoding (merging adjacent bands such as `lt_6m` and `6m_1y` when one is small), which changes the wire vocabulary and needs the versioning process of ADR-0009; evidence needed: how many cuts are withheld on a population shaped like the
   expected users. **Trigger:** a measured share of withheld cuts that makes them useless.
+
+## OP-23. CLI secrets are protected by discipline, not by the platform
+
+- **Why it matters.** The ticket (single use, minutes) and the receipt code (the only deletion key) pass through a user-space program. The CLI keeps them out of arguments, files, logs and error text (canary-tested) and in a type that does not print,
+  but a .NET string cannot be wiped, an exported environment variable is readable by the same user through the process table, a crash dump can hold a copy, the terminal's scrollback keeps the receipt code that is shown once, and the hidden prompt and the
+  `0600` file mode were exercised only on Linux ([ADR-0059](adr/0059-cli-secrets-handling.md), [ADR-0061](adr/0061-cli-receipt-handling.md)).
+- **What we do now.** Say so (the messages, the ADRs); prefer the prompt and stdin over the environment in the docs; the receipt file is optional, private on Unix and never overwritten.
+- **What would close it.** An OS keychain-backed receipt store (optional, local only), a Windows/macOS run of the hidden prompt and file-permission tests in CI, and, for the ticket, nothing short of public-client support in authservice (OP-7), which makes tickets unnecessary.
+
+## OP-24. A submission can end with an unknown outcome and a lost receipt
+
+- **Why it matters.** If the connection breaks or times out after the request left, the server may have stored the record and issued a receipt the person never saw. The CLI cannot retry safely (the ticket may be spent; a repeat would be `INTERVIEW_ID_TAKEN`), and
+  the server by design cannot re-issue or look up a receipt ([ADR-0029](adr/0029-receipt-deletion-semantics.md)). The record then exists and its author cannot delete it ([OP-12](#op-12-receipt-codes-access-without-a-list-of-records)).
+- **What we do now.** One attempt only, after the connection is open; the message says the outcome is unknown and what a repeat would do ([ADR-0058](adr/0058-cli-http-client-hygiene.md)). The window is small (one request of at most 160 KiB, 30 s).
+- **What would close it.** A client-chosen idempotency token that makes the server return the same receipt on a repeat. That needs a server change (T5) and a decision about what it may store, since it would be a second secret tied to a record; not attempted here.
+
+## OP-25. CLI submission has not run over real TLS, on Windows or macOS, or against a deployment
+
+- **Why it matters.** Every CLI test runs over loopback `http` (a real socket) or an in-process handler against the real service. The `https` requirement, certificate validation, and proxy behaviour rest on the address check and on leaving the platform's TLS defaults untouched (asserted),
+  not on a handshake test. Nothing is deployed.
+- **What we do now.** State it ([cli-submission](architecture/cli-submission.md#tests-and-what-they-cannot-show)); the in-process end-to-end test pins the contract with the real service.
+- **What would close it.** A test with a throwaway TLS certificate (accepted as an untrusted-certificate failure, and trusted in a second run), the CLI binaries exercised on the other two platforms, and a first smoke run against a staging deployment once there is one.
+

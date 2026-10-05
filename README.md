@@ -25,13 +25,13 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Record schema v1, validation library, deterministic PII detector | **Implemented** (T1, [ADR-0007](docs/adr/0007-record-context-bands.md)..[0011](docs/adr/0011-no-per-person-identifier-in-the-record.md); [record schema](docs/architecture/record-schema.md)) |
 | Second JWT scheme for MCP (scope-enforced, RFC 9728 metadata, authservice client wired in the AppHost), BFF refresh rotation and consent step, account-deletion semantics, security headers | **Implemented** (T2, [ADR-0012](docs/adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)..[0014](docs/adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)). Not run here: Claude completing the flow, the `v0.3.4` image |
 | Interview agent core (protocol, state machine, roles, PII guard, quote step, tracing seam), scripted mock model, eight simulated personas, offline CLI demo | **Implemented** (T4, [ADR-0022](docs/adr/0022-interview-agent-core.md) to [0026](docs/adr/0026-cli-project-and-ci-artifacts.md); design in [interview-agent.md](docs/architecture/interview-agent.md)). The mock is a test seam, not a quality baseline |
-| Server-side submission: validation, PII re-scan, one-per-employer ledger (rotatable keyed HMAC), receipt-code deletion, CLI submission tickets, retention purge, `EmploymentVerifier` mock (verifies nothing: [OP-1](docs/OPEN-PROBLEMS.md)). The [flow and table layout](docs/architecture/submission-flow.md) say what each table can and cannot link | **Implemented** (T5, [ADR-0027](docs/adr/0027-store-time-buckets-and-one-transaction.md)..[0031](docs/adr/0031-submission-pipeline-and-employment-verifier-seam.md)). The MCP tool (T8), web screens (T9) and CLI client (T11) that call it are not built; the PostgreSQL tests need `TEST_POSTGRES_CONNECTION` (CI sets it) |
+| Server-side submission: validation, PII re-scan, one-per-employer ledger (rotatable keyed HMAC), receipt-code deletion, CLI submission tickets, retention purge, `EmploymentVerifier` mock (verifies nothing: [OP-1](docs/OPEN-PROBLEMS.md)). The [flow and table layout](docs/architecture/submission-flow.md) say what each table can and cannot link | **Implemented** (T5, [ADR-0027](docs/adr/0027-store-time-buckets-and-one-transaction.md)..[0031](docs/adr/0031-submission-pipeline-and-employment-verifier-seam.md)). The MCP tool (T8) that calls it is not built (the web screens are T9, the CLI client T11); the PostgreSQL tests need `TEST_POSTGRES_CONNECTION` (CI sets it) |
 | Model providers behind `IChatClient` (Anthropic API key, OpenAI-compatible endpoint, Ollama), interactive `interview` CLI, disclosure, retries and budgets, PII-free OpenTelemetry | **Implemented** (T6, [ADR-0032](docs/adr/0032-provider-packages-and-adapters.md) to [0036](docs/adr/0036-cli-interview-and-providers-commands.md); design in [providers.md](docs/architecture/providers.md)). **Not run live**: no provider was called, see [limits](#run-it-with-your-own-model) |
 | Evaluation harness: [behaviour spec](docs/eval/SPEC.md), 27 scenarios as data in six classes, in-process runner with trace capture, Layer 1 deterministic assertions (twelve constraints on every run), a pinned Layer 2 judge and a classifier experiment, a committed baseline and CI gate, a conformance report, a mutation proof | **Implemented** (T7, [ADR-0037](docs/adr/0037-eval-harness-architecture.md) to [0041](docs/adr/0041-mutation-proof-and-independent-rules.md); [tour](docs/eval/README.md), numbers in [METHODOLOGY](docs/eval/METHODOLOGY.md)). Mock profile only: **no real model has been evaluated and Layer 2 has not scored anything** (`skipped:no-credential`); the judge labels are author-labelled, not human |
 | MCP server (mode A): Streamable HTTP, stateless, official SDK; prompt `conduct_exit_interview`, three versioned resources, tools `validate_interview_record` and `submit_interview_record`; Origin, protocol-version and size guard; content canary over the MCP path. [Design](docs/architecture/mcp.md), [operator runbook](docs/guides/connect-claude.md) | **Implemented** (T8, [ADR-0042](docs/adr/0042-mcp-sdk-and-streamable-http-stateless.md)..[0046](docs/adr/0046-mcp-not-found-and-error-vocabulary.md)). **Not run: a real Claude client** (the connector flow, prompt discoverability and host behaviour are unverified, [OP-18](docs/OPEN-PROBLEMS.md)). In this mode the host and its provider see the whole conversation; only the record reaches the server. It is the weakest of the three modes for privacy and fidelity |
 | Web panel: landing, sign-in with two-factor, sign-up and email verification, consent, connect-your-AI-client, CLI ticket (shown once), deletion by receipt code, account (data export, deletion), privacy page; nonce CSP, no-store, same-origin check; axe-core gate. There is no "my submissions" list, by design | **Implemented** (T9, [ADR-0047](docs/adr/0047-nonce-csp-and-style-policy.md)..[0051](docs/adr/0051-message-catalog-accessibility-gate-and-stub-contract.md); [UI and UX](docs/ux/UI-UX.md)). Tested against a stub backend, not the real services ([OP-17](docs/OPEN-PROBLEMS.md)); English only; no manual accessibility pass yet ([OP-16](docs/OPEN-PROBLEMS.md)) |
 | Signals: employer aggregates with uncertainty. Per displayed cell k (default 5), single-band cuts that are published whole or not at all, batched snapshots (a day by default), deletions at the next batch, an interval that is not falsely precise at small n, coverage next to every rating, no score, no ranking. Two read endpoints (account policy), removable synthetic demo data. [How, and what k does not protect against](docs/privacy/AGGREGATION.md); [module](docs/architecture/signals.md) | **Implemented** (T10, [ADR-0052](docs/adr/0052-signals-module-boundary-input-port-and-store.md)..[0056](docs/adr/0056-signals-api-caching-rate-limits-and-demo-data.md)). The web view that shows it is not built; the PostgreSQL tests need `TEST_POSTGRES_CONNECTION` (CI sets it) |
-| CLI submission with a ticket | Planned (T11) |
+| CLI submission with a one-time ticket (`submit`), receipt code shown once, deletion by receipt code (`delete-receipt`); local re-check, exact preview, typed confirmation; no flag carries a secret | **Implemented** (T11, [ADR-0057](docs/adr/0057-cli-submit-and-delete-receipt-commands.md)..[0061](docs/adr/0061-cli-receipt-handling.md); [design](docs/architecture/cli-submission.md)). Tested against a contract-mirroring fake and in-process against the real service; **not run against a deployment** or over real TLS ([OP-23](docs/OPEN-PROBLEMS.md)..[OP-25](docs/OPEN-PROBLEMS.md)) |
 | Security review, release gate, results write-up | Planned (T12) |
 
 The interview agent runs offline against simulated personas with a scripted mock model ([Try it offline](#try-it-offline)); it can also run with your own model ([Run it with your own model](#run-it-with-your-own-model)), but it has **no submission yet**. Nothing is deployed, and this project processes no real person's data anywhere: it has no server that receives a transcript.
@@ -112,7 +112,7 @@ out/linux-x64/exit-interview demo --persona talkative --seed 1
 
 ## Run it with your own model
 
-The project hosts no model. `exit-interview interview` runs a real interview in your terminal with **your API key** (Anthropic, or any OpenAI-compatible endpoint) or **a local model** (Ollama). The transcript stays in memory on your machine; only your model provider sees it. Nothing is submitted anywhere in this version.
+The project hosts no model. `exit-interview interview` runs a real interview in your terminal with **your API key** (Anthropic, or any OpenAI-compatible endpoint) or **a local model** (Ollama). The transcript stays in memory on your machine; only your model provider sees it. Nothing is submitted unless you run `submit` and type its confirmation word ([submit and delete](#submit-and-delete-with-the-cli)).
 
 **Before you start, read this:**
 
@@ -150,6 +150,39 @@ Settings come from flags, then environment variables (`EXIT_INTERVIEW_PROVIDER`,
 Cost and limits: there is a hard per-interview budget (tokens and calls, derived from the protocol's own budget; `--max-tokens` lowers it) and retries with backoff on rate limits and server errors. **No price is built in** (a price list cannot be verified from here): give `--price-in` and `--price-out` (per million tokens) and `--max-cost` if you want a cost figure or ceiling. OpenTelemetry export is **off** unless you set `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` or an OTLP endpoint; prompts and replies are never exported and there is no switch for it.
 
 **What was and was not verified:** the adapters, retries, refusals, disclosure, the Ctrl-C/EOF behaviour and the leak canary (key, headers, prompt text, error bodies) are tested against fakes in CI. **No call to a real provider has been made** (no key and a restricted network where this was built); the optional live smoke tests (`Category=Live`) skip unless you set a key and `EXIT_INTERVIEW_LIVE_MODEL`, and never run in CI. **Nothing here measures how well a real model interviews**: that is the evaluation harness's job (T7) and is not done.
+
+## Submit and delete with the CLI
+
+Submitting is optional, separate, and never automatic. You need a record file (`interview --out`), the address of a service that accepts it (**there is no default**; nothing is
+deployed, so the commands below use a placeholder), and a **one-time ticket** minted on the web panel's `/cli` page (sign in, "Create a ticket"; it is shown once and works for 15 to 20 minutes).
+The CLI has no login and no OAuth ([brief §4](docs/architecture/PROJECT-BRIEF.md)). Full design, outcomes and limits: [`docs/architecture/cli-submission.md`](docs/architecture/cli-submission.md).
+
+```bash
+# 1. Interview with your own model; the record is written only because you asked (--out):
+dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider ollama --model <model> --tenure 1y_3y --employer acme-example --out ./interview-out
+
+# 2. Submit it. The CLI re-checks the record, shows exactly what leaves your machine and the record itself, and waits for you to type "submit".
+#    Only then does it ask for the ticket (hidden prompt; or EXIT_INTERVIEW_TICKET; or one line of standard input). There is no --ticket flag.
+export EXIT_INTERVIEW_SERVER_URL=https://<the deployment you mean>     # https required (http only for localhost); or pass --server
+dotnet run --project src/ExitInterviewAgent.Cli -- submit --record ./interview-out/record.json --save-receipt ./receipt.txt
+
+# 3. The receipt code was shown once (and saved to ./receipt.txt, mode 0600, never overwriting). It is the only way to delete the record; nobody can look it up for you.
+#    The code is read from a hidden prompt, EXIT_INTERVIEW_RECEIPT_CODE or standard input, never from an argument:
+dotnet run --project src/ExitInterviewAgent.Cli -- delete-receipt < ./receipt.txt
+# -> "If a record with this receipt code existed, it is deleted now."  (the service answers the same for every well-formed code)
+```
+
+The same without a model, using the offline demo's record (a simulated interview; this is how the flow was exercised by hand against a local stub of the service):
+
+```bash
+dotnet run --project src/ExitInterviewAgent.Cli -- demo --persona talkative --seed 1 --out ./demo-out
+EXIT_INTERVIEW_SERVER_URL=http://127.0.0.1:5080 dotnet run --project src/ExitInterviewAgent.Cli -- submit --record ./demo-out/record.json
+```
+
+What it does and does not do: only the record and the ticket leave your machine (no transcript, no names, no provider details); redirects are never followed; nothing is retried after a byte was
+sent; the ticket and the receipt code never appear in logs, files or errors (canary-tested), and the receipt code is on screen once. `submit --yes` skips the confirmation and exists for tests and scripts
+you control. Exit codes: 0 submitted, 2 usage, 3 not confirmed or no ticket, 4 the record failed the local check, 5 the server refused, 6 network failure or unknown outcome, 130 cancelled.
+The redemption instant still links your web account to the record for the server's operator ([threat model T-09](docs/security/THREAT-MODEL.md)); that is a stated, accepted limit.
 
 ## Test it
 

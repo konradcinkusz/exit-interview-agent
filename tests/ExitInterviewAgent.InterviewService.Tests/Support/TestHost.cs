@@ -82,6 +82,9 @@ public sealed class TestHost : IDisposable
         return client;
     }
 
+    /// <summary>A handler that reaches this host without a socket: what the real CLI is given in place of its network handler.</summary>
+    public HttpMessageHandler Handler() => _app.Server.CreateHandler();
+
     public string WebToken(string sub) => _root.NewWebToken(sub).Build();
     public string McpToken(string sub) => _root.NewMcpToken(sub).Build();
     public TokenBuilder NewMcpToken(string sub) => _root.NewMcpToken(sub);

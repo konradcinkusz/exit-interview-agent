@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- `exit-interview`: the interview agent: an offline demo (mock model, persona), and a real interactive interview with your own provider (ADR-0026, ADR-0033). No submission to any server. -->
+  <!-- `exit-interview`: the interview agent: an offline demo (mock model, persona), and a real interactive interview with your own provider (ADR-0026, ADR-0033). Submission to a server only on request: ticketed submit and receipt deletion (ADR-0057..0061). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>exit-interview</AssemblyName>
@@ -14,6 +14,9 @@
     <ProjectReference Include="..\ExitInterviewAgent.Providers\ExitInterviewAgent.Providers.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
     <ProjectReference Include="..\ExitInterviewAgent.Personas\ExitInterviewAgent.Personas.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Contracts\ExitInterviewAgent.Contracts.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Privacy\ExitInterviewAgent.Privacy.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="ExitInterviewAgent.Cli.Tests" />

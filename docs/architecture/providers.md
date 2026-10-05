@@ -71,7 +71,7 @@ A config file (no secrets in it):
   in later calls (the guard is heuristic: [pii-detector](../privacy/pii-detector.md)). The text you typed is in the process's memory until the interview ends.
 - **A local model on this machine** sends nothing out through this program. A "local" OpenAI-compatible gateway may itself forward to a remote provider; this
   program cannot see that. A remote Ollama (a LAN address) is treated as external.
-- **This project's servers see nothing**: there is no submission in this version (T11 adds record-only submission).
+- **This project's servers see nothing** unless you run `submit` ([cli-submission](cli-submission.md)): then they receive the record and a one-time ticket, never the transcript.
 - **Nothing is written** unless you ask: `--out` for the record, `--save-transcript` for the transcript. The only persisted state beside those is the optional
   confirmation preference file.
 

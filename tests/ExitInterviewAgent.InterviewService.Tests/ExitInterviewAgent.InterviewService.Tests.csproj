@@ -11,6 +11,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExitInterviewAgent.InterviewService\ExitInterviewAgent.InterviewService.csproj" />
+    <!-- The real CLI, driven in-process against the real service: CliEndToEndTests (T11). -->
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Cli\ExitInterviewAgent.Cli.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

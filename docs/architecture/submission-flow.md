@@ -131,4 +131,4 @@ and expired tickets. Age is measured to the end of the week bucket. It logs coun
 
 ## Not built here
 
-The web screens (T9), the CLI client (T11), signals and aggregates (T10), a real employer registry and real verification (OP-1, OP-2).
+Signals and aggregates (T10), a real employer registry and real verification (OP-1, OP-2). The client of the ticketed endpoint and the receipt deletion is the CLI: [cli-submission.md](cli-submission.md).
