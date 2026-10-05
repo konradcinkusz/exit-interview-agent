@@ -41,6 +41,19 @@ else {
     Write-Host '  generated a DEV-ONLY RSA-2048 signing key (PKCS#8) for the local authservice instance'
 }
 
+# MCP connector secrets (ADR-0012): used only when Mcp:AuthPublicBaseUrl and Mcp:ResourceUrl are configured.
+$secretsList = dotnet user-secrets list --project $apphost 2>$null
+if (-not ($secretsList | Select-String '^Parameters:authservice-mcp-client-secret')) {
+    $hex = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower()
+    dotnet user-secrets set 'Parameters:authservice-mcp-client-secret' $hex --project $apphost | Out-Null
+    Write-Host '  generated a DEV-ONLY MCP client secret (256 random bits)'
+}
+if (-not ($secretsList | Select-String '^Parameters:authservice-encryption-key')) {
+    $b64 = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+    dotnet user-secrets set 'Parameters:authservice-encryption-key' $b64 --project $apphost | Out-Null
+    Write-Host '  generated a DEV-ONLY authservice token-encryption key (256 random bits)'
+}
+
 Write-Host '4/4 optional integrations'
 Write-Host '  (optional - needed for a real model) none are wired yet: model providers arrive with the interview agent.'
 Write-Host "`nDone. Start the stack:   dotnet run --project src/ExitInterviewAgent.AppHost"
