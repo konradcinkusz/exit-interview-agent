@@ -1,0 +1,1488 @@
+% ============================================================================
+% Część 2 przewodnika: podręcznik obsługi (prefiks diagramów: p2).
+% Wczytywana przez \input z przewodnik.pl.tex -- zawiera wyłącznie treść od \section.
+%
+% Konwencja dowodowa tej części: każde wyjście w ramkach Verbatim zostało
+% zebrane na żywo w sesji pisania (2026-10-05, Linux, .NET SDK 10.0.112,
+% Node 22.22.0, pnpm 12.9.1) i skrócone tylko tam, gdzie widać „...”.
+% Czego w tej sesji nie dało się uruchomić (Docker/Aspire, obraz authservice,
+% prawdziwy model, Claude), oznaczono wprost „nieprzetestowane w tej sesji”.
+% ============================================================================
+
+{\sloppy\emergencystretch=4em
+\section{Wymagania i instalacja}
+
+Ta część jest podręcznikiem obsługi: pokazuje, co wpisać, czego się spodziewać
+i co zrobić, gdy wynik jest inny. Wszystkie polecenia uruchamia się z katalogu
+głównego repozytorium (\repopath{exit-interview-agent}). Każde wyjście w ramce
+pochodzi z faktycznego uruchomienia; jeśli czegoś nie dało się uruchomić w
+środowisku, w którym powstał ten tekst, napisano to wprost jako
+\emph{nieprzetestowane w tej sesji} i podano plik z dokumentacją, na której
+opis się opiera.
+
+\subsection{Co musi być zainstalowane}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Narzędzie & Wymaganie (źródło) & Sprawdzone w tej sesji \\
+\midrule
+git & dowolny; skrypt \repopath{scripts/setup.sh} tylko sprawdza obecność & jest \\
+.NET SDK & 10.x; \repopath{global.json}: \texttt{10.0.100}, \texttt{rollForward:\allowbreak{}latestFeature} & \texttt{10.0.112} \\
+Node.js & 22 lub nowszy (\repopath{web/package.json}: \texttt{engines.\allowbreak{}node >=22}) & \texttt{v22.22.0} \\
+pnpm & wersja z \texttt{packageManager} w \repopath{web/package.json}: \texttt{pnpm@12.9.1}; instalacja: \texttt{npm install -g pnpm} albo \texttt{corepack enable} & \texttt{12.9.1} \\
+Silnik kontenerów & Docker albo Podman; potrzebny AppHost-owi (Postgres i obraz authservice) oraz budowie obrazów & \textbf{brak działającego demona} --- patrz niżej \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Silnik kontenerów jest jedynym wymaganiem dla pełnego stosu Aspire. Samo CLI,
+testy .NET, harness ewaluacyjny i portal webowy (z atrapą backendu w testach
+e2e) działają bez niego --- w tej sesji właśnie tak je uruchomiono.
+
+\subsection{Skrypt przygotowawczy}
+
+Na Linuksie i macOS: \komenda{scripts/\allowbreak{}setup.\allowbreak{}sh}, na Windows:
+\komenda{scripts/\allowbreak{}setup.\allowbreak{}ps1}. Oba mają tryb tylko-raport (\komenda{--check} /
+\komenda{-Check}), który niczego nie zmienia. Skrypt wykonuje cztery numerowane
+kroki (z komentarzy w \repopath{scripts/setup.sh}):
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item sprawdza wymagania wstępne (tabela wyżej; \texttt{dotnet} musi mieć
+        wersję \texttt{10.*});
+  \item ustawia \texttt{core.\allowbreak{}hooksPath = scripts/\allowbreak{}hooks}, czyli skanowanie
+        sekretów (gitleaks) przed każdym commitem;
+  \item zakłada lokalny magazyn sekretów \texttt{dotnet user-\allowbreak{}secrets} dla
+        projektu AppHost i, jeśli jest \texttt{openssl}, generuje trzy
+        sekrety \emph{wyłącznie deweloperskie}: klucz RSA-2048 do podpisu JWT
+        (\texttt{Parameters:\allowbreak{}authservice-\allowbreak{}jwt-\allowbreak{}private-\allowbreak{}key}), sekret klienta MCP
+        (\texttt{Parameters:\allowbreak{}authservice-\allowbreak{}mcp-\allowbreak{}client-\allowbreak{}secret}, 32 losowe bajty
+        hex) i klucz szyfrowania tokenów authservice
+        (\texttt{Parameters:\allowbreak{}authservice-\allowbreak{}encryption-\allowbreak{}key}, base64 z 32 bajtów);
+  \item wypisuje, że integracje opcjonalne (prawdziwy model) nie są tu
+        konfigurowane, i podaje komendę startu stosu.
+\end{enumerate}
+
+Przebieg trybu raportu, uruchomiony na maszynie bez działającego Dockera:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ scripts/setup.sh --check
+1/4 prerequisites
+  ok       git
+  ok       dotnet
+  ok       node
+  ok       pnpm
+  MISSING  container engine -> https://docs.docker.com/get-docker/ (needed by the AppHost ...)
+
+check: 1 item(s) missing
+\end{Verbatim}
+
+Kod wyjścia to 1, gdy czegoś brakuje, i 0, gdy wszystko jest. Pełny przebieg
+(bez \komenda{--check}) kończy się wskazówką
+\komenda{dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}AppHost} i odsyła do
+\repopath{scripts/README.md} po tabelę rozwiązywania problemów. Pełny przebieg
+\emph{nie był uruchamiany} w tej sesji, bo wymaga silnika kontenerów już w
+kroku pierwszym (nieprzetestowane w tej sesji; opis wg
+\repopath{scripts/setup.sh}). Sekret nigdy nie trafia do plików w drzewie
+repozytorium --- tak stanowi komentarz w skrypcie i
+\repopath{secrets.env.example}.
+
+\subsection{Budowa i testy}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ dotnet build -warnaserror
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+$ dotnet test
+Passed!  - Failed: 0, Passed: 110 ... Records.Tests.dll      (podobnie Personas 18, Agent 401,
+Privacy 184, Providers 155 [2 pominięte], Cli 130, Eval 161, Signals 102,
+InterviewService 359 [15 pominiętych])
+
+$ scripts/check-kernel-size.sh
+ServiceDefaults: 320 lines (limit 800)
+\end{Verbatim}
+
+Razem 1620 testów zaliczonych i 17 pominiętych. Pominięte to testy, które mają
+własny warunek uruchomienia i w tej sesji go nie spełniły: testy na prawdziwym
+PostgreSQL (\texttt{PostgresSubmissionTests}, \texttt{PostgresSignals}) czekają
+na zmienną \texttt{TEST\_\allowbreak{}POSTGRES\_\allowbreak{}CONNECTION}, a dwa testy
+\texttt{LiveSmoke} dostawców czekają na klucz i
+\texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}LIVE\_\allowbreak{}MODEL} (README, „Run it with your own model”).
+Pominięcie nie jest zaliczeniem: to jest to, czego ta sesja nie sprawdziła.
+
+Portal webowy (\komenda{cd web}):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ pnpm install --frozen-lockfile    # Done in 8.2s
+$ pnpm lint && pnpm typecheck && pnpm test
+ Test Files  18 passed (18)
+      Tests  253 passed (253)
+$ pnpm build                        # Next.js 16.3.8, trasy dynamiczne
+\end{Verbatim}
+
+Testy przeglądarkowe (Playwright, \repopath{tests/e2e}) uruchamiają
+\emph{zbudowany} portal przeciwko atrapie backendu
+(\repopath{tests/e2e/support/stub-backend.mjs}). Gdy w systemie jest już
+Chromium, wskazuje się go zmienną \texttt{PLAYWRIGHT\_\allowbreak{}CHROMIUM\_\allowbreak{}EXECUTABLE}
+zamiast \komenda{npx playwright install}:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ cd tests/e2e && pnpm install --frozen-lockfile
+$ PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome pnpm test
+  115 passed (1.1m)
+\end{Verbatim}
+
+\uwaga{Testy e2e sprawdzają portal względem \emph{atrapy} serwisu, która
+odzwierciedla kontrakt, a nie względem prawdziwego interview-service i
+authservice (\repopath{tests/e2e/README.md}). Zielone e2e nie dowodzi, że
+pełny stos Aspire działa --- tego w tej sesji nie sprawdzono.}
+
+\section{Uruchomienie lokalne}
+
+\subsection{Jedno polecenie: AppHost}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+dotnet run --project src/ExitInterviewAgent.AppHost
+\end{Verbatim}
+
+AppHost (\texttt{src/\allowbreak{}ExitInterviewAgent.\allowbreak{}AppHost/\allowbreak{}Program.\allowbreak{}cs}) to korzeń
+kompozycji tylko do developmentu; produkcję opisują pliki
+\repopath{flyio/*.fly.toml}. Z kodu wynika następująca topologia (diagram
+poniżej):
+
+\begin{center}
+\includegraphics[width=0.92\linewidth,height=0.4\textheight,keepaspectratio]{\dgm{p2-stos-lokalny}}
+\end{center}
+
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item \texttt{postgres}: jeden serwer \texttt{postgres:17-alpine}, wolumen \texttt{exit-interview-agent-pgdata}; wersja zgodna z \repopath{flyio/postgres.fly.toml}. Dwie bazy logiczne, \texttt{interviewdb} i \texttt{authdb} (w developmencie na koncie superużytkownika).
+  \item \texttt{interview-service}: projekt .NET, \texttt{DATABASE\_PROVIDER=PostgreSQL}, czeka na \texttt{interviewdb}; sonda \texttt{/health}.
+  \item \texttt{authservice}: \emph{osobna instancja} obrazu \texttt{ghcr.io/konradcinkusz/authservice:v0.3.4}; port hosta \textbf{5100} (stały: to adres JWKS i issuera), kontenera 8080; \texttt{Database\_\_SchemaMode=Migrate}; sonda \texttt{/health/ready}.
+  \item \texttt{web}: Next.js uruchamiany jako \texttt{dev} przez pnpm (\texttt{web/app}), port ze zmiennej \texttt{PORT}, \texttt{SESSION\_COOKIE\_SECURE=false} (tylko http na localhost); sonda \texttt{/healthz}.
+\end{itemize}
+
+Panel Aspire nasłuchuje według \repopath{Properties/launchSettings.json} na
+\texttt{http:\allowbreak{}/\allowbreak{}/\allowbreak{}localhost:\allowbreak{}15200}; AppHost wypisuje jego adres przy starcie.
+Porty \texttt{web} i \texttt{interview-\allowbreak{}service} nadaje Aspire (README: „web and
+interview-service get their ports from it”), dlatego adresów nie przepisuje
+się z pamięci --- czyta się je z panelu. Gdy projekt \texttt{interview-\allowbreak{}service}
+uruchamia się \emph{samodzielnie}, jego profil startowy używa
+\texttt{http:\allowbreak{}/\allowbreak{}/\allowbreak{}localhost:\allowbreak{}5200}.
+
+\uwaga{\textbf{Nieprzetestowane w tej sesji:} uruchomienie AppHost-a. Maszyna,
+na której powstał ten tekst, nie ma działającego demona kontenerów
+(\komenda{scripts/\allowbreak{}setup.\allowbreak{}sh --check} raportuje brak silnika), więc nie startował
+ani Postgres, ani obraz authservice. Opis powyżej pochodzi z czytania
+\texttt{Program.cs}, \repopath{README.md} i \repopath{scripts/README.md}.}
+
+\subsection{Co się dzieje bez poświadczeń i bez obrazu}
+
+Zasada projektu (P8): świeży klon bez żadnych poświadczeń uruchamia się z
+ograniczonymi funkcjami, a nie przestaje działać. README podaje, że
+\texttt{GET <interview-\allowbreak{}service>/\allowbreak{}health} wypisuje, co jest zdegradowane, a
+baner startowy drukuje tę samą listę. Tak wygląda to na żywo --- samodzielnie
+uruchomiony interview-service (bez bazy, bez tożsamości; w tej sesji w trybie
+InMemory):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ ASPNETCORE_URLS=http://localhost:5200 \
+    dotnet run --project src/ExitInterviewAgent.InterviewService
+info: Startup[0] integration identity: DEGRADED (Jwt:Authority not set; protected endpoints answer 401)
+info: Startup[0] integration mcp-auth: DEGRADED (Mcp:Issuer and Mcp:Resource not set ...)
+info: Startup[0] integration database: DEGRADED (InMemory ...: data is lost on restart)
+info: Startup[0] integration ledger-key / employment-verifier: DEGRADED (ephemeral key / mock verifier)
+info: Startup[0] integration signals: configured (snapshots every 24 h ..., k = 5, rules v1 ...)
+
+$ curl -s localhost:5200/health
+{"status":"Degraded","checks":{"self":"Healthy","schema":"Healthy","signals":"Healthy"},
+ "integrations":[{"name":"identity","configured":false,...}, ... ]}
+\end{Verbatim}
+
+Status \texttt{Degraded} przy poprawnych kontrolach \texttt{checks} jest stanem
+normalnym w developmencie: znaczy „działa, ale integracja X nie jest
+skonfigurowana”. Dalsze próby pokazują, że zabezpieczenia trzymają bez
+konfiguracji:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ curl -s -i localhost:5200/api/v1/me         ->  HTTP/1.1 401 Unauthorized
+$ curl -s -i localhost:5200/api/v1/signals/employers  ->  401, WWW-Authenticate: Bearer
+$ curl -s -i -X POST localhost:5200/mcp       ->  HTTP/1.1 404 Not Found
+\end{Verbatim}
+
+Ostatnia linia jest zgodna z dokumentacją: bez \texttt{Mcp\_\_Issuer} i
+\texttt{Mcp\_\_Resource} ścieżka MCP jest wyłączona.
+
+Jeśli obrazu \texttt{ghcr.\allowbreak{}io/\allowbreak{}konradcinkusz/\allowbreak{}authservice} nie da się pobrać
+(README: tak bywa za proxy), uruchamia się stos bez tożsamości:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+Identity__Enabled=false dotnet run --project src/ExitInterviewAgent.AppHost
+\end{Verbatim}
+
+Punkty chronione odpowiadają wtedy 401 i mówią o tym (README;
+\texttt{docs/\allowbreak{}adr/\allowbreak{}0003-\allowbreak{}identity-\allowbreak{}authservice-\allowbreak{}as-\allowbreak{}pinned-\allowbreak{}image.\allowbreak{}md}); logowanie i
+rejestracja w portalu nie działają
+(\texttt{identity\_\allowbreak{}not\_\allowbreak{}configured}, patrz sekcja~\ref{sec:portal}).
+
+\subsection{Konfiguracja i sekrety}
+
+Pełna lista zmiennych z podziałem na warstwy (\texttt{always}, \texttt{mode},
+\texttt{secret}, \texttt{ci}, \texttt{tuning}) jest w
+\repopath{secrets.env.example}; autorytatywna wersja w
+\repopath{scripts/README.md}. W trybie AppHost większość wartości wstrzykuje
+AppHost; plik \texttt{.env} jest potrzebny tylko, gdy uruchamia się usługę poza
+AppHost-em. Najczęściej potrzebne:
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.38\linewidth}>{\raggedright\arraybackslash}p{0.58\linewidth}@{}}
+\toprule
+Klucz & Znaczenie i zachowanie bez niego \\
+\midrule
+\endhead
+\texttt{DATABASE\_\allowbreak{}PROVIDER} & \texttt{PostgreSQL}; pusty lub brak łańcucha połączenia = InMemory (dane znikają po restarcie; \texttt{/health}: \texttt{database=inmemory}) \\
+\texttt{Jwt\_\allowbreak{}\_\allowbreak{}Authority} & publiczny adres authservice; bez niego endpointy chronione dają 401 \\
+\texttt{Ledger\_\allowbreak{}\_\allowbreak{}ActiveKeyId}, \texttt{Ledger\_\allowbreak{}\_\allowbreak{}Keys\_\allowbreak{}\_\allowbreak{}0\_\allowbreak{}\_\allowbreak{}Id}, \texttt{Ledger\_\allowbreak{}\_\allowbreak{}Keys\_\allowbreak{}\_\allowbreak{}0\_\allowbreak{}\_\allowbreak{}Secret} & klucz HMAC rejestru zgłoszeń (id 1--32 znaków \texttt{[A-Za-z0-9\_-]}, sekret base64 co najmniej 32 bajty). \textbf{Poza Development usługa odmawia startu bez niego}; w Development generuje się klucz tymczasowy na uruchomienie \\
+\texttt{Submission\_\allowbreak{}\_\allowbreak{}ClientIpHeader} & nagłówek z prawdziwym adresem klienta, \emph{tylko} za zaufanym proxy (np. \texttt{Fly-Client-IP}); bez niego używany jest adres gniazda \\
+\texttt{INTERVIEW\_\allowbreak{}SERVICE\_\allowbreak{}URL}, \texttt{AUTH\_\allowbreak{}SERVICE\_\allowbreak{}URL}, \texttt{AUTH\_ISSUER}, \texttt{AUTH\_AUDIENCE} & portal (BFF): adresy backendów i issuer/audience weryfikowane w middleware; w AppHost wstrzykiwane przez wykrywanie usług \\
+\texttt{MCP\_\allowbreak{}RESOURCE\_\allowbreak{}URL} & publiczny adres https punktu MCP pokazywany na stronie „Connect your AI client”; bez niego strona mówi, że konektor nie jest tu skonfigurowany \\
+\texttt{SESSION\_\allowbreak{}COOKIE\_\allowbreak{}SECURE} & ustawiać na \texttt{false} tylko przy czystym http w lokalnym developmencie \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Sekrety lokalne trzyma się w \texttt{dotnet user-\allowbreak{}secrets} projektu AppHost, nie
+w plikach. Droga klucza podpisu (\repopath{scripts/README.md}):
+user-secrets $\rightarrow$ parametr AppHost-a (\texttt{secret: true}) $\rightarrow$
+zmienna \texttt{Jwt\_\allowbreak{}\_\allowbreak{}PrivateKeyPem} \emph{wyłącznie} w kontenerze
+authservice $\rightarrow$ klucz \texttt{Jwt:\allowbreak{}PrivateKeyPem}. Interview-service i
+portal nigdy go nie dostają --- weryfikują tokeny przez JWKS publikowany przez
+authservice. Jeśli magazyn nie ma wartości, AppHost generuje klucz tymczasowy
+na jedno uruchomienie. Klucz deweloperski nigdy nie może trafić do wdrożenia.
+
+Wartości można ustawiać ręcznie:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+dotnet user-secrets list --project src/ExitInterviewAgent.AppHost
+dotnet user-secrets set "Mcp:ResourceUrl" "https://<tunel>/mcp" \
+    --project src/ExitInterviewAgent.AppHost
+\end{Verbatim}
+
+(wartość \texttt{<tunel>} to publiczny adres https, którego ten tekst nie może
+wymyślić; patrz sekcja~\ref{sec:mcp}).
+
+\section{Portal webowy}
+\label{sec:portal}
+
+Portal (\repopath{web/app}, Next.js z warstwą BFF) jest tylko kontem: nie
+uruchamia modelu, nie ma formularza zgłoszenia i nie łączy konta z pracodawcą
+(\repopath{docs/ux/UI-UX.md}). Wywiad odbywa się w kliencie AI użytkownika
+(sekcja~\ref{sec:mcp}) albo w CLI (sekcja~\ref{sec:cli}). Poniższy opis
+pochodzi z \repopath{docs/ux/UI-UX.md} i katalogu komunikatów
+\repopath{web/app/lib/messages/en.ts}. Wszystkie napisy w portalu są po
+angielsku; polskiego katalogu świadomie nie dostarczono („a half translation is
+worse than none”).
+
+\subsection{Mapa stron}
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.2\linewidth}>{\raggedright\arraybackslash}p{0.13\linewidth}>{\raggedright\arraybackslash}p{0.6\linewidth}@{}}
+\toprule
+Trasa & Dostęp & Do czego służy \\
+\midrule
+\endhead
+\texttt{/} & publiczna & czym jest narzędzie, co zapisuje, czego nie; wejścia do pozostałych stron \\
+\texttt{/register} & publiczna & założenie konta; wersje Warunków i Polityki prywatności pobierane z authservice; samo zaznaczenie obu zgód jest zapisem zgody \\
+\texttt{/login} & publiczna & e-mail i hasło; przy włączonym dwuskładnikowym drugi krok na tej samej stronie (kod z aplikacji albo jeden kod odzyskiwania) \\
+\texttt{/consent} & po zalogowaniu & krok zgody, gdy wersje dokumentów się zmieniły; wymaga obu pól, „Decline” wylogowuje \\
+\texttt{/connect} & publiczna & adres konektora MCP z \texttt{/api/config}, kroki w Claude, co konektor może i czego nie może \\
+\texttt{/cli} & po zalogowaniu & wydanie biletu zgłoszeniowego dla CLI \\
+\texttt{/signals}, \texttt{/\allowbreak{}signals/\allowbreak{}[employerRef]} & po zalogowaniu & sygnały dla pracodawców (sekcja~\ref{sec:sygnaly}) \\
+\texttt{/\allowbreak{}delete-\allowbreak{}submission} & publiczna & usunięcie zgłoszenia po kodzie paragonu --- celowo publiczna, bo kod jest jedynym poświadczeniem i ma działać także po usunięciu konta \\
+\texttt{/verify-email}, \texttt{/account-deleted}, \texttt{/privacy}, \texttt{/healthz}, \texttt{/api/config} & publiczne & lądowanie linku weryfikacyjnego, strona po usunięciu konta, skrót projektu prywatności, sonda i konfiguracja uruchomieniowa \\
+\texttt{/account} & po zalogowaniu & podmiot, wylogowanie, eksport danych (tylko authservice), usunięcie konta \\
+\texttt{/\allowbreak{}account-\allowbreak{}deleted}, \texttt{/privacy} & publiczne & co usunięcie konta zrobiło i czego nie; skrót faktów z projektu prywatności \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Strony wymagające sesji chroni bramka na krawędzi: niezalogowany odwiedzający
+trafia na \texttt{/\allowbreak{}login?redirect=...} i wraca po zalogowaniu. Zachowanie to
+sprawdzono na żywo na zbudowanym portalu (bez backendu):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ curl -s localhost:3111/healthz        ->  {"status":"ok"}
+$ curl -s localhost:3111/api/config
+{"apiBase":"/api/proxy","identity":{"enabled":false},"mcp":{"url":null}}
+$ curl -s -i localhost:3111/signals | grep -i ^location
+location: /login?redirect=%2Fsignals
+\end{Verbatim}
+
+Odpowiedź \texttt{identity.enabled:false} i \texttt{mcp.url:null} to dokładnie to,
+co portal ma pokazać bez tożsamości i MCP. Odpowiedzi mają nagłówki bezpieczeństwa
+(CSP z nonce, \texttt{X-Frame-Options: DENY}, \texttt{Referrer-Policy: no-referrer});
+zasoby z obcych domen są zabronione.
+
+\subsection{Rejestracja i logowanie}
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Rejestracja} (\texttt{/register}): e-mail, hasło (co najmniej
+        8 znaków), dwa pola wyboru z wersjami dokumentów. Bez obu: „Accept
+        both documents to create an account”. Konto jest tylko loginem ---
+        „not linked to any employer, and not linked to what you submit”.
+  \item \textbf{Weryfikacja e-mail}: gdy wdrożenie wysyła pocztę, pojawia się
+        „Check your email for a link to verify your address”; link otwiera
+        \texttt{/verify-email}. Gdy authservice nie może wysłać wiadomości,
+        oznacza konto jako zweryfikowane od razu i strona mówi „Account created.
+        You can sign in now.”
+  \item \textbf{Logowanie} (\texttt{/login}): przy koncie z drugim składnikiem
+        pojawia się krok „Two-factor sign-in” (6-cyfrowy kod z aplikacji albo
+        jednorazowy kod odzyskiwania). Wyzwanie nie trafia do JavaScriptu strony:
+        BFF trzyma je w krótkotrwałym ciasteczku HttpOnly. Zły kod zostawia
+        użytkownika na kroku; wygasłe wyzwanie lub zablokowane konto odsyła do
+        kroku pierwszego z komunikatem.
+  \item \textbf{Zgody} (\texttt{/consent}): jeżeli wersje Warunków lub
+        Polityki zmieniły się od ostatniej zgody, po zalogowaniu pojawia się ten
+        krok, a dopiero potem strona, o którą prosiłeś.
+\end{enumerate}
+
+Edukacyjnie ważne: ekrany resetu hasła, zmiany e-maila i \emph{włączania}
+dwuskładnikowego \textbf{nie istnieją} w portalu --- te przepływy należą do
+authservice (UI-UX, „Ranked backlog”); portal umie się tylko \emph{zalogować}
+kontem z drugim składnikiem.
+
+\subsection{Wydanie biletu i usunięcie zgłoszenia}
+
+\textbf{Bilet dla CLI} (\texttt{/cli}): „Create a ticket” pokazuje bilet
+\emph{jeden raz}, z przyciskiem kopiowania i odliczaniem czasu ważności. Bilet
+żyje w pamięci strony --- nie w \texttt{localStorage}, ciasteczku ani adresie;
+przeładowanie, wyjście ze strony, „Clear it now” albo upływ czasu go kasuje.
+Z dokumentacji serwera (\repopath{docs/architecture/submission-flow.md}):
+ważność 15 minut zaokrąglana w górę do kroku 5 minut (stąd „15 do 20 minut”),
+do 3 niewykorzystanych biletów naraz, do 10 wydań na godzinę. Przekroczenie
+daje komunikat \texttt{TICKET\_LIMIT} lub \texttt{rate\_limited} z czasem
+oczekiwania; strona nie ponawia sama.
+
+\textbf{Usunięcie zgłoszenia} (\texttt{/\allowbreak{}delete-\allowbreak{}submission}): bez logowania,
+wkleja się 46-znakowy kod paragonu. Odpowiedź jest jednakowa dla każdego
+poprawnie zapisanego kodu: „If a submission with this receipt code existed, it
+is deleted now.” Źle zapisany kod (długość, suma kontrolna) to błąd do poprawy
+(\texttt{INVALID\_\allowbreak{}RECEIPT\_\allowbreak{}CODE}), a nie informacja o istnieniu. Strona
+zawsze dodaje: „Deleting your record removes it from the stored data now.
+Published figures drop it at the next update.” Zgubionego kodu \textbf{nie da się
+odzyskać} i nikt nie może wyszukać zgłoszeń użytkownika --- portal nie ma
+listy „moje zgłoszenia”.
+
+\subsection{Eksport i usunięcie konta}
+
+Strona \texttt{/account} oferuje „Download my data (JSON)”: to tylko to, co
+trzyma authservice (profil, zgody, metody logowania, sesje). Zgłoszeń tam
+\emph{nie ma}. „Delete account” wymaga hasła (poza logowaniem zewnętrznym) i
+wpisania słowa \texttt{DELETE}. Cztery fakty pokazywane przed usunięciem
+(\repopath{web/app/lib/copy.ts}):
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item usuwa login: konto jest zamknięte natychmiast, sesje zakończone, a
+        authservice kasuje konto po swoim okresie retencji;
+  \item \textbf{nie usuwa niczego, co zgłoszono} --- zgłoszenia nie są powiązane
+        z kontem, więc zamknięcie konta nie może ich dosięgnąć;
+  \item zgłoszenie usuwa się tylko kodem paragonu;
+  \item serwis trzyma jednokierunkowy znacznik na parę (konto, pracodawca),
+        który zapobiega podwójnemu zgłoszeniu; nie ma treści ani powiązania ze
+        zgłoszeniem i znika po oknie retencji.
+\end{enumerate}
+
+\uwaga{Przepływy z tej sekcji przeszły testy e2e (115 zaliczonych), ale przeciwko
+\emph{atrapie} backendu; z prawdziwym obrazem authservice ich nie sprawdzono
+(\repopath{docs/OWNER-FOLLOWUPS.md}, OP-17), podobnie jak ręcznego testu z czytnikiem ekranu (OP-16).}
+
+\section{CLI}
+\label{sec:cli}
+
+Plik wykonywalny nazywa się \texttt{exit-interview}. Z drzewa źródeł uruchamia
+się go przez \komenda{dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}Cli -- <polecenie>};
+poniżej skrótowo zapisuję po prostu \komenda{exit-interview}. W tej sesji
+zbudowano wersję Release (\komenda{dotnet build src/\allowbreak{}ExitInterviewAgent.\allowbreak{}Cli -c
+Release}, 11 s) i uruchamiano \texttt{exit-\allowbreak{}interview.\allowbreak{}dll}. Samodzielny
+plik jednoplikowy (README): \komenda{dotnet publish src/\allowbreak{}ExitInterviewAgent.\allowbreak{}Cli
+-c Release -r linux-\allowbreak{}x64 --self-\allowbreak{}contained -p:\allowbreak{}PublishSingleFile=true
+-p:\allowbreak{}IncludeNativeLibrariesForSelfExtract=true -o out/\allowbreak{}linux-\allowbreak{}x64}
+(nieprzetestowane w tej sesji).
+
+\subsection{Pomoc i wersja}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview --version
+exit-interview, interview protocol 1.1
+
+$ exit-interview --help
+exit-interview: an AI exit interview agent. Bring your own model: your API key (...) or a local model (Ollama).
+
+Usage:
+  exit-interview interview --provider <p> --model <m> [--base-url <url>] [--api-key-env <NAME>] [--out <dir>] [--employer <ref>]
+                           [--tenure <band>] [--seniority <band>] [--function <band>] [--save-transcript] [--yes-i-understand]
+                           [--max-tokens <n>] [--timeout-seconds <n>] [--max-retries <n>] [--num-ctx <n>]
+                           [--price-in <per-million>] [--price-out <per-million>] [--max-cost <amount>] [--config <file>]
+                           [--server <url>] [--save-receipt <file>]
+  exit-interview submit --record <file|-> --server <url> [--save-receipt <file>] [--yes]
+  exit-interview delete-receipt --server <url>
+  exit-interview providers [ping <provider flags> | forget-confirmations]
+  exit-interview demo --persona <id> [--seed <n>] [--out <dir>]
+  exit-interview personas
+  exit-interview --help | --version
+\end{Verbatim}
+
+Pomoc jest \textbf{jedna, globalna}: \komenda{--help}, \komenda{-h} i
+\komenda{help} (kod wyjścia 0) oraz uruchomienie bez argumentów (kod 2)
+drukują ten sam tekst. Podpolecenia nie mają własnego \komenda{--help} ---
+sprawdzone:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview interview --help
+Unknown option '--help'.
+Run 'exit-interview --help' for usage.            # kod wyjścia 2
+\end{Verbatim}
+
+\subsection{Kody wyjścia}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Kod & \texttt{interview} & \texttt{submit} \\
+\midrule
+0 & zakończony (rekord powstał) & wysłano \\
+2 & użycie lub konfiguracja & użycie (także brak adresu serwera) \\
+3 & zakończony bez rekordu z wyboru rozmówcy & niepotwierdzone albo brak biletu \\
+4 & awaria agenta & rekord nie przeszedł lokalnej kontroli \\
+5 & awaria dostawcy modelu & serwer odmówił \\
+6 & nie potwierdzono noty o dostawcy & awaria sieci lub nieznany wynik \\
+130 & przerwane (Ctrl-C) & przerwane \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\texttt{demo} ma własne kody: 0 --- wszystkie niezmienniki spełnione, 1 ---
+któryś zawiódł, 2 --- błąd użycia (z kodu \texttt{CliApp.cs}).
+
+\subsection{Tryb offline: \texttt{personas} i \texttt{demo}}
+
+Bez sieci i bez poświadczeń. \komenda{personas} wypisuje osiem symulowanych
+rozmówców (\texttt{talkative}, \texttt{terse}, \texttt{hostile}, \texttt{vague},
+\texttt{names-manager}, \texttt{prompt-\allowbreak{}injection}, \texttt{withdraws-\allowbreak{}consent},
+\texttt{contradictory}). \komenda{demo --persona <id> [--seed <n>] [--out <dir>]}
+przeprowadza cały wywiad ze skryptowym modelem \texttt{mock}; pracodawca to
+fikcyjny \texttt{widgetron-ltd}. Ten sam seed daje wyjście bajt w bajt
+identyczne --- sprawdzone na żywo:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview demo --persona talkative --seed 1 > demo1.txt; echo $?
+0
+$ exit-interview demo --persona talkative --seed 1 > demo2.txt
+$ cmp demo1.txt demo2.txt && echo IDENTICAL
+IDENTICAL
+\end{Verbatim}
+
+Wyjście \texttt{demo} ma stałe sekcje: zamaskowany zapis rozmowy, rekord JSON,
+walidację i raport niezmienników. Fragmenty z przebiegu
+\texttt{talkative}/seed~1:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+== Masked transcript ==
+Interviewer: Hello, and thank you for taking the time. Before we begin, three things. First,
+I am an AI interviewer, not a person. ... Do you agree to continue? Please answer yes or no.
+== Record ==
+{ "schemaVersion": "1", "employerRef": "widgetron-ltd", "context": { "tenureBand": "1y_3y", ... },
+  "topics": { "onboarding": { "status": "covered", "rating": 3, "confidence": "high",
+                              "quotes": [ ... ] }, ... }, "piiMasked": true,
+  "interview": { "protocolVersion": "1.1", "language": "en", "aiDisclosed": true, ... } }
+== Validation ==
+valid: yes, errors: 0
+submittable: yes
+== Invariants ==
+[PASS] record-valid  [PASS] six-topics  [PASS] quotes-verbatim (checked=12 mismatches=0)
+[PASS] no-pii-in-record  [PASS] transcript-masked  [PASS] no-planted-literals
+[PASS] ai-disclosed-after-disclosure  [PASS] quotes-not-instructions
+== Run ==
+outcome=completed end_reason=all_topics_covered interviewee_turns=7 model_calls=7 ...
+\end{Verbatim}
+
+Z \komenda{--out <katalog>} powstają \texttt{report.txt}, \texttt{transcript.txt}
+i \texttt{record.json}; przy \texttt{withdraws-\allowbreak{}consent} nie powstaje
+ani zapis rozmowy, ani rekord (zgoda cofnięta = nic nie zostaje). Nieznana
+persona kończy się komunikatem
+\texttt{Unknown persona 'x'. Run 'exit-\allowbreak{}interview personas' to list them.} i
+kodem 2.
+
+\uwaga{Model \texttt{mock} to element testowy, \emph{nie} punkt odniesienia
+jakości (README): pokazuje, że zabezpieczenia po stronie kodu trzymają, a nie że
+prawdziwy model dobrze przeprowadza wywiad.}
+
+\subsection{Dostawcy modelu: konfiguracja}
+
+\komenda{exit-\allowbreak{}interview providers} nie wykonuje żadnego połączenia sieciowego i
+pokazuje, co jest skonfigurowane. Wyjście z tej sesji (bez kluczy):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview providers
+Model providers (no network call is made by this command):
+  anthropic          Anthropic API
+                     ANTHROPIC_API_KEY is not set; default endpoint api.anthropic.com
+  openai-compatible  OpenAI-compatible endpoint
+                     OPENAI_API_KEY is not set (needed for api.openai.com; a gateway may need none) ...
+  ollama             Ollama
+                     no key; needs a running server (not checked here); default endpoint localhost:11434
+  mock               Scripted mock model
+                     always available; offline
+Not supported, on purpose:
+  Claude subscription (Free, Pro, Max) credentials: ... GitHub Copilot: ... no adapter exists ...
+Config file: /root/.config/exit-interview/config.json (not found; optional)
+Remembered disclosure confirmations: 0 (/root/.config/exit-interview/confirmations.json)
+Nothing selected yet: No provider selected. Use --provider (anthropic, openai-compatible, ollama), ...
+\end{Verbatim}
+
+Kolejność ważności ustawień (\repopath{docs/architecture/providers.md}):
+\textbf{flaga, zmienna środowiskowa, plik konfiguracyjny, wartość domyślna}.
+Dostawca i model nie mają wartości domyślnych --- żaden identyfikator modelu nie
+jest wpisany na sztywno.
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.2\linewidth}>{\raggedright\arraybackslash}p{0.2\linewidth}>{\raggedright\arraybackslash}p{0.27\linewidth}>{\raggedright\arraybackslash}p{0.25\linewidth}@{}}
+\toprule
+Ustawienie & Flaga & Zmienna & Klucz w pliku \\
+\midrule
+\endhead
+dostawca & \texttt{--provider} & \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}PROVIDER} & \texttt{provider} \\
+model & \texttt{--model} & \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}MODEL} & \texttt{model} \\
+adres bazowy & \texttt{--base-url} & \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}BASE\_\allowbreak{}URL}, potem \texttt{OPENAI\_\allowbreak{}BASE\_\allowbreak{}URL} / \texttt{OLLAMA\_HOST} & \texttt{baseUrl} \\
+\emph{nazwa} zmiennej z kluczem & \texttt{--api-\allowbreak{}key-\allowbreak{}env NAZWA} & \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}API\_\allowbreak{}KEY\_\allowbreak{}ENV} & \texttt{apiKeyEnv} \\
+\textbf{sam klucz} & \textbf{brak flagi} & zmienna z wiersza wyżej (domyślnie \texttt{ANTHROPIC\_\allowbreak{}API\_\allowbreak{}KEY}, \texttt{OPENAI\_\allowbreak{}API\_\allowbreak{}KEY}) & \textbf{niedozwolony w pliku} \\
+limity i koszt & \texttt{--timeout-seconds}, \texttt{--max-retries}, \texttt{--max-tokens}, \texttt{--price-in}, \texttt{--price-out}, \texttt{--max-cost}, \texttt{--num-ctx} & odpowiednie \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}*} (pełna tabela: \texttt{docs/\allowbreak{}architecture/\allowbreak{}providers.\allowbreak{}md}) & \texttt{timeoutSeconds} (120), \texttt{maxRetries} (3), \texttt{maxTokens} (60000), \texttt{prices.*}, \texttt{maxCost}, \texttt{numCtx} \\
+plik konfiguracyjny & \texttt{--config <plik>} & \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}CONFIG} & --- \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Domyślny plik: \texttt{\$XDG\_\allowbreak{}CONFIG\_\allowbreak{}HOME/\allowbreak{}exit-\allowbreak{}interview/\allowbreak{}config.\allowbreak{}json}, w
+przeciwnym razie \texttt{\~{}/.config/exit-interview/config.json} (Windows:
+\texttt{\%APPDATA\%}); katalog można zmienić zmienną
+\texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}CONFIG\_\allowbreak{}DIR} --- tej użyto w sesji, żeby nie dotykać
+katalogu domowego. Przykład pliku bez sekretów (z dokumentacji dostawców):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+{
+  "provider": "anthropic",
+  "model": "<identyfikator modelu z Twojego konta>",
+  "apiKeyEnv": "ANTHROPIC_API_KEY",
+  "maxTokens": 60000
+}
+\end{Verbatim}
+
+\subsubsection{Obsługa kluczy}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Klucz podaje się \textbf{wyłącznie zmienną środowiskową}. Nie ma flagi
+        \texttt{--api-key}; test architektury pilnuje, żeby żaden sekret nie
+        miał flagi.
+  \item Plik konfiguracyjny z kluczem jest odrzucany. Sprawdzone:
+\end{itemize}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview interview --config bad.json --tenure 1y_3y     # w pliku: "apiKey":"x"
+The config file must not contain a key or token. Put the key in an environment variable
+and name it with "apiKeyEnv".
+\end{Verbatim}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Brak klucza daje czytelny błąd i kod 2:
+\end{itemize}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview interview --provider anthropic --model x --tenure 1y_3y
+No API key: set ANTHROPIC_API_KEY (or name another variable with --api-key-env). See README.md#...
+\end{Verbatim}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Poświadczenia subskrypcji Claude (Free/Pro/Max) są odrzucane z
+        założenia; nazwanie \texttt{CLAUDE\_\allowbreak{}CODE\_\allowbreak{}OAUTH\_\allowbreak{}TOKEN} jako źródła
+        klucza kończy się komunikatem: „... holds a Claude subscription (Free, Pro
+        or Max) credential, which this project refuses to use ... Create an API
+        key in the Anthropic Console and put it in ANTHROPIC\_API\_KEY.” Granica,
+        o której mówi README: nie ma rozpoznawalnego formatu tokena subskrypcji,
+        więc wklejony do \texttt{ANTHROPIC\_\allowbreak{}API\_\allowbreak{}KEY} nie zostanie rozpoznany, tylko
+        odrzucony przez API.
+  \item Klucz nigdy nie jest drukowany, logowany ani wpisywany do śladów i błędów
+        (testy z „kanarkiem”). GitHub Copilot nie ma adaptera, bo jego warunków nie
+        dało się zweryfikować (to decyzja, nie stwierdzenie, że jest zakazany).
+\end{itemize}
+
+\subsection{\texttt{providers ping}}
+
+\komenda{providers ping --provider <p> --model <m>} wysyła \emph{jedno}
+minimalne żądanie („reply OK”, co najwyżej 8 tokenów wyjścia, bez treści
+wywiadu) i raportuje wynik; to jedyne polecenie z grupy \texttt{providers},
+które łączy się z siecią. Bez klucza kończy się kodem 2 z komunikatem jak wyżej.
+Ze wskazanym Ollamą, na którym nic nie nasłuchuje:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview providers ping --provider ollama --model m
+Sending one minimal request ('reply OK', no interview content, at most 8 output tokens)
+to Ollama at localhost:11434, model m.
+ping failed: The provider could not be reached after 4 attempts.
+\end{Verbatim}
+
+(„4 attempts” zgadza się z domyślnymi trzema ponowieniami). Flagi dostawcy są
+dozwolone tylko po słowie \texttt{ping}; bez niego \komenda{providers} wypisuje
+\texttt{Usage: exit-interview providers [ping <provider flags> | forget-confirmations]}.
+\komenda{providers forget-confirmations} kasuje zapamiętane potwierdzenia
+ujawnienia (\texttt{confirmations.\allowbreak{}json}); w czystym katalogu odpowiada „There
+were no remembered confirmations.”
+
+\subsection{\texttt{interview}: prawdziwy wywiad w terminalu}
+
+Dostawcy: \texttt{anthropic}, \texttt{openai-\allowbreak{}compatible} (alias \texttt{openai}),
+\texttt{ollama}; \texttt{mock} jest modelem testowym offline.
+
+\textbf{Przed pierwszym wywołaniem zewnętrznego dostawcy} CLI drukuje
+ujawnienie i prosi o wpisanie \texttt{yes} (flaga \komenda{--yes-\allowbreak{}i-\allowbreak{}understand}
+pomija pytanie dla skryptów; jednorazowe zapamiętanie wyboru dla pary
+dostawca+adres w \texttt{confirmations.\allowbreak{}json}). Na żywo, z fałszywym kluczem i bez
+wysyłania czegokolwiek:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ echo no | ANTHROPIC_API_KEY=dummy exit-interview interview \
+      --provider anthropic --model m --tenure 1y_3y
+Before we start: where your answers go
+
+This interview is run by an AI interviewer. To work, the whole conversation (every question
+and every answer you type) is sent to:
+
+    Anthropic API, at api.anthropic.com, using your own API key
+
+That provider's terms, data retention and training rules apply to it. ...
+  - It is not sent to this project or to any server of ours. It stays in memory ...
+  - If you finish, only a structured record ... is produced. This version does not send it anywhere.
+  - Ctrl-C or Ctrl-D at any time stops the interview and discards everything.
+  - To keep everything on your machine, use a local model: --provider ollama.
+Type "yes" to continue (anything else stops): Not confirmed. Nothing was sent anywhere.
+                                                                      # kod wyjścia 6
+\end{Verbatim}
+
+Model lokalny (Ollama) dostaje krótszą notę i nie wymaga potwierdzenia
+(„Local model: ... Through this program nothing leaves the machine”).
+
+Pełne przykłady z README (każdy wymaga prawdziwego klucza lub działającego
+Ollamy, więc \textbf{nieprzetestowane w tej sesji}):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+# Anthropic (klucz z Anthropic Console, nigdy token subskrypcji):
+export ANTHROPIC_API_KEY=...
+exit-interview providers ping --provider anthropic --model <id-modelu>
+exit-interview interview --provider anthropic --model <id-modelu> \
+    --tenure 1y_3y --employer acme-example --out ./interview-out
+# Punkt zgodny z OpenAI (adres bazowy zawiera /v1):
+exit-interview interview --provider openai-compatible \
+    --base-url https://gateway.example/v1 --model <id-modelu> --tenure 1y_3y
+# Lokalny model, bez klucza:
+exit-interview interview --provider ollama --model <model> --num-ctx 8192 --tenure 1y_3y
+\end{Verbatim}
+
+\textbf{Wywiad na modelu mock} (działa w pełni offline, uruchomiony w tej
+sesji --- odpowiedzi podane przez stdin):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ printf 'yes\nMy onboarding was slow, laptop arrived late.\nMy manager was supportive.\n...\nno\n' \
+   | exit-interview interview --provider mock --model mock --tenure 1y_3y \
+       --employer acme-example --out ./io
+Scripted mock model: nothing is sent anywhere. It is a test seam that understands nothing, ...
+Interviewer: Hello, and thank you for taking the time. ...
+...
+== Result ==
+outcome: completed (all_topics_covered)
+== Record ==
+{ "schemaVersion": "1", "employerRef": "acme-example", "context": { "tenureBand": "1y_3y" },
+  "topics": { "onboarding": { "status": "covered", "rating": null, "confidence": "low",
+              "quotes": [ "My onboarding was slow, laptop arrived late." ] },
+              "management": { "status": "no_data", ... }, ... } }
+$ ls io
+record.json
+\end{Verbatim}
+
+Kod wyjścia 0. Zwróć uwagę, że mock nie zna treści: rating jest \texttt{null},
+a temat bez odpowiedzi ma \texttt{no\_data} --- zgodnie z ostrzeżeniem, że to
+tylko szkielet testowy.
+
+Opcje, które trzeba znać:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \komenda{--tenure} --- pasmo stażu: \texttt{lt\_6m}, \texttt{6m\_1y},
+        \texttt{1y\_3y}, \texttt{3y\_5y}, \texttt{5y\_10y}, \texttt{gt\_10y}. Bez
+        flagi CLI zapyta. \komenda{--seniority} i \komenda{--function} są
+        opcjonalne (sprawdzane wobec zamkniętych słowników).
+  \item \komenda{--employer} --- referencja: 3--64 znaków, małe litery, cyfry i
+        pojedyncze myślniki; domyślnie \texttt{unspecified-\allowbreak{}employer}. Wielka
+        litera daje: \texttt{--employer must be 3-64 characters of lowercase
+        letters, digits and single hyphens.}
+  \item \komenda{--out <katalog>} --- zapisuje \texttt{record.json}
+        \emph{tylko} gdy rekord powstał i przeszedł walidację; bez \komenda{--out}
+        rekord jest tylko wydrukowany („Nothing was written”). Z
+        \komenda{--save-\allowbreak{}transcript} (wymaga \komenda{--out}) powstaje
+        \texttt{transcript.txt} z prawami tylko dla właściciela.
+  \item Ctrl-C lub Ctrl-D przerywa i \emph{wszystko} odrzuca (kod 130 lub
+        „abandoned”); nic nie zostaje na dysku.
+  \item Budżet: twardy limit tokenów i wywołań na wywiad, ponowienia z
+        wycofywaniem przy limitach i błędach 5xx. \textbf{Żadnej ceny nie
+        wbudowano}; koszt liczy się tylko, gdy podasz \komenda{--price-in} i
+        \komenda{--price-out}. Podsumowanie użycia:
+        \texttt{usage: model\_\allowbreak{}calls=... tokens\_\allowbreak{}in=... cost=not computed (no
+        prices configured)}.
+  \item Eksport OpenTelemetry jest \textbf{wyłączony}, dopóki nie ustawisz
+        \texttt{OTEL\_\allowbreak{}TRACES\_\allowbreak{}EXPORTER} / \texttt{OTEL\_\allowbreak{}METRICS\_\allowbreak{}EXPORTER} lub
+        punktu OTLP; treść promptów i odpowiedzi nigdy nie jest eksportowana i
+        nie ma przełącznika, który by to zmienił.
+\end{itemize}
+
+\subsection{Lokalna kontrola i podgląd: \texttt{submit}}
+
+\komenda{submit --record <plik|-> --server <adres> [--save-\allowbreak{}receipt <plik>] [--yes]}
+wysyła rekord zapisany przez \komenda{interview --out}. \emph{Zanim cokolwiek
+wyjdzie z komputera}, CLI: (1) ponownie waliduje rekord lokalnie (schemat,
+ujawnienie AI, pokryty temat, skan danych osobowych; zamyka się
+bezpiecznie przy błędzie), (2) drukuje, co wyjdzie, i dokładny rekord, (3)
+czeka na wpisanie słowa \texttt{submit}. Dopiero potem prosi o bilet. Adres
+serwera pochodzi z \komenda{--server} albo \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}SERVER\_\allowbreak{}URL}
+i \textbf{nie ma wartości domyślnej}; wymagany jest https (http tylko dla
+\texttt{localhost}, \texttt{127.0.0.1}, \texttt{::1}). Podgląd, przetestowany na
+żywo z rekordem z \texttt{demo}:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ echo no | exit-interview submit --record demo-out/record.json --server http://127.0.0.1:5080
+
+== What will leave this computer ==
+To:      http://127.0.0.1:5080  (one POST; redirects are never followed)
+Sent:    exactly the record below (2564 bytes) and your one-time ticket, in a request header.
+         Nothing else: no transcript, no name, no file names, no model or provider details.
+Checks:  the record passed the schema check, the AI-disclosure check and the personal-data
+         check on this computer.
+Know:    the server sees your network address and the time, as any server does, and the ticket
+         ties this request to your web account at that instant (a known limit, ...).
+Result:  you get a receipt code, shown once. It is the only way to delete the record later; ...
+
+== The record that will be sent ==
+{ ... pełny rekord ... }
+
+Type "submit" to send this record (anything else keeps it on this computer):
+Not confirmed. Nothing was sent.                                      # kod wyjścia 3
+\end{Verbatim}
+
+Wybrane reakcje na błędy, sprawdzone na żywo:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ exit-interview submit --record demo-out/record.json          # brak adresu
+No server address. Pass --server <url> or set EXIT_INTERVIEW_SERVER_URL. There is deliberately
+no default: ...                                                 # kod 2
+$ exit-interview submit --record demo-out/record.json --server http://example.com
+Plain http:// is accepted only for a service on this computer (localhost, 127.0.0.1, ::1).
+Use https://.                                                   # kod 2
+\end{Verbatim}
+
+\textbf{Bilet} nie ma flagi (argumenty trafiają do listy procesów i historii
+powłoki). Kolejność źródeł: zmienna \texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}TICKET}; ukryty
+monit na terminalu; w przeciwnym razie jedna linia ze standardowego wejścia.
+\komenda{--record -} czyta rekord ze stdin (wtedy wymagane są \komenda{--yes} i
+\texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}TICKET}). \komenda{--yes} pomija potwierdzenie i jest
+dla testów oraz skryptów, które kontrolujesz --- „it removes the last chance to
+look”.
+
+Prawdziwy interview-service uruchomiony lokalnie (bez tożsamości, więc żaden
+bilet nie jest prawdziwy) odpowiada tak, jak opisuje kontrakt:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ EXIT_INTERVIEW_TICKET=notaticketnotaticketnotaticket \
+    exit-interview submit --record demo-out/record.json --server http://localhost:5200 --yes
+Sending...
+Not submitted (HTTP 401, TICKET_INVALID).
+The server did not accept the ticket. It may be wrong, expired (tickets last 15 to 20 minutes)
+or already used; the server deliberately does not say which.
+Mint a new ticket on the web panel's /cli page and run the command again. Your record was not stored.
+                                                                # kod 5
+\end{Verbatim}
+
+\textbf{Poprawne zgłoszenie} (kod 201, kod paragonu pokazany raz; opcjonalnie
+\komenda{--save-\allowbreak{}receipt plik}, tryb 0600, nigdy nie nadpisuje) wymaga prawdziwego
+biletu z wdrożonego portalu, a więc \textbf{nieprzetestowane w tej sesji};
+jest pokryte testami (\repopath{tests/ExitInterviewAgent.Cli.Tests}, w tym
+test end-to-end na prawdziwej usłudze w procesie). Schemat całej ścieżki:
+
+\begin{center}
+\includegraphics[width=0.92\linewidth,height=0.5\textheight,keepaspectratio]{\dgm{p2-cli-zgloszenie}}
+\end{center}
+
+Wyniki (z \repopath{docs/architecture/cli-submission.md}); kod wyjścia w
+nawiasie:
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.33\linewidth}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Odpowiedź serwera & Co znaczy i co zrobić \\
+\midrule
+201 (0) & kod paragonu pokazany raz; zapisz go --- jest jedyną drogą usunięcia \\
+401 \texttt{TICKET\_INVALID} (5) & bilet zły, wygasły lub użyty (nie powie który): wydaj nowy na \texttt{/cli} \\
+403 \texttt{EMPLOYMENT\_NOT\_VERIFIED} (5) & konto nie jest powiązane z tym pracodawcą; bilet nie został zużyty \\
+409 \texttt{ALREADY\_SUBMITTED}, \texttt{INTERVIEW\_ID\_TAKEN} (5) & jedno zgłoszenie na konto i pracodawcę (usunięcie go nie otwiera ponownie); albo ten rekord już zapisano (zapewne wcześniejsza próba, której odpowiedź zginęła) \\
+400, 413, 422 (5) & rekord ma zły kształt (\texttt{NOT\_JSON}, \texttt{PAYLOAD\_TOO\_LARGE} --- limit 160 KiB, \texttt{MISSING\_FIELD}, \texttt{AI\_NOT\_DISCLOSED}, \texttt{PII\_DETECTED}...); komunikat podaje, co i gdzie; przy \texttt{PII\_DETECTED} popraw cytaty --- bilet nie został zużyty \\
+429 (5) & \texttt{rate\_limited} lub \texttt{TICKET\_LIMIT}: odczekaj podaną liczbę sekund \\
+3xx, brak połączenia, błąd TLS (6) & przekierowań się nie podąża; nic nie wysłano; sprawdź adres \\
+timeout, zerwane połączenie (6) & \textbf{wynik nieznany}: serwer mógł zapisać rekord, a kod paragonu przepaść \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{\texttt{delete-receipt}}
+
+\komenda{delete-\allowbreak{}receipt --server <adres>} usuwa rekord po kodzie paragonu. Kod
+(16--256 znaków: litery, cyfry, \texttt{-}, \texttt{\_}) pochodzi ze zmiennej
+\texttt{EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}RECEIPT\_\allowbreak{}CODE}, ukrytego monitu albo jednej linii
+stdin --- nigdy z argumentu. Typowe użycie z zapisanego pliku:
+\komenda{exit-\allowbreak{}interview delete-\allowbreak{}receipt < ./\allowbreak{}receipt.\allowbreak{}txt}. Poprawny kod daje
+204 i tekst „If a record with this receipt code existed, it is deleted now” ---
+taki sam dla każdego poprawnie zapisanego kodu. Sprawdzone na żywo, że lokalna
+kontrola i kontrola serwera działają:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ echo abc | exit-interview delete-receipt --server http://127.0.0.1:5080
+Receipt code (one line from standard input):
+That does not look like a receipt code (it should be 16 to 256 letters, digits, '-' or '_').
+Nothing was sent.                                               # kod 2
+
+$ echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA | \
+    exit-interview delete-receipt --server http://localhost:5200
+Not deleted (HTTP 400, INVALID_RECEIPT_CODE).
+That is not a well-formed receipt code (wrong length or characters, or a typo). The server did
+not look anything up. Check the code and try again.             # kod 5
+\end{Verbatim}
+
+Pomyślne usunięcie (204) wymaga kodu wystawionego przez prawdziwe zgłoszenie
+--- \textbf{nieprzetestowane w tej sesji} na działającej usłudze (pokrywa je
+test end-to-end w \texttt{tests/\allowbreak{}ExitInterviewAgent.\allowbreak{}InterviewService.\allowbreak{}Tests}).
+Publikowane liczby usuwają rekord dopiero przy następnej aktualizacji
+(sekcja~\ref{sec:sygnaly}).
+
+\section{Podłączenie Claude przez MCP}
+\label{sec:mcp}
+
+Tryb A: wywiad prowadzi Claude (host i jego dostawca), a serwer MCP w
+interview-service dostaje \emph{wyłącznie rekord}. Źródło tej sekcji to
+\repopath{docs/guides/connect-claude.md} (runbook operatora) i
+\repopath{docs/architecture/mcp.md}. Runbook sam mówi: „\textbf{Nothing here has
+been run against a real Claude client}” --- token flow zweryfikowano z prawdziwym
+authservice (T2), transport z oficjalnym klientem SDK w procesie (T8), a Claude
+nie był dostępny. Dlatego \emph{cała} sekcja poniżej jest, w odniesieniu do
+Claude, \textbf{nieprzetestowana w tej sesji}.
+
+\subsection{Czego trzeba}
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Dwa publiczne adresy https}: origin authservice (bez ścieżki;
+        staje się \texttt{Jwt:\allowbreak{}PublicBaseUrl}, issuerem tokenów MCP) i adres punktu
+        MCP \emph{ze ścieżką}, np. \texttt{https:\allowbreak{}/\allowbreak{}/\allowbreak{}<host>/\allowbreak{}mcp}. Claude łączy się
+        z serwerów Anthropic, nie z urządzenia użytkownika, więc oba muszą być
+        osiągalne z internetu. Authservice odmawia issuera http. Lokalnie to
+        dwa tunele przed portami 5100 i 5200 (\repopath{scripts/README.md}).
+  \item \textbf{authservice} z podpisem RS256, \texttt{Jwt\_\allowbreak{}\_\allowbreak{}PublicBaseUrl},
+        \texttt{AuthorizationServer\_\allowbreak{}\_\allowbreak{}EncryptionKey}, zaufanymi nagłówkami
+        forwardowanymi za proxy kończącym TLS i
+        \texttt{min\_\allowbreak{}machines\_\allowbreak{}running = 1}.
+  \item \textbf{interview-service} z \texttt{Mcp\_\_Issuer} (dokładnie
+        \texttt{Jwt:\allowbreak{}PublicBaseUrl}) i \texttt{Mcp\_\_Resource} (dokładnie adres
+        MCP). Bez nich punkt odpowiada 401 / 404, a \texttt{/health} wypisuje
+        \texttt{mcp-auth} jako nieskonfigurowane.
+\end{enumerate}
+
+Klucze konfiguracji MCP: \texttt{Mcp:Issuer}, \texttt{Mcp:Resource} (kanoniczny
+adres ze ścieżką --- to \texttt{aud} każdego tokena i trasa, pod którą
+zamontowano transport), \texttt{Mcp:\allowbreak{}MetadataAddress} (domyślnie
+\texttt{<Jwt:\allowbreak{}Authority>/\allowbreak{}.well-\allowbreak{}known/\allowbreak{}oauth-\allowbreak{}authorization-\allowbreak{}server}),
+\texttt{Mcp:\allowbreak{}AllowedOrigins} (\textbf{zostaw puste} dla Claude: konektor nie
+wysyła nagłówka \texttt{Origin}, a każde żądanie z niewymienionym \texttt{Origin}
+dostaje 403).
+
+\subsection{Lokalnie: AppHost + dwa tunele}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+scripts/setup.sh        # generuje też dwa sekrety deweloperskie MCP
+dotnet user-secrets set "Mcp:AuthPublicBaseUrl" "https://<tunel do :5100>" \
+    --project src/ExitInterviewAgent.AppHost
+dotnet user-secrets set "Mcp:ResourceUrl" "https://<tunel do :5200>/mcp" \
+    --project src/ExitInterviewAgent.AppHost
+dotnet run --project src/ExitInterviewAgent.AppHost
+\end{Verbatim}
+
+Gdy oba adresy są ustawione, AppHost konfiguruje w authservice jednego klienta:
+\texttt{claude-\allowbreak{}exit-\allowbreak{}interview-\allowbreak{}dev}, redirect
+\texttt{https:\allowbreak{}/\allowbreak{}/\allowbreak{}claude.\allowbreak{}ai/\allowbreak{}api/\allowbreak{}mcp/\allowbreak{}auth\_\allowbreak{}callback}, zakresy
+\texttt{interview:\allowbreak{}submit} i \texttt{offline\_access}, \texttt{AllowedResources}
+równe \texttt{Mcp:ResourceUrl}; interview-service dostaje \texttt{Mcp\_\_Issuer} i
+\texttt{Mcp\_\_Resource}, a portal --- \texttt{MCP\_\allowbreak{}RESOURCE\_\allowbreak{}URL} (stąd adres na
+stronie \texttt{/connect}). \textbf{Sekret klienta} widać w panelu Aspire jako
+parametr \texttt{authservice-\allowbreak{}mcp-\allowbreak{}client-\allowbreak{}secret}; \komenda{setup.*} zapisuje go w
+user-secrets. Wartość generowana „na uruchomienie” działa, ale zmienia się przy
+każdym starcie i zrywa zapisane w Claude połączenie --- stąd rada: użyj
+\komenda{setup.*}.
+
+\subsection{Rejestracja klienta (wdrożenie)}
+
+Klienta rejestruje się zmiennymi authservice (\emph{platform secrets}, nie plik):
+\texttt{AuthorizationServer\_\_Clients\_\_0\_\_ClientId}, \texttt{...\_\_ClientSecret}
+(\komenda{openssl rand -hex 32}), \texttt{...\_\_RedirectUris\_\_0} =
+\texttt{https://claude.ai/api/mcp/auth\_callback}, \texttt{...\_\_AllowedScopes\_\_0/1} =
+\texttt{interview:\allowbreak{}submit}, \texttt{offline\_access}, \texttt{...\_\_AllowedResources\_\_0} = adres MCP,
+\texttt{AuthorizationServer\_\_Scopes\_\_0\_\_Name} oraz
+\texttt{AuthorizationServer\_\_EncryptionKey} (\komenda{openssl rand -base64 32}). Wartości
+publiczne: \repopath{flyio/authservice.fly.toml}; sekrety: \repopath{flyio/SECRETS.md}.
+Claude jest obsługiwany \emph{tylko przez aplikacje hostowane}; adresu pętli zwrotnej
+dla Claude Code nie zarejestrowano (PROJECT-BRIEF §3.2).
+
+Kontrole z runbooka (nieprzetestowane w tej sesji): \texttt{curl <authservice>/.well-known/oauth-authorization-server} i
+\texttt{curl <origin MCP>/.well-known/oauth-protected-resource/mcp} (lista \texttt{authorization\_servers}
+musi zaczynać się od authservice --- Claude używa tylko pierwszego wpisu); nieuwierzytelniony \texttt{POST} na adres MCP \emph{musi}
+dać 401 z \texttt{WWW-Authenticate: Bearer resource\_metadata="...", scope="interview:submit"}.
+
+W tej sesji sprawdzono jedynie przypadek \emph{bez konfiguracji}: lokalny
+interview-service odpowiedział na \texttt{POST /mcp} kodem 404 (ścieżka wyłączona),
+co potwierdza opis „Without those two URLs”.
+
+\subsection{Dodanie konektora w Claude}
+
+Wg runbooka (stan dokumentacji Anthropic z 2026-10-05; „trust the current page
+over this one”; \textbf{nieweryfikowane na żywo}):
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Free, Pro, Max}: Customize $\rightarrow$ Connectors $\rightarrow$
+        „Add custom connector”; adres serwera; poświadczenia OAuth; „Add”.
+  \item \textbf{Team, Enterprise}: właściciel organizacji dodaje konektor w
+        Organization settings $\rightarrow$ Connectors $\rightarrow$ Add $\rightarrow$
+        Custom; członkowie klikają potem „Connect”.
+  \item \textbf{Uwierzytelnianie}: „Sign in now”. \textbf{Klient OAuth}: wybierz
+        „Use your own OAuth client” i wpisz identyfikator \emph{oraz sekret} klienta.
+        Pozostałe dwie opcje (identyfikacja opublikowana przez Claude, rejestracja
+        automatyczna) \emph{nie działają} z authservice, który zna wyłącznie
+        statycznie skonfigurowanych klientów poufnych --- i wymaga sekretu.
+  \item Ustawień uwierzytelniania nie da się zmienić po dodaniu: trzeba usunąć
+        konektor i dodać go ponownie. \emph{Transport} zostaw bez zmian
+        (adres niekończący się na \texttt{/sse} to Streamable HTTP).
+\end{itemize}
+
+Strona portalu \texttt{/connect} pokazuje adres konektora i te same kroki:
+„In Claude, open Settings, then Connectors... paste the address... enter client
+ID and secret under Advanced settings... Sign in with the same account you use on
+this website... ask Claude to run an exit interview with the connector
+enabled.” Jakie plany Claude pozwalają na własne konektory, rozstrzyga Anthropic,
+nie projekt.
+
+\subsection{Narzędzia, prompt i zasoby}
+
+Kontrakt serwera (\repopath{docs/architecture/mcp.md}; przypięty migawką
+\texttt{mcp-\allowbreak{}contract.\allowbreak{}snapshot.\allowbreak{}json}):
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.12\linewidth}>{\raggedright\arraybackslash}p{0.38\linewidth}>{\raggedright\arraybackslash}p{0.42\linewidth}@{}}
+\toprule
+Rodzaj & Nazwa & Uwagi \\
+\midrule
+\endhead
+Prompt & \texttt{conduct\_\allowbreak{}exit\_\allowbreak{}interview(language?, employerHint?)} & jedna wiadomość \texttt{user}: zasady zaufania, dosłowne otwarcie, sześć tematów, reguły pytań, składanie rekordu, walidacja $\rightarrow$ potwierdzenie $\rightarrow$ wysłanie \\
+Narzędzie & \texttt{validate\_\allowbreak{}interview\_\allowbreak{}record(record)} & tylko do odczytu, idempotentne; próba na sucho: kody, ścieżki, rodzaje PII \\
+Narzędzie & \texttt{submit\_\allowbreak{}interview\_\allowbreak{}record(record)} & nieidempotentne; kod paragonu pokazany raz \\
+Zasób & \texttt{exit-\allowbreak{}interview:\allowbreak{}/\allowbreak{}/\allowbreak{}schema/\allowbreak{}record/\allowbreak{}v1} & schemat JSON rekordu \\
+Zasób & \texttt{exit-\allowbreak{}interview:\allowbreak{}/\allowbreak{}/\allowbreak{}protocol/\allowbreak{}v1} & protokół w opublikowanej postaci \\
+Zasób & \texttt{exit-\allowbreak{}interview:\allowbreak{}/\allowbreak{}/\allowbreak{}topics/\allowbreak{}v1} & tematy, semantyka statusów, kotwice ocen i pewności \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Wyniki zawierają \texttt{status}, \texttt{stored}, \texttt{code},
+\texttt{errors[\{code,path\}]}, \texttt{piiKinds} i przy sukcesie
+\texttt{receiptCode} oraz stałą notę --- nigdy bajtu pochodzącego ze
+zgłoszonego rekordu. Zakres jest jeden: \texttt{interview:\allowbreak{}submit}. Limit:
+120 żądań na minutę na konto na montażu MCP.
+
+\subsection{Przebieg wywiadu przez Claude}
+
+Oczekiwany przebieg (runbook §3, \textbf{nieweryfikowany}): włącz konektor w
+rozmowie (menu \textbf{+} $\rightarrow$ Connectors), poproś Claude o
+przeprowadzenie wywiadu odejścia z tym konektorem; instrukcje serwera kierują
+model do promptu \texttt{conduct\_\allowbreak{}exit\_\allowbreak{}interview}. Model ujawnia, że jest AI,
+prosi o wyraźne „tak”, zadaje sześć tematów, buduje rekord, wywołuje
+\texttt{validate} (możliwe kilka razy), pokazuje pełny rekord do potwierdzenia
+i dopiero po zgodzie \texttt{submit}. Claude może prosić o zatwierdzenie
+każdego wywołania narzędzia. \textbf{Jak Claude pokazuje użytkownikowi prompty
+MCP (lista, polecenie ukośnikowe czy tylko model), nie jest ustalone i nie było
+sprawdzane} --- runbook mówi to wprost.
+
+\uwaga{Serwer nie widzi transkrypcji ani nie może sprawdzić, czy host ujawnił
+AI, uzyskał zgodę, zatrzymał się na prośbę, zadawał pytania neutralnie i czy
+cytaty są dosłowne (mcp.md, „The trust boundary, and its limit”). Wierność
+hosta jest dziś \textbf{niezmierzona}. Użytkownikom przed połączeniem trzeba
+powiedzieć: Claude i jego dostawca widzą całą rozmowę, serwis dostaje tylko
+rekord, a kod paragonu jest pokazany raz i jest jedynym sposobem usunięcia
+rekordu. Rekordu nie nazywa się anonimowym.}
+
+\subsection{Gdy nie działa}
+
+Tabela z runbooka --- objawy po stronie Claude:
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.32\linewidth}>{\raggedright\arraybackslash}p{0.64\linewidth}@{}}
+\toprule
+Objaw & Prawdopodobna przyczyna \\
+\midrule
+\endhead
+„Couldn't reach the MCP server” & 401 bez \texttt{resource\_\allowbreak{}metadata}, ścieżki \texttt{.well-known} nieosiągalne z puli adresów Anthropic (udokumentowana jako \texttt{160.79.104.0/21}) albo WAF przed authservice \\
+401 na każdym wywołaniu po zalogowaniu & \texttt{Mcp:Issuer} $\neq$ \texttt{Jwt:\allowbreak{}PublicBaseUrl}; \texttt{Mcp:Resource} $\neq$ \texttt{aud} (musi być forma kanoniczna: mała litera w hoście, bez ukośnika końcowego) \\
+403 \texttt{ORIGIN\_\allowbreak{}NOT\_\allowbreak{}ALLOWED} & ktoś wywołuje z przeglądarki; zostaw \texttt{Mcp:\allowbreak{}AllowedOrigins} puste \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Sygnały dla pracodawcy: jak je czytać}
+\label{sec:sygnaly}
+
+Moduł Sygnały zamienia zapisane rekordy w zagregowane liczby dla pracodawcy, raz
+na partię. Reguły i ich granice: \repopath{docs/privacy/AGGREGATION.md}; kształt
+kodu: \repopath{docs/architecture/signals.md}; widok w portalu:
+\repopath{docs/ux/UI-UX.md}. Dostęp: strony \texttt{/signals} i
+\texttt{/\allowbreak{}signals/\allowbreak{}[employerRef]} wymagają zalogowania (polityka \texttt{account};
+otwarcie dla anonimowych byłoby osobną decyzją). W tej sesji potwierdzono tylko
+przekierowanie niezalogowanego na \texttt{/\allowbreak{}login?redirect=\%2Fsignals} oraz 401
+interfejsu API bez tokena; samych liczb \textbf{nie oglądano} na prawdziwym
+serwisie (testy przeglądarkowe e2e sprawdzają widok względem atrapy).
+
+\subsection{Co strona pokazuje i czego nigdy}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Lista} (\texttt{/signals}): pracodawcy, którzy mają coś do
+        pokazania, \emph{alfabetycznie}, stronicowani przez „Previous / Next”.
+        Zawsze napis: „Employers are listed alphabetically. This tool does not
+        rank employers.” Brak pola wyszukiwania, sortowania, filtra, wyniku,
+        liczby pracodawców lub respondentów.
+  \item \textbf{Pracodawca} (\texttt{/signals/[ref]}): nota, że zapis jest
+        „claimed, not verified”; linia migawki; liczebność respondentów jako
+        \emph{pasmo} (np. „10--24”), nigdy dokładna liczba; sześć tematów, każdy
+        osobno, w kolejności z API, bez żadnej sumy.
+  \item \textbf{Nigdy}: rankingu, sortowania, „best/worst/top/average/score/percentile/trend”,
+        strzałek w górę i w dół, wskaźnika złożonego, widoku porównującego dwóch
+        pracodawców lub dwa pasma, skali kolorów sugerującej dobre i złe, ani żadnej
+        liczby policzonej w przeglądarce czy BFF --- i testy to asertują.
+\end{itemize}
+
+\subsection{Jak czytać temat}
+
+Każdy temat ma jeden z dwóch stanów:
+
+\begin{description}[leftmargin=*,itemsep=2pt]
+  \item[\texttt{ok}] jedna linia w postaci
+        „\{mean\} (95\% interval \{lower\}--\{upper\}), \{n\} ratings”, czyli średnia,
+        przedział i liczba ocen \emph{zawsze razem}; pasek zakresu na stałej
+        osi 1--5 (dekoracyjny; koduje przedział i średnią, nigdy n); zdanie „A wide
+        interval means early, not wrong.”; \textbf{Reliability}; \textbf{Coverage};
+        opcjonalny rozkład w trzech przedziałach i podział wg weryfikacji
+        zatrudnienia; trzy wycinki po jednym paśmie (staż, poziom, funkcja).
+  \item[\texttt{insufficient\_\allowbreak{}data}] „Not enough responses to show this topic.” --- bez
+        żadnej liczby i bez wycinków.
+\end{description}
+
+Reguły czytania wynikające z dokumentu agregacji:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Próg k.} Liczba ocen w każdej wyświetlanej komórce musi wynosić
+        co najmniej k; domyślnie \textbf{k = 5}, dolna granica 3 (konfiguracja
+        \texttt{Signals:\allowbreak{}MinimumGroupSize}; niższa wartość zatrzymuje usługę przy
+        starcie). Poniżej k temat jest \texttt{insufficient\_\allowbreak{}data}. K jest
+        konwencją, \emph{nie gwarancją}: złośliwe konto z własnym rekordem zmniejsza
+        ochronę do grupy k$-$1 (domyślnie 4), a przeciwnik z \emph{m} kontami do
+        k$-m$ (AGGREGATION §7).
+  \item \textbf{Przedział, nie punkt.} Średnia i przedział to jeden fakt.
+        Przedział to regularyzowany przedział t (95\%), zaokrąglany na zewnątrz i
+        obcięty do skali 1--5; pięć ocen 5 daje 3,8--5,0, nie punkt. Szeroki
+        przedział znaczy „wcześnie”, nie „źle”. \textbf{Dwa przedziały, które się
+        pokrywają, nie są różne.}
+  \item \textbf{Reliability} zależy od n względem k: \texttt{low} poniżej 2k,
+        \texttt{moderate} poniżej 6k, \texttt{high} od 6k (przy k = 5: 10 i 30).
+  \item \textbf{Coverage} to przeciwwaga: odsetek respondentów, którzy ocenili
+        temat (\texttt{high} $\geq$ 75\%, \texttt{medium} 40--74\%, \texttt{low}
+        poniżej 40\%). Niskie pokrycie znaczy, że większość nie oceniła tematu,
+        choćby średnia wyglądała dobrze.
+  \item \textbf{Wycinki są czystymi podziałami albo ukryte w całości.} Napis
+        „This breakdown is hidden to protect small groups.” nie mówi, które pasmo
+        jest małe; „No ratings.” w opublikowanym wycinku to zero, a nie grupa
+        osób. Wycinki nigdy nie są łączone (staż $\times$ funkcja).
+  \item \textbf{Jedna strona „nic do pokazania”.} Pracodawca bez figur, z niepoprawną
+        referencją i nieznany dostają ten sam komunikat „There is nothing to show for this
+        employer.” --- strona nie zdradza, który to przypadek.
+  \item \textbf{Aktualność.} „Updated \{date\}. Figures change once per update, not
+        when someone submits. A record deleted after this date is still counted
+        until the next update.” Domyślnie partia co dobę
+        (\texttt{Signals:\allowbreak{}PublishInterval} = \texttt{1.00:00:00}, od 1 godziny do
+        7 dni), a pokazywany czas nigdy nie jest dokładniejszy niż godzina.
+  \item \textbf{Zatrudnienie jest deklarowane, nie weryfikowane.} Każdy agregat
+        nosi napis „Aggregated from records submitted by users of this tool.
+        Employment is claimed, not verified.”, dopóki nie istnieje prawdziwy
+        weryfikator (OP-1). Lokalnie weryfikator to atrapa odpowiadająca
+        „unverified” (wiersz \texttt{employment-\allowbreak{}verifier} w \texttt{/health}).
+\end{itemize}
+
+\uwaga{Nie ma żadnego sposobu, by z tej strony uzyskać wynik pojedynczej osoby,
+sumę ponad tematami ani porządek pracodawców --- to cecha, nie brak funkcji.
+Czytelnicy mogą mimo to porównywać na oko; czy rozumieją przedziały, nie
+sprawdzono (OP-26, OP-28).}
+
+\subsection{Dane demonstracyjne i parametry}
+
+Do obejrzenia stron bez prawdziwych zgłoszeń istnieje tryb demo
+(\texttt{Signals:\allowbreak{}Demo:\allowbreak{}Mode} = \texttt{Seed} lub \texttt{Remove}, ziarno
+\texttt{Signals:\allowbreak{}Demo:\allowbreak{}Seed} = 42), \textbf{tylko w Development} --- w innym
+środowisku usługa zatrzymuje się przy starcie. Parametry
+(\repopath{docs/privacy/AGGREGATION.md} §9): \texttt{Signals:Enabled} (domyślnie
+\texttt{true}; \texttt{false} serwuje ostatnią migawkę i pokazuje \texttt{signals}
+jako nieskonfigurowane w \texttt{/health}), \texttt{Signals:\allowbreak{}MinimumGroupSize} (5),
+\texttt{Signals:\allowbreak{}PublishInterval} (doba), \texttt{Signals:\allowbreak{}CheckInterval}
+(5 min; jak często wydawca patrzy na zegar, nie kadencja),
+\texttt{Signals:\allowbreak{}RequestsPerMinute} (30 na konto). Uruchomienie trybu demo nie
+było sprawdzane w tej sesji (nieprzetestowane); sprawdzono tylko, że wydawca
+startuje i loguje \texttt{signals snapshot published: 0 employers, rules v1, k 5}.
+
+\section{Eval: uruchamianie harnessu}
+
+Harness ewaluacyjny (\repopath{src/ExitInterviewAgent.Eval}) działa
+\emph{offline}: bez modelu, sieci i poświadczeń. Opis: \repopath{docs/eval/README.md};
+kontrakt zachowań: \repopath{docs/eval/SPEC.md}. Skrót wszystkiego:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+scripts/run-evals.sh            # validate, gate, raport (report/), kalibracja (report/)
+scripts/run-evals.sh validate   # tylko schemat i reguły korpusu
+scripts/run-evals.sh gate       # tylko bramka CI
+scripts/run-evals.sh report     # tylko raport zgodności
+scripts/run-evals.sh calibrate  # tylko eksperyment kalibracji
+\end{Verbatim}
+
+Skrypt wymaga repozytorium git (używa \texttt{git rev-\allowbreak{}parse --show-\allowbreak{}toplevel}) i
+ustawia \texttt{set -euo pipefail}. Katalog \texttt{report/} jest ignorowany
+przez git (generowany).
+
+\subsection{Pełny przebieg}
+
+Uruchomiony w tej sesji w całości (kod wyjścia 0, 22 s):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ scripts/run-evals.sh
+scenarios: 27 (45 runs: one per scenario and seed)
+  happy        2
+  ambiguity    4
+  hostile      2
+  adversarial  8
+  degradation  9
+  consent      2
+constraint-gated: 15, behaviour-gated: 12, skipped: 0
+spec version 1.0.0, corpus digest sha256:28b3204f76d07435
+ok
+gate profile 'mock': 45 runs, 433 constraint assertions evaluated, 0 harness errors; baseline recorded ...
+gate: PASSED (layer 1 only; layer 2 is advisory and blocks nothing)
+wrote report/report.json and report/report.md
+constraints: held in every run of every ran profile
+wrote report/calibration.md
+\end{Verbatim}
+
+Co robi każdy krok: \textbf{validate} sprawdza scenariusze (YAML w \repopath{evals/scenarios/<klasa>/})
+względem schematu \repopath{evals/schema/scenario.schema.json}, reguł korpusu i cytowań
+identyfikatorów ze specyfikacji w obu kierunkach. \textbf{gate} to bramka CI:
+ograniczenia C-01..C-12 muszą trzymać w \textbf{100\%} uruchomień, a zachowania
+B-01..B-10 są porównywane z \repopath{evals/baseline.json} (tolerancja domyślna 0 dla
+deterministycznego mocka); „PASSED” dotyczy warstwy 1, warstwa 2 (sędzia) jest doradcza
+i niczego nie blokuje. \textbf{run --profile mock --out report} pisze \texttt{report.json}
+i \texttt{report.md}: dla każdego ograniczenia „niepowodzenia / zaliczenia / nie dotyczy”,
+dla zachowań k/n z 95\% przedziałem Wilsona i przeciwmetryką, rozbicie na klasy
+scenariuszy; \textbf{nie ma wyniku zbiorczego ani rankingu profili}.
+\textbf{calibrate} zestawia ekran reguł i analizator odpowiedzi z ręcznymi etykietami;
+sędzia i klasyfikator modelowy pomijają się bez poświadczeń.
+
+\uwaga{Zielony przebieg \texttt{mock} pokazuje, że zabezpieczenia po stronie kodu
+trzymają i że harness umie zobaczyć, jak zawodzą --- \emph{nie} mówi nic o prawdziwym
+modelu (SPEC §1, nagłówek każdego raportu). Kalibracja z tej sesji potwierdza słabość
+etykiet: oba zbiory napisała sesja AI, która pisała harness („author-labelled and
+non-human”), a bramka kalibracji sędziego raportuje „NOT calibrated: 0 of 40 human
+labels”. To próba protokołu, nie dowód rzetelności sędziego.}
+
+\subsection{Profile modeli}
+
+Profile deklaruje \repopath{evals/profiles.yaml}; model i klucze pochodzą ze
+zmiennych środowiskowych (żaden identyfikator ani sekret nie jest w repozytorium).
+Który profil może się tu uruchomić --- polecenie bez sieci:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ dotnet run --project src/ExitInterviewAgent.Eval -c Release -- profiles
+mock                   runnable                         model=scripted-mock
+anthropic              skipped:no-credential (environment not set: ANTHROPIC_API_KEY, EVAL_ANTHROPIC_MODEL)
+openai-compatible      skipped:no-credential (environment not set: EVAL_OPENAI_COMPATIBLE_API_KEY, EVAL_OPENAI_COMPATIBLE_MODEL)
+ollama                 skipped:no-credential (environment not set: EVAL_OLLAMA_MODEL)
+judge (judge)          skipped:no-credential (environment not set: ANTHROPIC_API_KEY, EVAL_JUDGE_MODEL)
+registered provider factories: anthropic, openai-compatible, ollama
+\end{Verbatim}
+
+Zmienne każdego profilu pokazuje wyjście wyżej (model: \texttt{EVAL\_*\_MODEL}; klucz: \texttt{ANTHROPIC\_API\_KEY} albo \texttt{EVAL\_OPENAI\_COMPATIBLE\_API\_KEY}; adres opcjonalny: \texttt{EVAL\_*\_ENDPOINT}).
+
+Profil prawdziwego modelu uruchamia się poleceniem
+\komenda{dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}Eval -- run --profile <nazwa> --out report/\allowbreak{}}
+(\repopath{scripts/run-evals.sh}, komentarz nagłówkowy). Profil bez konfiguracji
+raportuje \texttt{skipped:\allowbreak{}no-\allowbreak{}credential} (brak środowiska) albo
+\texttt{skipped:\allowbreak{}no-\allowbreak{}provider} (niezarejestrowany dostawca) --- \textbf{nigdy nie
+jest to zaliczenie}. Prawdziwy profil jest \textbf{nieprzetestowany w tej
+sesji} (brak klucza i modelu). Zmienna z tokenem subskrypcji
+(\texttt{CLAUDE\_\allowbreak{}CODE\_\allowbreak{}OAUTH\_\allowbreak{}TOKEN}) jest odrzucana, jak w CLI.
+
+\subsection{Pozostałe polecenia harnessu}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+$ dotnet run --project src/ExitInterviewAgent.Eval -c Release -- --help
+exit-interview-eval <command> [options]
+  validate | list | profiles | gate [--profile mock] | calibrate [--out DIR]
+  run [--profile NAME]... [--out DIR] [--deterministic] [--prices FILE] [--no-judge]
+  baseline --justification TEXT    (a justification is required and the PR must repeat it)
+\end{Verbatim}
+
+\komenda{--deterministic} pomija zmienny blok opóźnień (dwa takie przebiegi są
+identyczne bajt w bajt; CI je porównuje); \komenda{--prices plik.\allowbreak{}yaml} liczy koszt
+z dostarczonego cennika (repozytorium żadnego nie ma); \komenda{--no-judge}
+jawnie pomija warstwę 2.
+
+\textbf{Reguła regeneracji bazy.} Gdy zmierzone zachowanie zmienia się celowo,
+baza odnawiana jest poleceniem
+\komenda{... -- baseline --justification \textquotedbl{}dlaczego\textquotedbl{}}; bez uzasadnienia jest
+odrzucana, a także odmawia zapisu przebiegu z błędem harnessu lub naruszonym
+ograniczeniem. \emph{Opis pull requesta musi powtórzyć wypisaną linię}
+\texttt{Baseline justification:\allowbreak{}...} --- CI
+(\texttt{scripts/\allowbreak{}check-\allowbreak{}baseline-\allowbreak{}justification.\allowbreak{}sh}) kończy się błędem, gdy
+\texttt{evals/\allowbreak{}baseline.\allowbreak{}json} się zmienia, a linii brak lub jest inna.
+
+\textbf{Dodanie scenariusza}: wybierz klasę; napisz najpierw pole \texttt{why};
+skopiuj najbliższy plik, nazwij \texttt{<prefiks>-<nnn>-<slug>.yaml}; zacytuj
+w \texttt{spec:} identyfikatory, które dowodzi, \emph{i} dodaj krótki id do
+odpowiednich wierszy \texttt{SPEC.md}; potem \texttt{validate}, \texttt{gate}.
+Nowy scenariusz jest „not in the baseline”, więc bramka zawodzi aż do
+regeneracji z uzasadnieniem. Test mutacyjny rzeczywistego kodu agenta:
+\repopath{scripts/mutate-agent.py}, wyniki w
+\repopath{docs/eval/MUTATION-EVIDENCE.md} (nie uruchamiano w tej sesji).
+
+\section{Wdrożenie i operacje}
+
+\uwaga{\textbf{Nic nie zostało wdrożone.} Pliki \repopath{flyio/*.fly.toml} i
+workflow \texttt{flyio*.yml} nazywają się w nagłówkach „GENERATED TOPOLOGY, NEVER
+TRIGGERED in this phase” (PROJECT-BRIEF §2 zabrania tagów \texttt{v*}, zakładania
+aplikacji Fly i dodawania sekretów do GitHuba). Nie ma ani jednej aplikacji Fly,
+ani \texttt{FLY\_API\_TOKEN}. Ta sekcja opisuje \emph{przygotowaną} topologię i
+reguły z repozytorium; żadnego z tych kroków nie wykonano.}
+
+\subsection{Topologia}
+
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item \texttt{exit-interview-agent-postgres}: jedna instancja \texttt{postgres:17-alpine}, wolumen 3 GB, bez publicznego nasłuchu (tylko \texttt{.internal:5432}); wdrażać z \texttt{--ha=false}, bo druga maszyna dostałaby drugi \emph{pusty} wolumen; 1 maszyna, nigdy nie zatrzymywana.
+  \item \texttt{...-authservice-dev}: własna instancja przypiętego obrazu (\texttt{v0.3.4}, nigdy \texttt{:latest}), własna baza \texttt{authdb} i klucz; kontrola \texttt{/health/ready}; 1 maszyna (JWKS i logowanie są wołane synchronicznie).
+  \item \texttt{...-interview-service-dev}: usługa .NET; kontrola \texttt{/health}, okres łaski 60 s; 1 maszyna (BFF woła ją w żądaniu).
+  \item \texttt{...-web-dev}: portal; kontrola \texttt{/healthz}; 0 maszyn w bezczynności (zimny start = wolna pierwsza strona).
+\end{itemize}
+
+Wszystkie w regionie \texttt{fra}, \texttt{shared-cpu-1x}, 512 MB (Postgres
+1 GB), \texttt{force\_\allowbreak{}https = true}. Kolejność wdrożenia wg
+\repopath{.github/workflows/flyio.yml} (uruchamiany tagiem \texttt{v*}):
+test $\rightarrow$ wykrycie zmian względem poprzedniego tagu $\rightarrow$
+budowa obrazów do GHCR $\rightarrow$ wdrożenie w kolejności postgres $\rightarrow$
+authservice $\rightarrow$ interview-service $\rightarrow$ web. Dwa inne workflow są
+ręczne (\texttt{workflow\_\allowbreak{}dispatch}): \texttt{flyio-scale} (normalizacja liczby
+maszyn albo wygaszenie aplikacji bezstanowych; stanowe wyłączone celowo) i
+\texttt{flyio-destroy} (usunięcie w odwrotnej kolejności za wpisaniem
+\texttt{destroy exit-\allowbreak{}interview-\allowbreak{}agent-\allowbreak{}dev}; wolumen danych zostaje, chyba że
+potwierdzi się go osobno). Analiza kosztów i powodów przypięcia maszyn:
+\repopath{flyio/INFRASTRUCTURE-ANALYSIS.md} (celowo bez cen --- nie zweryfikowano
+cennika Fly).
+
+\subsection{Sekrety}
+
+Zasada: jeśli nie wkleiłbyś tego do pull requesta, to sekret; bloki \texttt{[env]}
+w \texttt{fly.toml} są publiczne. Tabela z \repopath{flyio/SECRETS.md}:
+
+\begin{center}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.3\linewidth}>{\raggedright\arraybackslash}p{0.66\linewidth}@{}}
+\toprule
+Sekret (aplikacja) & Co to jest \\
+\midrule
+\endhead
+\texttt{POSTGRES\_\allowbreak{}PASSWORD}, \texttt{INTERVIEW\_\allowbreak{}DB\_\allowbreak{}PASSWORD}, \texttt{AUTH\_\allowbreak{}DB\_\allowbreak{}PASSWORD} (postgres) & hasło superużytkownika i dwóch ról (jedna rola i baza na usługę); generować hex, nie base64 (znaki \texttt{+ / = ;} psują łańcuchy połączeń) \\
+\texttt{ConnectionStrings\_\allowbreak{}\_\allowbreak{}DefaultConnection} (authservice) & łańcuch do \texttt{authdb}, składany przez pipeline z hasła i znanego hosta \\
+\texttt{AuthorizationServer\_\allowbreak{}\_\allowbreak{}Clients\_\allowbreak{}\_\allowbreak{}0\_\allowbreak{}\_\allowbreak{}ClientSecret} (authservice) & sekret klienta MCP dla Claude, 32 bajty hex; wpisywany raz w konektorze; \emph{nigdy} wartość deweloperska \\
+\texttt{AuthorizationServer\_\allowbreak{}\_\allowbreak{}EncryptionKey} (authservice) & klucz szyfrowania tokenów; \emph{trwały} --- zmiana unieważnia wszystkie połączenia MCP \\
+\texttt{Jwt\_\allowbreak{}\_\allowbreak{}PrivateKeyPem} (authservice) & \textbf{jedyny klucz podpisu w systemie}, RSA-2048+, PKCS\#8 PEM; nigdy z laptopa; trzyma go ta aplikacja i nic więcej \\
+\texttt{ConnectionStrings\_\allowbreak{}\_\allowbreak{}interviewdb} (interview-service) & łańcuch do \texttt{interviewdb} z rolą \texttt{interview} \\
+\texttt{Ledger\_\allowbreak{}\_\allowbreak{}ActiveKeyId}, \texttt{Ledger\_\allowbreak{}\_\allowbreak{}Keys\_\allowbreak{}\_\allowbreak{}0\_\allowbreak{}\_\allowbreak{}Id}, \texttt{Ledger\_\allowbreak{}\_\allowbreak{}Keys\_\allowbreak{}\_\allowbreak{}0\_\allowbreak{}\_\allowbreak{}Secret} (interview-service) & klucz HMAC rejestru (patrz niżej); \textbf{usługa nie wystartuje bez niego poza Development} \\
+portal (web) & dziś żadnego: BFF nie trzyma klucza, weryfikuje przez JWKS \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Sekrety ustawia się z pipeline'u, nie ręcznie, żeby środowiska się nie rozjeżdżały:
+\komenda{fly secrets set -a <app> \textquotedbl{}Klucz\_\_Podklucz=wartość\textquotedbl{} --stage} (\texttt{--stage}:
+bez restartu do następnego wdrożenia) i \komenda{fly secrets list -a <app>}
+(nazwy i skróty). Jednorazowo na repozytorium: \komenda{fly tokens create org}
+zapisany jako \texttt{FLY\_API\_TOKEN} w \emph{środowisku} GitHuba (tu: \texttt{dev}),
+nie jako sekret repozytorium, oraz sekrety korzenia; nic więcej --- bez
+\texttt{fly launch}, bez ręcznego zakładania aplikacji. Otwarte pytanie z
+\texttt{SECRETS.md}: jeśli pakiet GHCR jest prywatny, Fly potrzebuje poświadczenia
+do jego pobrania; mechanizmu nie zweryfikowano i nie wpisano do workflow.
+
+\subsection{Rotacja klucza HMAC rejestru}
+
+Rejestr zgłoszeń wymusza „jedno zgłoszenie na pracodawcę i konto”, nie
+przechowując „konto X zgłosiło rekord R”. Tag to
+\texttt{HMAC-SHA-256(klucz, ...)}; klucz jest zestawem rotowalnym
+(\texttt{docs/\allowbreak{}adr/\allowbreak{}0028-\allowbreak{}submission-\allowbreak{}ledger-\allowbreak{}hmac-\allowbreak{}rotation-\allowbreak{}and-\allowbreak{}window.\allowbreak{}md}):
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item Wygeneruj nowy sekret: \komenda{openssl rand -base64 32} (co najmniej 32
+        bajty); identyfikator 1--32 znaków z \texttt{[A-Za-z0-9\_-]}.
+  \item \textbf{Dodaj} drugi klucz (\texttt{Ledger\_\allowbreak{}\_\allowbreak{}Keys\_\allowbreak{}\_\allowbreak{}1\_\allowbreak{}\_\allowbreak{}Id},
+        \texttt{...\_\_Secret}) i przełącz \texttt{Ledger\_\allowbreak{}\_\allowbreak{}ActiveKeyId} na jego
+        id. Nowe wpisy używają aktywnego klucza, a przy sprawdzaniu próbuje się
+        \emph{każdego} wymienionego klucza --- dzięki temu supresja duplikatów nie
+        zeruje się.
+  \item Stary klucz usuń z konfiguracji dopiero \textbf{po oknie rejestru}
+        (domyślnie 365 dni, \texttt{Submission:\allowbreak{}Retention:\allowbreak{}LedgerWindowDays}).
+        Wpisy pod nieznanym id są od tej pory nieczynne, aż zbierze je czyszczenie.
+\end{enumerate}
+
+Rotacja jest pracą operatora, nie jest zautomatyzowana. Po oknie to samo konto może
+znów zgłosić dla tego pracodawcy („jedno na pracodawcę” nie jest gwarancją trwałą);
+usunięcie rekordu po paragonie \emph{nie} czyści wpisu w rejestrze. Operator z bazą
+\emph{i} kluczem może wyliczyć tagi (T-08, zaakceptowane) --- dlatego klucz trzyma się
+\textbf{poza domeną kopii zapasowej bazy}. Rotacji \emph{nie} wykonywano w tej sesji.
+
+\subsection{Retencja i kopie zapasowe}
+
+Parametry czyszczenia (\repopath{docs/architecture/submission-flow.md}): serwis
+\texttt{RetentionService} co \texttt{Submission:\allowbreak{}Retention:\allowbreak{}SweepIntervalMinutes}
+(5) usuwa w partiach po 500; domyślnie \texttt{RecordMaxAgeMonths} = 24,
+\texttt{LedgerWindowDays} = 365; bilety: TTL 15 min, do 3 niewykorzystanych, 10
+wydań na godzinę; usuwanie po paragonie: 6 na minutę na IP i 60 globalnie;
+zgłoszenie z biletem: 6 na minutę na IP i 60 globalnie.
+
+\textbf{Kopie zapasowe: w repozytorium nie ma żadnej polityki ani procedury.}
+Projekt prywatności zapisuje to jako założenie (DESIGN.md §retencja: „no backup
+policy exists yet (nothing is deployed)”; usunięcia docierają do kopii
+dopiero, gdy kopie się starzeją), a lista kontrolna gotowości do wdrożenia w
+\repopath{docs/OWNER-FOLLOWUPS.md} ma otwarte pole „Backup and recovery tested”.
+Tego tekstu nie wolno czytać jako procedury odtwarzania.
+
+\subsection{Decyzje zostawione właścicielowi}
+
+Otwarte pozycje z \repopath{docs/OWNER-FOLLOWUPS.md}: topologia jedno- czy
+wieloinstancyjna (limity i wydawca sygnałów żyją w pamięci procesu), limity
+szybkości na endpointach anonimowych (OP-15), przypięcie authservice po skrócie,
+testy na prawdziwym authservice (OP-17), z prawdziwym Claude (OP-18) i przez
+prawdziwy TLS (OP-25), przegląd prawnika. Do tego czasu: żadnych prawdziwych
+wywiadów.
+
+\section{Rozwiązywanie problemów}
+
+Tabela łączy rzeczy \emph{znane} z repozytorium: błędy z
+\repopath{scripts/README.md} (klucz: dosłowny tekst na ekranie), z runbooka
+Claude, z dokumentu zgłoszeń CLI oraz te zaobserwowane w tej sesji (oznaczone
+\emph{(obserwowane)}). Niczego tu nie wymyślono.
+
+\begin{center}
+\scriptsize
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.29\linewidth}>{\raggedright\arraybackslash}p{0.32\linewidth}>{\raggedright\arraybackslash}p{0.32\linewidth}@{}}
+\toprule
+Objaw & Przyczyna & Działanie \\
+\midrule
+\endhead
+\texttt{Container runtime 'docker' could not be found.} / \texttt{Cannot connect to the Docker daemon} / \texttt{failed to connect to the docker API} & brak silnika w \texttt{PATH} albo demon nie działa & zainstaluj Docker lub Podman (\texttt{DOTNET\_\allowbreak{}ASPIRE\_\allowbreak{}CONTAINER\_\allowbreak{}RUNTIME=podman}), uruchom demona; sprawdź \texttt{docker info}. \emph{(obserwowane:} \texttt{setup.\allowbreak{}sh --check} zgłasza \texttt{MISSING container engine} także gdy binarka \texttt{docker} istnieje, a demon nie.) \\
+\texttt{scan-\allowbreak{}secrets: neither 'gitleaks' nor a running Docker daemon is available.} & hak pre-commit nie może działać & zainstaluj gitleaks albo uruchom Docker \\
+\texttt{initdb: error: directory /var/\allowbreak{}lib/\allowbreak{}postgresql/\allowbreak{}data exists but is not empty} (Postgres wychodzi, AppHost nie jest zdrowy) & wolumen \texttt{exit-\allowbreak{}interview-\allowbreak{}agent-\allowbreak{}pgdata} zainicjowano inną wersją główną Postgresa (AppHost przypina 17) & \texttt{docker volume rm exit-\allowbreak{}interview-\allowbreak{}agent-\allowbreak{}pgdata} (tylko dane deweloperskie) i uruchom ponownie \\
+nie da się pobrać \texttt{ghcr.\allowbreak{}io/\allowbreak{}konradcinkusz/\allowbreak{}authservice} & blobs obrazu niedostępne przez proxy (opisane dla piaskownicy w scripts/README) & \texttt{Identity\_\allowbreak{}\_\allowbreak{}Enabled=false dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}AppHost}; punkty chronione dadzą 401 \\
+authservice kończy pracę z wzmianką o \texttt{Jwt:Algorithm} & klucz podpisu nie dotarł do authservice, wybrano ścieżkę symetryczną & uruchom \texttt{scripts/setup.*} albo pozwól AppHost wygenerować klucz; sprawdź, że \texttt{GET <authservice>/\allowbreak{}.well-\allowbreak{}known/\allowbreak{}jwks.\allowbreak{}json} zwraca niepustą tablicę \texttt{keys} \\
+\texttt{IDX10500:\allowbreak{}Signature validation failed. No security keys were provided} (log interview-service) & brak JWKS: puste \texttt{Jwt:Authority} albo authservice nieosiągalny & uruchom przez AppHost (wstrzykuje autorytet) lub ustaw \texttt{Jwt\_\allowbreak{}\_\allowbreak{}Authority} \\
+usługa nie startuje poza Development, brak klucza rejestru & brak \texttt{Ledger\_\_*} & ustaw klucz HMAC (SECRETS.md); poza Development nie ma klucza domyślnego \\
+\texttt{Unknown option '--help'.} przy \texttt{interview --help} \emph{(obserwowane)} & podpolecenia nie mają własnej pomocy & użyj \texttt{exit-\allowbreak{}interview --help} (jedna, globalna) \\
+\texttt{Usage: exit-\allowbreak{}interview providers [ping ...]} przy \texttt{providers --provider ...} \emph{(obserwowane)} & flagi dostawcy są dozwolone tylko po \texttt{ping} & \texttt{exit-\allowbreak{}interview providers ping --provider ... --model ...} \\
+\texttt{The config file must not contain a key or token.} \emph{(obserwowane)} & w pliku konfiguracyjnym jest klucz & usuń go, zostaw \texttt{apiKeyEnv} z nazwą zmiennej \\
+\texttt{--save-\allowbreak{}transcript needs --out <dir>} & zapis transkrypcji bez katalogu & dodaj \texttt{--out} \\
+\texttt{No server address. Pass --server <url> or set EXIT\_\allowbreak{}INTERVIEW\_\allowbreak{}SERVER\_\allowbreak{}URL.} \emph{(obserwowane)} & nie ma wartości domyślnej, celowo & podaj adres wdrożenia, które masz na myśli \\
+\texttt{Plain http:\allowbreak{}/\allowbreak{}/\allowbreak{}is accepted only for a service on this computer} \emph{(obserwowane)} & adres http poza localhost & użyj https \\
+\texttt{ALREADY\_\allowbreak{}SUBMITTED} (409) & jedno zgłoszenie na konto i pracodawcę w oknie rejestru; usunięcie nie otwiera ponownie & zaczekaj do końca okna rejestru (domyślnie 365 dni) \\
+portal \texttt{/connect}: „The connector is not set up in this environment” & brak \texttt{MCP\_\allowbreak{}RESOURCE\_\allowbreak{}URL} (\texttt{/api/config}: \texttt{mcp.url:null}) & ustaw oba adresy MCP (sekcja~\ref{sec:mcp}) \\
+403 \texttt{ORIGIN\_\allowbreak{}NOT\_\allowbreak{}ALLOWED} & wywołanie z przeglądarki & zostaw \texttt{Mcp:\allowbreak{}AllowedOrigins} puste dla Claude \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Ściągawka}
+
+\subsection{Komendy}
+
+\begin{center}
+\scriptsize
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.52\linewidth}>{\raggedright\arraybackslash}p{0.2\linewidth}>{\raggedright\arraybackslash}p{0.2\linewidth}@{}}
+\toprule
+Komenda & Co robi & Status w tej sesji \\
+\midrule
+\endhead
+\texttt{scripts/\allowbreak{}setup.\allowbreak{}sh [--check]} & przygotowanie, raport braków & \texttt{--check} uruchomione; pełne: nie \\
+\texttt{dotnet build -warnaserror \&\& dotnet test} & build i testy .NET & 0 ostrzeżeń; 1620 zaliczonych, 17 pominiętych \\
+\texttt{scripts/\allowbreak{}check-\allowbreak{}kernel-\allowbreak{}size.\allowbreak{}sh} & limit jądra (800 linii) & 320 linii \\
+\texttt{pnpm lint \&\& pnpm typecheck \&\& pnpm test \&\& pnpm build} & portal & uruchomione, 253 testy \\
+\texttt{cd tests/\allowbreak{}e2e \&\& pnpm test} (z \texttt{PLAYWRIGHT\_\allowbreak{}CHROMIUM\_\allowbreak{}EXECUTABLE}) & testy przeglądarkowe & 115 zaliczonych (na atrapie) \\
+\texttt{dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}AppHost} & cały stos lokalny & \textbf{nieprzetestowane} (brak demona kontenerów) \\
+\texttt{Identity\_\allowbreak{}\_\allowbreak{}Enabled=false dotnet run --project ...AppHost} & stos bez authservice & \textbf{nieprzetestowane} \\
+\texttt{dotnet user-\allowbreak{}secrets set Mcp:\allowbreak{}ResourceUrl ... --project ...AppHost} & adres MCP & \textbf{nieprzetestowane} \\
+\texttt{exit-\allowbreak{}interview --help} / \texttt{--version} & pomoc, wersja protokołu & uruchomione \\
+\texttt{exit-\allowbreak{}interview personas} & lista 8 rozmówców & uruchomione \\
+\texttt{exit-\allowbreak{}interview demo --persona <id> [--seed n] [--out d]} & wywiad offline na mocku & uruchomione, deterministyczne \\
+\texttt{exit-\allowbreak{}interview providers} & konfiguracja bez sieci & uruchomione \\
+\texttt{exit-\allowbreak{}interview providers ping --provider p --model m} & jedno żądanie na żywo & uruchomione tylko do niedostępnego Ollama \\
+\texttt{exit-\allowbreak{}interview providers forget-\allowbreak{}confirmations} & kasuje zapamiętane zgody & uruchomione \\
+\texttt{exit-\allowbreak{}interview interview --provider mock --model mock --tenure 1y\_\allowbreak{}3y --out d} & wywiad offline ze stdin & uruchomione \\
+\texttt{exit-\allowbreak{}interview interview --provider anthropic|openai-\allowbreak{}compatible|ollama ...} & prawdziwy wywiad & ujawnienie sprawdzone; sam wywiad \textbf{nieprzetestowany} \\
+\texttt{exit-\allowbreak{}interview submit --record f --server u [--save-\allowbreak{}receipt f] [--yes]} & wysłanie rekordu & podgląd i odmowy sprawdzone; sukces \textbf{nieprzetestowany} \\
+\texttt{exit-\allowbreak{}interview delete-\allowbreak{}receipt --server u} & usunięcie po paragonie & kontrola kodu sprawdzona; 204 \textbf{nieprzetestowane} \\
+\texttt{scripts/\allowbreak{}run-\allowbreak{}evals.\allowbreak{}sh [validate|gate|report|calibrate]} & harness offline & uruchomione w całości \\
+\texttt{dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}Eval -- profiles} & dostępne profile & uruchomione \\
+\texttt{... Eval -- run --profile <nazwa> --out report/\allowbreak{}} & raport; prawdziwy model & mock: tak; prawdziwy: \textbf{nie} \\
+\texttt{curl localhost:\allowbreak{}5200/\allowbreak{}health} & stan integracji & uruchomione (usługa samodzielnie) \\
+\texttt{fly secrets set -a <app> K=v --stage} & sekret we wdrożeniu & \textbf{nic nie wdrożono} \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{Cztery rzeczy, o których nie wolno zapomnieć}
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \finding{Nie wchodzi tu żaden prawdziwy wywiad.} Brak polityki
+        prywatności, podstawy prawnej, działającego usuwania i przeglądu prawnika
+        (README; \texttt{docs/\allowbreak{}legal/\allowbreak{}CONSIDERATIONS.\allowbreak{}md} §4). Używaj wymyślonych
+        odpowiedzi i fikcyjnego pracodawcy.
+  \item Kod paragonu jest pokazany \emph{raz} i nie da się go odzyskać; nikt nie
+        wyszuka zgłoszeń użytkownika.
+  \item Klucze API tylko w zmiennych środowiskowych; bilet i kod paragonu tylko
+        przez zmienną, ukryty monit lub stdin --- nigdy w argumencie.
+  \item Zielony \texttt{mock} i zielone e2e na atrapie nie dowodzą jakości
+        prawdziwego modelu ani działania wdrożenia: tego w tej sesji nie
+        sprawdzono.
+\end{enumerate}
+}
