@@ -9,6 +9,7 @@ COPY src/ExitInterviewAgent.ServiceDefaults/ExitInterviewAgent.ServiceDefaults.c
 COPY src/ExitInterviewAgent.Contracts/ExitInterviewAgent.Contracts.csproj src/ExitInterviewAgent.Contracts/
 COPY src/ExitInterviewAgent.Records/ExitInterviewAgent.Records.csproj src/ExitInterviewAgent.Records/
 COPY src/ExitInterviewAgent.Privacy/ExitInterviewAgent.Privacy.csproj src/ExitInterviewAgent.Privacy/
+COPY src/ExitInterviewAgent.Signals/ExitInterviewAgent.Signals.csproj src/ExitInterviewAgent.Signals/
 COPY src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj src/ExitInterviewAgent.InterviewService/
 RUN dotnet restore src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj
 
@@ -16,6 +17,7 @@ COPY src/ExitInterviewAgent.ServiceDefaults/ src/ExitInterviewAgent.ServiceDefau
 COPY src/ExitInterviewAgent.Contracts/ src/ExitInterviewAgent.Contracts/
 COPY src/ExitInterviewAgent.Records/ src/ExitInterviewAgent.Records/
 COPY src/ExitInterviewAgent.Privacy/ src/ExitInterviewAgent.Privacy/
+COPY src/ExitInterviewAgent.Signals/ src/ExitInterviewAgent.Signals/
 # The Records project embeds the published schema.
 COPY schemas/ schemas/
 COPY src/ExitInterviewAgent.InterviewService/ src/ExitInterviewAgent.InterviewService/
