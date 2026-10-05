@@ -101,7 +101,7 @@ public sealed class InterviewRunner
             }
 
             counters.IntervieweeTurns++;
-            var masked = MaskReply(raw, topic, transcript, counters, turn, out var guardOk, out var namesPerson);
+            var masked = MaskReply(raw, step.Kind, topic, transcript, counters, turn, out var guardOk, out var namesPerson);
             if (!guardOk)
             {
                 counters.InterviewerTurns = machine.InterviewerTurns;
@@ -205,7 +205,7 @@ public sealed class InterviewRunner
 
     // ---- replies -----------------------------------------------------------------------------------------------
 
-    private string MaskReply(string raw, Topic? topic, Transcript transcript, Counters c, Activity? turn, out bool ok, out bool namesPerson)
+    private string MaskReply(string raw, TurnKind answering, Topic? topic, Transcript transcript, Counters c, Activity? turn, out bool ok, out bool namesPerson)
     {
         var cleaned = ReplySanitizer.Clean(raw, _protocol.Limits.MaxReplyChars);
         using var span = InterviewTelemetry.Source.StartActivity(InterviewTelemetry.Spans.PiiGuard);
@@ -216,7 +216,7 @@ public sealed class InterviewRunner
         span.Set(Attr.PiiFindings, result.Findings.Count).Set(Attr.PiiKinds, result.Findings.Select(f => f.Kind));
         if (!ok) return string.Empty;
         if (namesPerson) { c.NamesMasked++; turn.Event(Ev.NamesMasked, (Attr.PiiFindings, result.Findings.Count(f => f.Kind == Privacy.PiiKind.PersonName))); }
-        transcript.Add(Speaker.Interviewee, TurnKind.Topic, topic, result.MaskedText);
+        transcript.Add(Speaker.Interviewee, answering, topic, result.MaskedText);
         return result.MaskedText;
     }
 

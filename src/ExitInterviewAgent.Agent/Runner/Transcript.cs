@@ -4,7 +4,7 @@ using ExitInterviewAgent.Records;
 
 namespace ExitInterviewAgent.Agent.Runner;
 
-/// <summary>One turn of the MASKED transcript. Interviewee text here has already been through the PII guard.</summary>
+/// <summary>One turn of the MASKED transcript. Interviewee text here has already been through the PII guard; an interviewee turn carries the kind of the interviewer turn it answers.</summary>
 public sealed record Turn(int Index, Speaker Speaker, TurnKind Kind, Topic? Topic, string Text);
 
 /// <summary>
