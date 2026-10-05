@@ -13,10 +13,10 @@ internal static class SecretInput
         string? text;
         var fromEnv = host.Env(envName);
         if (!string.IsNullOrWhiteSpace(fromEnv)) text = fromEnv;
-        else if (host.SecretPrompt is { IsInteractive: true } terminal) text = terminal.Read(prompt, host.Out, host.Cancellation);
+        else if (host.SecretPrompt is { IsInteractive: true } terminal) text = terminal.Read(prompt + " (typing is hidden): ", host.Out, host.Cancellation);
         else
         {
-            await host.Out.WriteAsync($"{prompt}(reading one line from standard input) ").ConfigureAwait(false);
+            await host.Out.WriteAsync($"{prompt} (one line from standard input): ").ConfigureAwait(false);
             try { text = await host.In.ReadLineAsync(host.Cancellation).ConfigureAwait(false); }
             catch (OperationCanceledException) { text = null; }
             await host.Out.WriteLineAsync().ConfigureAwait(false);

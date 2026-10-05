@@ -36,7 +36,7 @@ below is built on that assumption. Whether they are legally anonymous is a quest
 | **authservice** (own DB, own key) | account (`sub`, email, credentials), consent rows, its own audit events, OAuth grants for MCP clients | any interview content, employer, record, ledger entry | Implemented as a pinned image ([ADR-0003](../adr/0003-identity-authservice-as-pinned-image.md)); authservice's audit/consent/export behaviour is read from [its docs](https://github.com/konradcinkusz/authservice/blob/main/docs/issue-analysis.md) |
 | **Record store** (`interviewdb`) | the versioned record: per-topic rating (1-5 or null), verbatim supporting quotes, confidence, PII-masked flag, `aiDisclosed` flag, pseudonymous interview id, employer id, coarse bands, receipt-code **hash** | user id / `sub`, account email, IP, user agent, receipt code in clear | Planned (T1 schema, T5 store) |
 | **Submission ledger** (separate table, ideally separate schema/DbContext) | keyed HMAC of (`sub`, employer id); key version; day-level (or no) creation timestamp | content, record id, interview id, receipt hash, IP | Planned (T5) |
-| **Ticket table** | hash of a random ticket, `sub` it was minted for, expiry | employer, record, content | Planned (T5, mint UI T9, redemption by CLI T11) |
+| **Ticket table** | hash of a random ticket, `sub` it was minted for, expiry | employer, record, content | Implemented (T5 server, T9 mint UI, T11 redemption by the CLI) |
 | **Signals read model** | aggregates per employer × topic with n and uncertainty, only n ≥ K | individual records, quotes | Planned (T10) |
 | **Logs / traces / metrics** | request metadata: route, status, latency, size class | content, quotes, employer, `sub`, receipt codes, tickets, IP beyond what the platform adds | Planned (T5/T6 enforce; kernel telemetry exists, see [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) P15 row) |
 
@@ -184,7 +184,7 @@ On submission the server returns a random receipt code once and stores only its 
 - Deleting a record can drop a group below K. Aggregates must be recomputed from the remaining records and
   withdrawn when n < K (Planned, T10); backups age out on the platform's schedule (state it in the retention table).
 
-### 5.4 Submission tickets for the CLI (Server Implemented in T5; T9 and T11 Planned)
+### 5.4 Submission tickets for the CLI (Implemented: server T5, web T9, CLI T11 ([cli-submission](../architecture/cli-submission.md)))
 
 The CLI cannot hold an OAuth client secret, and authservice registers only confidential clients (brief §4), so:
 

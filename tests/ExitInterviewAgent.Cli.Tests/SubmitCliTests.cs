@@ -708,6 +708,16 @@ public sealed partial class SubmitCliTests : IDisposable
     }
 
     [Fact]
+    public void Telemetry_export_subscribes_to_no_http_source_so_a_secret_header_or_url_cannot_become_a_span_or_metric()
+    {
+        // The submission client is not instrumented and the exporters listen to named sources only. A System.Net.Http source or meter
+        // (or an Http instrumentation package) would record request URLs; this fails if one is ever added.
+        Assert.DoesNotContain(TelemetrySetup.Sources.Concat(TelemetrySetup.Meters), n => n.StartsWith("System.Net", StringComparison.Ordinal) || n.Contains("Http", StringComparison.OrdinalIgnoreCase));
+        var csproj = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../../src/ExitInterviewAgent.Cli/ExitInterviewAgent.Cli.csproj"));
+        Assert.DoesNotContain("Instrumentation.Http", csproj);
+    }
+
+    [Fact]
     public void A_secret_cannot_be_formatted_serialised_or_inspected_into_the_open()
     {
         using var secret = Secret(CliRun.CanaryTicket);

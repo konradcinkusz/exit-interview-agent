@@ -215,7 +215,7 @@ deliberately kept), `Implemented` (only where noted).
 - **Mitigation.** Ticket is random, short-lived, single-use, not employer-bound, row deleted at redemption (brief §4);
   ticket is carried in a header or request body, never a URL (so it is not in access logs); no ticket/`sub`/record in logs
   or traces; separate transactions for ledger and record with batching or jitter before the record commits (Proposal);
-  expired tickets swept. (Planned, T5/T11.)
+  expired tickets swept. (T5 server side Implemented; T11 CLI side Implemented, below.)
   **Implemented (T5, [ADR-0030](../adr/0030-submission-tickets-for-the-cli.md)):** random 256-bit ticket, only its hash and the `sub` stored, expiry rounded up to 5 minutes (the row does not
   hold the mint instant to the second), TTL 15 minutes, at most 3 live tickets and 10 mints an hour per account, header only (the query string is not read), single use decided by one atomic delete
   (24 parallel redemptions on PostgreSQL: one success), row deleted in the same transaction as the ledger entry and record, expired rows swept every 5 minutes, ticket not employer-bound, no
@@ -414,14 +414,14 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 | T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Decided (ADR-0019) | Medium-high | Open | T10 |
 | T-02 | Re-identification from quotes/episodes | M | H | Planned (T1/T5) + Proposal (no quote display) | Medium | Open | T1, T10 |
 | T-07 | Exfiltration via MCP host | M | H | Planned (T8) | Accepted, disclosed | Open | T8 |
-| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5); model-call side Planned (T6) | Medium (platform logs) | Mitigated (T5), Open (T6) | T6 |
+| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5); model-call side Planned (T6); CLI submission paths: canary tests for ticket, receipt code, quote text and server address Implemented (T11) | Medium (platform logs) | Mitigated (T5), Open (T6) | T6 |
 | T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
 | T-03 | Prompt injection into interviewer | M | M | Implemented in code, mock only (T4); real models unmeasured (T7) | Medium (mode A) | Open | T6, T7, T8 |
 | T-04 | Injection into extractor / fabricated quotes | M | M | Implemented in code (T1, T4); client-side only | Medium | Open | T5, T7 |
 | T-06 | Stored XSS/markdown; missing web security headers | M | M | headers Implemented (T2; CSP allows inline); encoding rules apply at T9 | Low | Open | T9 |
 | T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
 | T-08 | Ledger correlation with DB + key | L | H | Implemented (T5): keyed rotatable HMAC, no record link, week bucket; storage-artefact residual | Accepted | Accepted | T5 |
-| T-09 | Ticket redemption correlation | L | H | narrowing Implemented (T5); batching/jitter declined (ADR-0030) | Accepted | Accepted | T11 |
+| T-09 | Ticket redemption correlation | L | H | narrowing Implemented (T5); CLI side Implemented (T11: header only, one request, no redirect, minimal user agent, disclosed at consent); batching/jitter declined (ADR-0030) | Accepted | Accepted | operator |
 | T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
 | T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
 | T-16 | Consent withdrawal mid-interview | M | M | Implemented in code (T4, mode B); harness assertion planned (T7) | Medium | Open | T7, T8 |

@@ -10,7 +10,7 @@ in [`../eval/TRACE-SCHEMA.md`](../eval/TRACE-SCHEMA.md); the record it produces 
 
 The core of mode B (the CLI) and the reference implementation of the protocol that mode A (MCP, T8) will expose as prompts and
 resources. It runs one structured exit interview, masks what the interviewee says on arrival, and, if the interviewee consented
-throughout, turns the masked transcript into a validated `InterviewRecord`. It does **not** submit anything (T11), call a real model
+throughout, turns the masked transcript into a validated `InterviewRecord`. It does **not** submit anything (the CLI's `submit` does, [cli-submission](cli-submission.md)), call a real model
 (T6) or touch the network.
 
 | Project | Holds | Depends on |
@@ -123,7 +123,7 @@ no leading, loaded or negative-polar pattern, no closed starter, and a probe mus
 4. `RecordAssembler` builds the `InterviewRecord` with the T1 types: a topic needs at least `minWordsForCoverage` of the interviewee's own words (otherwise `no_data`, whatever the extractor says); quotes are normalised,
    de-duplicated, checked verbatim against that topic's interviewee text, dropped if only placeholders, if they read like an instruction to a model, or if a fresh PII check flags them; a contradicted topic's
    confidence is capped at `medium`.
-5. The canonical JSON goes through `RecordValidator`. **`Submittable`** is: completed, valid, and at least one covered topic (an all-`no_data` record says nothing and is not submittable). Submission is T11.
+5. The canonical JSON goes through `RecordValidator`. **`Submittable`** is: completed, valid, and at least one covered topic (an all-`no_data` record says nothing and is not submittable). Submission is the CLI's `submit` ([cli-submission](cli-submission.md)), which re-checks it first.
 
 Duration and turn bands come from an injected `TimeProvider` and the interviewee turn count (`lt_10`, `10_20`, `20_40`, `gt_40`); demos use a simulated clock advanced by the persona's typing time, so they reproduce.
 
@@ -206,7 +206,7 @@ The public API for T7 is `PersonaCatalog` (`All`, `Get`, `TryGet`, `Parse`), `Pe
 ## Known limits
 
 - English only (protocol, cue lists, personas); Polish appears only in a few withdrawal and consent phrases.
-- The interactive terminal interviewee exists (T6, [ADR-0036](../adr/0036-cli-interview-and-providers-commands.md)); the CLI submits nothing until T11.
+- The interactive terminal interviewee exists (T6, [ADR-0036](../adr/0036-cli-interview-and-providers-commands.md)); the CLI submits only through `submit`, after a typed confirmation (T11, [ADR-0057](../adr/0057-cli-submit-and-delete-receipt-commands.md)).
 - Heuristic reading of vagueness and contradiction (above), with no measured accuracy yet.
 - The quote step guards fidelity, not truth: a verbatim quote can still be a lie the interviewee told ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)).
 - The token budget uses an estimate when the provider reports no usage.

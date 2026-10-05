@@ -64,7 +64,7 @@ internal static class SubmitFlow
             }
         }
 
-        using var ticket = await SecretInput.ReadAsync(host, TicketEnv, "ticket", "Submission ticket (from the web /cli page; typing is hidden): ").ConfigureAwait(false);
+        using var ticket = await SecretInput.ReadAsync(host, TicketEnv, "ticket", "Submission ticket (from the web /cli page)").ConfigureAwait(false);
         if (ticket is null)
         {
             await o.WriteLineAsync("No ticket given. Nothing was sent. Mint one on the web panel's /cli page.").ConfigureAwait(false);

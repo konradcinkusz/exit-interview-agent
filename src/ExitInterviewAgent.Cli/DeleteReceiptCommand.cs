@@ -17,7 +17,7 @@ internal static class DeleteReceiptCommand
         var flags = Flags.Parse(args, Values, Switches);
         var server = ServerUrl.Resolve(flags["--server"], host.Env);
 
-        using var code = await SecretInput.ReadAsync(host, SubmitFlow.ReceiptEnv, "receipt code", "Receipt code (typing is hidden): ").ConfigureAwait(false);
+        using var code = await SecretInput.ReadAsync(host, SubmitFlow.ReceiptEnv, "receipt code", "Receipt code").ConfigureAwait(false);
         if (code is null)
         {
             await host.Out.WriteLineAsync("No receipt code given. Nothing was sent.").ConfigureAwait(false);
