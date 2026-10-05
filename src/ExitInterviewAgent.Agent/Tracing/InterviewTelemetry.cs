@@ -48,6 +48,7 @@ public static class InterviewTelemetry
         public const string UsageInputTokens = "gen_ai.usage.input_tokens";
         public const string UsageOutputTokens = "gen_ai.usage.output_tokens";
         public const string ProviderName = "gen_ai.provider.name";
+        public const string ErrorType = "error.type";
 
         // This repository's own names, for concepts the conventions do not cover.
         public const string ProtocolVersion = "interview.protocol.version";
