@@ -6,7 +6,7 @@ E2E exists to protect the flows that cost users or trust when broken, and to ver
 that no unit test sees. Today those flows are: **sign in (with two-factor) and reach the account through the BFF**, **a
 forged or unsigned token never passes the edge**, **tokens never reach page JavaScript**, **sign-out ends
 the session**, **runtime config exposes no backend address**, **a ticket is shown once and kept nowhere**, **deletion by
-receipt code is anonymous, header-only and uniform**, **the CSP carries a nonce and nothing violates it**, **cross-origin
+receipt code is anonymous, header-only and uniform**, **the Signals pages show what the API returned and nothing derived (no number for `insufficient_data`, no band named for a hidden breakdown, no ranking or sorting affordance), cache and revalidate within the batch, and never retry a 429 by themselves**, **the CSP carries a nonce and nothing violates it**, **cross-origin
 state changes are refused**, and **every page passes the axe-core accessibility rules** (a subset of what a person would check).
 
 E2E does not exist to test single-field validation (unit-test it), to duplicate the backend's own
@@ -17,13 +17,14 @@ integration tests through a browser, or to pixel-check visuals.
 The suite runs the **production artifact** (the Next.js standalone server from `web/`) against
 `support/stub-backend.mjs`, a stub that serves a JWKS, fake accounts (created on first login, one per test), login, single-use
 refresh rotation that revokes on reuse like authservice does, consents, logout, account deletion, two-factor sign-in, registration, email
-verification, the data export, ticket minting and receipt deletion, and an authenticated `/api/v1/me`. It is test scaffolding: it lets the web app's real code (login, HttpOnly cookies, edge gate,
+verification, the data export, ticket minting and receipt deletion, the two Signals read endpoints (synthetic employers, per-account switches under `/__test/signals-config`), and an authenticated `/api/v1/me`. It is test scaffolding: it lets the web app's real code (login, HttpOnly cookies, edge gate,
 proxy with bearer injection) run unmodified without a database or the identity container. Credentials in
 it are fake and exist only there. A full-stack journey against the real AppHost is a later layer.
 
 **Contract note: the stub must stay in sync.** Its ticket and receipt routes mirror the interview-service contract
 (`src/ExitInterviewAgent.Contracts/SubmissionContracts.cs`, ADR-0029, ADR-0030): status codes, the problem+json body, the kernel's
-rate-limit body, the `X-Receipt-Code` header, the code's length and checksum, the 3-live-tickets cap. Its two-factor, register, verify
+rate-limit body, the `X-Receipt-Code` header, the code's length and checksum, the 3-live-tickets cap. Its Signals routes mirror `src/ExitInterviewAgent.Contracts/SignalsContracts.cs` and `SignalsEndpoints.cs` (ADR-0053..0056, ADR-0071):
+shapes, `insufficient_data` without numbers, a suppressed cut without cells, the uniform 404 (cache header only), 400, the limiter's 429 with `Retry-After`, the weak ETag, `private, max-age`, `Vary: Authorization`, `Last-Modified` and 304. Its two-factor, register, verify
 and export routes mirror authservice's controllers. Change the stub in the same pull request as any of those contracts (ADR-0051).
 
 | Layer | Budget | Trigger | Contents |
