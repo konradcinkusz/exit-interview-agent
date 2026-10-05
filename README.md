@@ -38,6 +38,8 @@ dotnet run --project src/ExitInterviewAgent.AppHost
 
 The AppHost prints the Aspire dashboard URL; `web` and `interview-service` get their ports from it. With no credentials at all the stack still starts with reduced features: `GET <interview-service>/health` lists what is degraded, and the startup banner prints the same list.
 
+The MCP path (connecting Claude) is off until you give the AppHost two public https URLs; see [`scripts/README.md`](scripts/README.md#the-mcp-path-claude-connector-locally) and [ADR-012](docs/adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md).
+
 If `ghcr.io/konradcinkusz/authservice` cannot be pulled where you are, run without identity: `Identity__Enabled=false dotnet run --project src/ExitInterviewAgent.AppHost` (protected endpoints then answer 401 and say so). Details: [ADR-003](docs/adr/0003-identity-authservice-as-pinned-image.md).
 
 ## Test it
