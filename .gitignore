@@ -1,0 +1,47 @@
+# Secrets: never committed. secrets.env.example documents every variable.
+.env
+.env.*
+!secrets.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+appsettings.*.local.json
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.binlog
+publish/
+artifacts/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+playwright-report/
+test-results/
+
+# LaTeX build products (only .tex is committed)
+*.aux
+*.log
+*.out
+*.toc
+*.pdf
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/settings.local.json
+.claude/worktrees/
+.last-image-tag

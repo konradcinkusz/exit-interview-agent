@@ -1,0 +1,9 @@
+# Default owner for everything; security-relevant paths are listed so a future second
+# maintainer can be added per path without a restructure.
+*                          @konradcinkusz
+/.github/                  @konradcinkusz
+/flyio/                    @konradcinkusz
+/src/ExitInterviewAgent.ServiceDefaults/ @konradcinkusz
+/scripts/hooks/            @konradcinkusz
+/.gitleaks.toml            @konradcinkusz
+/docs/adr/                 @konradcinkusz

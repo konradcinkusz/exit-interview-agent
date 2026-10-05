@@ -1,0 +1,31 @@
+# Declared, deliberately OFF: every ecosystem the repository has is listed with a schedule,
+# and every one carries open-pull-requests-limit: 0 (no version-update PRs). This is a recorded
+# deviation from REPO-BASELINE §1: see docs/adr/0005-dependency-automation-declared-off.md,
+# which also names the trigger for turning it on. Security updates and vulnerability alerts
+# are repository settings, not this file, and are not affected by it.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0
+  - package-ecosystem: npm
+    directory: /tests/e2e
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0
+  - package-ecosystem: docker
+    directory: /src/ExitInterviewAgent.InterviewService
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0
+  - package-ecosystem: docker
+    directory: /web/app
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0

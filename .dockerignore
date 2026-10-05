@@ -1,0 +1,20 @@
+# Exclusion-based: backend images are built with the repository root as context
+# and must not ship the frontend, tests, docs, infra tree or VCS metadata.
+.git
+.github
+.claude
+docs
+flyio
+scripts
+tests
+web
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/*.md
+.env
+.env.*
+*.pem
+*.key
+TestResults

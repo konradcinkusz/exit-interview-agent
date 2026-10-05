@@ -1,0 +1,13 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.cs text diff=csharp
+*.csproj text
+*.sln text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+pnpm-lock.yaml -diff linguist-generated
+*.Designer.cs linguist-generated
+*ModelSnapshot.cs linguist-generated
