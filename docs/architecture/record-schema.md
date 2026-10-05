@@ -13,7 +13,7 @@ rationale, the privacy reasoning and the versioning policy.
 
 ## What a record is, and is not
 
-A record is **pseudonymous, not anonymous**. It holds structured judgements about six topics, the verbatim excerpts that
+A record is **pseudonymous, not anonymous** ([ADR-0018](../adr/0018-records-are-treated-as-personal-data.md)). It holds structured judgements about six topics, the verbatim excerpts that
 support them, and coarse context. It holds nothing that identifies the person or links to their account. It can still
 describe someone who is the only person in a band at a small employer, and its quotes are free text; the sections below
 say what is done about both and what remains.

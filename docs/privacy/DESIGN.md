@@ -130,10 +130,16 @@ culture, reason for leaving). Controls on what *is* in the record:
 - **Verbatim quotes only, capped in length and count**, PII-masked before storage. Free text is the main
   re-identification and defamation vector; a length cap is also the cheapest mitigation. *Proposal:* cap quote length
   and count in the schema (T1), and treat the cap as part of the privacy contract, not a UX choice.
+  *Decided in T1:* at most 5 quotes per topic, 400 code points each, no control characters
+  ([record-schema](../architecture/record-schema.md)).
 - **Coarse bands, not exact values** for tenure and role family. *Proposal:* the band set is chosen against the
   smallest realistic group (see §5.5 and [OPEN-PROBLEMS](../OPEN-PROBLEMS.md)).
+  *Decided in T1:* tenure (6 bands, required), seniority (4) and function (6), the last two optional
+  ([ADR-0007](../adr/0007-record-context-bands.md)); the threshold K must be applied to every published cut.
 - **Coarse timestamps.** *Proposal:* the record carries no timestamp finer than a week-sized bucket, and the ledger
   none finer than a day, so row timing does not become a join key (§6.3).
+  *Decided in T1, stricter than the proposal:* the record carries **no timestamp at all**, and an architecture test
+  rejects one ([ADR-0011](../adr/0011-no-per-person-identifier-in-the-record.md)). Storage time is the store's concern (§6.3).
 - Every record from a client is untrusted input: schema validation, PII detection, rate and size limits
   (brief §6, T5).
 
