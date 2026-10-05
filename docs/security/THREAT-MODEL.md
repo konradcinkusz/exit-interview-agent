@@ -89,7 +89,10 @@ deliberately kept), `Implemented` (only where noted).
   ([OP-21](../OPEN-PROBLEMS.md#op-21-what-is-withheld-is-itself-a-signal)). **(e)** A batch in which a few known people submitted exposes their joint contribution
   ([OP-19](../OPEN-PROBLEMS.md#op-19-k-is-a-convention-and-small-batches-expose-small-differences)). Very small employers should show **nothing** and the employer-size floor is still an open problem
   ([OP-2](../OPEN-PROBLEMS.md#op-2-employer-registry-and-identity), [OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups)). **Likelihood medium, impact high.**
-- **Status.** Mitigated in code (T10): the rules above are Implemented and tested; the residual items (a)-(e) are Open and documented.
+  **Implemented (T10b), web view:** the pages show what the API returned and derive nothing (a strict reader drops numbers of an `insufficient_data` topic and cells of a suppressed cut before any view sees them); a not-shown employer, an unknown one and a
+  malformed reference get one page that never says which ([ADR-0069](../adr/0069-one-answer-for-nothing-to-show-in-the-ui.md)); no count of employers, respondents or withheld cells is shown; the pages' tests assert the absence of ranking, sorting and comparison affordances.
+  Not covered: a reader who compares figures by eye ([OP-26](../OPEN-PROBLEMS.md#op-26-readers-may-still-compare-employers-by-eye-and-nobody-has-tested-comprehension)).
+- **Status.** Mitigated in code (T10, T10b): the rules above are Implemented and tested; the residual items (a)-(e) are Open and documented.
 
 ### T-02 Re-identification from content: quote style, distinctive episodes, names
 
@@ -172,6 +175,9 @@ deliberately kept), `Implemented` (only where noted).
   `style-src 'self'` with no `unsafe-inline`. Tested against the production artifact: every page loads with zero CSP violations and no third-party request, an injected inline `<script>` and an inline event
   handler are refused, the nonce differs per response and is the one on Next's own scripts. Two cross-origin headers were added (`Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`). **Still true:** the portal renders no stored record content
   (there is no "my records" view and no aggregates yet), so the "encode at render" rule has nothing to apply to; it applies when T10 first renders stored content.
+  **Implemented (T10b):** the Signals pages are the first place the web renders API-provided strings (employer references, band, topic and group labels). They are React text children only: no `dangerouslySetInnerHTML`, no URL built from an API string
+  except `/signals/<ref>` after the reference matches the API's pattern and through `encodeURIComponent`, no markup interpretation. A browser test serves a synthetic employer whose strings are `<img onerror=...>`: nothing runs, no `<img>` appears, no CSP
+  violation. The aggregate path still never carries a quote.
 - **Residual.** Low. `'self'` trusts every script file the origin serves; the CSP is defence in depth behind React's escaping. **Likelihood medium, impact medium.**
 - **Status.** Mitigated for the portal as built (headers and CSP Implemented and tested, T2/T9); the render-time encoding rule is Open until stored content is first rendered (T10).
 
@@ -352,6 +358,8 @@ deliberately kept), `Implemented` (only where noted).
   is a log argument or a metric label (the only label is `outcome`: published, skipped, failed; withheld counts are not emitted because they are themselves a statement about small groups); tests capture the logs and the
   metrics of a publication. **Scope decision:** the employer reference is in the signals URL path, so it is in request logs and in `url.path` of traces like any URL. It is a public identifier (the string the list returns), not
   an attribute of a submitter, and this service adds no account identifier to spans or logs; if reading an employer must not be traceable at all, the reference moves to a POST body.
+  **Implemented (T10b), web side:** the Signals pages add no analytics and no logging of their own; the employer reference is not put in the page title, in web storage, in IndexedDB or in a cookie (a browser test reads all of them), and the figures
+  are not stored by the page. The reference is in the page URL and in the BFF path (`/signals/<ref>`, `/api/proxy/v1/signals/employers/<ref>`), so the web server's own request log carries it exactly as the service's does (the same scope decision).
 - **Residual.** Platform-level logs (proxy, load balancer, database slow-query logs) are outside application control.
   **Likelihood medium, impact high.**
 - **Provider side (T6, Implemented, [ADR-0035](../adr/0035-provider-telemetry-and-export.md)):** the canary test is extended to every provider client (Anthropic, OpenAI-compatible, Ollama) and plants the interviewee's marker, the API key, a response header, a base-URL path and an error body that echoes the request; none appears in any activity of any source, metric label, log line or exception, and each case proves it has power. There is no switch that records prompt or completion text. The scan can fail (a test shows a deliberately leaking span is caught). **Not covered:** a real provider's behaviour (no live call was made).

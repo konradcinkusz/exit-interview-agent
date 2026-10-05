@@ -19,5 +19,5 @@ The eval harness's independent rule ([ADR-0041](0041-mutation-proof-and-independ
 ## Consequences
 
 - No deviation from a principle; no register row.
-- The guard can still miss a double-barrelled question phrased without a coordinating interrogative ("as well as", "plus", a list); that is [OP-26](../OPEN-PROBLEMS.md#op-26-the-double-barrelled-check-is-lexical).
+- The guard can still miss a double-barrelled question phrased without a coordinating interrogative ("as well as", "plus", a list); that is [OP-29](../OPEN-PROBLEMS.md#op-29-the-double-barrelled-check-is-lexical).
 - Management no longer asks about decision-making in its opener; whether that costs coverage of that aspect is not measured by the mock profile (OP-5 and the real-model nightly profiles are where it would show).

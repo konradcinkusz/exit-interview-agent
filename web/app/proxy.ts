@@ -47,6 +47,13 @@ const PUBLIC_PATHS = new Set([
 /** Probes and runtime config set their own short cache lifetime; everything else is never stored. */
 const CACHEABLE = new Set(["/healthz", "/api/config"]);
 
+/** The two Signals reads through the catch-all BFF route. Whether their answer is cacheable is decided by that route, per status. */
+const isSignalsRead = (request: NextRequest) => {
+  if (request.method !== "GET") return false;
+  const path = request.nextUrl.pathname;
+  return path === "/api/proxy/v1/signals/employers" || path.startsWith("/api/proxy/v1/signals/employers/");
+};
+
 /** Reachable by a signed-in account that has not (yet) accepted the current versions. */
 const CONSENT_EXEMPT = new Set(["/consent"]);
 const isConsentExempt = (pathname: string) => CONSENT_EXEMPT.has(pathname) || pathname.startsWith("/api/auth/");
@@ -59,9 +66,16 @@ export async function proxy(request: NextRequest) {
   forwarded.set("content-security-policy", csp);
   forwarded.set("x-nonce", nonce);
 
-  const response = await gate(request, () => NextResponse.next({ request: { headers: forwarded } }));
+  let passedThrough = false;
+  const response = await gate(request, () => {
+    passedThrough = true;
+    return NextResponse.next({ request: { headers: forwarded } });
+  });
   response.headers.set("Content-Security-Policy", csp);
-  if (!CACHEABLE.has(request.nextUrl.pathname)) response.headers.set("Cache-Control", "no-store");
+  // A signals read that reached the BFF route sets its own (bounded, private) caching there; everything the gate itself answers,
+  // a redirect or a 401, is still no-store (ADR-0068).
+  const routeOwnsCaching = passedThrough && isSignalsRead(request);
+  if (!CACHEABLE.has(request.nextUrl.pathname) && !routeOwnsCaching) response.headers.set("Cache-Control", "no-store");
   return response;
 }
 

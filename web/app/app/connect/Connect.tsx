@@ -52,6 +52,11 @@ export function Connect() {
       <h2>{C.cannotTitle}</h2>
       <ul className="plain" data-testid="connect-cannot">{C.cannot.map((s) => <li key={s}>{s}</li>)}</ul>
       <p className="notice">{C.privacyNote}</p>
+      <p className="muted" data-testid="connect-runbook">
+        {C.runbookNote}{" "}
+        <a href={C.runbookHref} rel="noreferrer noopener">{C.runbookLabel}</a>{" "}
+        (<code>{C.runbookPath}</code>)
+      </p>
       <p><Link href="/privacy">{C.privacyLink}</Link> · <Link href="/delete-submission">{C.deleteLink}</Link></p>
     </>
   );

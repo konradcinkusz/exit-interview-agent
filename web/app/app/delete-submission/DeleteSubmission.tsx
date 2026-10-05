@@ -46,6 +46,7 @@ export function DeleteSubmission() {
     <>
       <h1>{D.title}</h1>
       <p>{D.lead}</p>
+      <p className="notice" data-testid="receipt-published-figures">{D.publishedFigures}</p>
 
       {state.kind === "uniform" ? (
         <section aria-live="polite">
