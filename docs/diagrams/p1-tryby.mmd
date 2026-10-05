@@ -1,0 +1,14 @@
+flowchart LR
+    subgraph A["Tryb A: MCP"]
+        UA["Użytkownik"] --> HA["Claude (host i jego dostawca)<br/>prowadzi rozmowę"]
+        HA -->|"tylko rekord"| SA["interview-service /mcp"]
+    end
+    subgraph B["Tryb B: CLI"]
+        UB["Użytkownik"] --> CB["exit-interview<br/>agent lokalnie"]
+        CB -->|"pytania i odpowiedzi"| MB["Twój model<br/>(klucz API lub Ollama)"]
+        CB -->|"tylko rekord + bilet"| SB["interview-service"]
+    end
+    subgraph C["Tryb C: portal"]
+        UC["Użytkownik"] --> WC["web (Next.js, BFF)<br/>konto, zgody, bilety, usuwanie, sygnały"]
+        WC --> SC["interview-service"]
+    end

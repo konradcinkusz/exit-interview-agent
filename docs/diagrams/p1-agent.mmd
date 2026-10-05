@@ -1,0 +1,11 @@
+flowchart LR
+    P["Rozmówca<br/>(tekst niezaufany)"] -->|"surowa odpowiedź"| S["oczyszczenie<br/>+ strażnik PII"]
+    S -->|"tylko tekst zamaskowany"| T[("Zamaskowany zapis rozmowy")]
+    T --> A["ReplyAnalyzer<br/>stałe reguły"]
+    A -->|"same wartości logiczne"| M["Maszyna stanów<br/>decyduje o każdym kroku"]
+    M --> I["Model formułuje pytanie"]
+    I --> G["QuestionGuard<br/>albo tekst z protokołu"]
+    G --> P
+    T --> X["Ekstraktor<br/>zwraca JSON"]
+    X --> V["schemat + składanie rekordu<br/>+ weryfikacja cytatów + walidacja"]
+    V --> R[("Rekord wywiadu")]

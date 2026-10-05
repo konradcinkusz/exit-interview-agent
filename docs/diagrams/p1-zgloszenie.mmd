@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    actor O as Osoba
+    participant W as Portal web
+    participant C as CLI exit-interview
+    participant S as interview-service
+    participant D as Baza (jedna transakcja)
+    O->>C: interview --out (powstaje record.json)
+    O->>W: logowanie, utwórz bilet (pokazany raz)
+    W-->>O: bilet (15 do 20 min, jednorazowy)
+    O->>C: submit
+    C->>C: ponowna kontrola lokalna
+    C-->>O: podgląd dokładnie tego, co wyjdzie
+    O->>C: wpisuje submit i podaje bilet
+    C->>S: rekord + nagłówek z biletem
+    S->>S: schemat, skan PII, aiDisclosed, weryfikator
+    S->>D: wpis w księdze, rekord, paragon
+    S-->>C: kod paragonu (raz)
+    C-->>O: kod paragonu, pokazany raz
+    O->>C: delete-receipt (kod)
+    C->>S: DELETE /api/v1/receipts
+    S->>D: usuń rekord o tym haszu
+    S-->>C: 204 (tak samo dla każdego poprawnego kodu)

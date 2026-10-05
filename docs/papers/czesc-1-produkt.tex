@@ -1,0 +1,1137 @@
+% ============================================================================
+% Część 1 przewodnika: produkt (wprowadzenie, problem, architektura, rekord,
+% agent prowadzący wywiad, złożenie zgłoszenia). Plik jest wczytywany przez
+% \input z przewodnik.pl.tex -- zawiera wyłącznie treść od \section.
+% Źródła: README.md, docs/release/RELEASE-GATE.md, docs/architecture/*.md,
+% docs/OPEN-PROBLEMS.md, docs/adr/0007. Rysunki: docs/diagrams/p1-*.mmd i system.mmd.
+% ============================================================================
+
+\section{Wprowadzenie}
+
+\subsection{Czym jest ten produkt}
+
+\textbf{Exit Interview Agent} to otwartoźródłowy agent AI, który prowadzi
+ustrukturyzowane wywiady pożegnalne (ang.\ \emph{exit interview}) z byłymi
+pracownikami. Z każdej rozmowy powstaje \emph{rekord}: krótki, ustrukturyzowany
+dokument z ocenami sześciu tematów i kilkoma dosłownymi cytatami z wypowiedzi
+rozmówcy. Rekordy wielu osób można następnie zsumować w porównywalne
+\emph{sygnały o pracodawcy} --- ale tylko wtedy, gdy w każdej pokazywanej
+komórce jest ich dość dużo i zawsze razem z miarą niepewności. Trzecim
+składnikiem jest zestaw testów jakości \emph{samego wywiadu} (nie pracodawcy
+i nie człowieka), oparty na śladach OpenTelemetry; jego opis należy do
+dalszych części przewodnika.
+
+Projekt sam o sobie mówi, że jest \emph{narzędziem i pracą portfolio},
+a nie firmą ani publiczną platformą z opiniami (\repopath{README.md},
+\repopath{docs/architecture/PROJECT-BRIEF.md}, §1). Jedna zasada wynika z tego
+zdania i przewija się przez cały przewodnik: \finding{projekt nie hostuje żadnego
+modelu językowego --- moc obliczeniową przynosi użytkownik} (własny klucz API
+albo model lokalny).
+
+\subsection{Dla kogo}
+
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+Rola & Co z tego ma i co robi \\
+\midrule
+Były pracownik &
+Przechodzi rozmowę prowadzoną przez AI, która na początku mówi, że jest AI,
+wyjaśnia, co zostanie zapisane, i prosi o jasną zgodę. Może przerwać w każdej
+chwili --- przerwanie nie zostawia nic. Dostaje kod paragonu, którym później
+może usunąć swój rekord. \\
+Pracodawca (i czytelnik wyników) &
+Nie dostaje pojedynczych opinii --- te nie są nigdy publikowane. Widzi tylko
+zagregowane sygnały: z miarą niepewności, z podaniem pokrycia obok każdej oceny,
+bez jednej łącznej punktacji i bez rankingu. \\
+Deweloper / operator &
+Uruchamia system lokalnie (jedno polecenie), podpina model, konfiguruje
+tożsamość i księgę zgłoszeń, rozwija agenta i uruchamia testy. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Mapa przewodnika}
+
+Przewodnik ma cztery części. Ta pierwsza odpowiada na pytanie \emph{co i dlaczego}:
+problem, zasady projektowe, architekturę, rekord, agenta i drogę rekordu do
+serwera. Pozostałe części (obsługa, prywatność, jakość) opisują, jak z tego
+korzystać, co chroni dane i jak mierzy się jakość wywiadu. Źródłem prawdy dla
+każdej liczby i każdego twierdzenia są pliki w repozytorium (\repopath{docs/},
+\repopath{README.md}, kod w \repopath{src/} i \repopath{web/}); gdzie czegoś nie
+zmierzono, piszemy to wprost.
+
+\subsection{Status projektu: co jest, a czego jeszcze nie ma}
+
+README stosuje rygorystyczną konwencję: słowo \emph{Zaimplementowane} oznacza
+kod na gałęzi \texttt{main}, wszystko inne jest planem przypisanym do zadania
+z backlogu. W chwili pisania wszystkie zadania T0--T11 są oznaczone jako
+zaimplementowane, a T12 (przegląd bezpieczeństwa, bramka wydania, opis wyników)
+jako planowane. Poniższa tabela streszcza stan README.
+
+\begin{longtable}{@{}p{0.31\linewidth}p{0.64\linewidth}@{}}
+\toprule
+Obszar & Stan \\
+\midrule
+\endhead
+Szkielet (Aspire AppHost, wspólne jądro, jedna usługa z własną bazą, portal Next.js z BFF, kontenery, CI, skan sekretów) & zaimplementowane (T0) \\
+Tożsamość: \texttt{authservice} jako przypięty obraz, walidacja JWT tylko RS256 & zaimplementowane (T0) \\
+Rekord v1, biblioteka walidacji, deterministyczny detektor PII & zaimplementowane (T1) \\
+Dwa schematy JWT (web i MCP), rotacja odświeżania w BFF, zgody, usuwanie konta & zaimplementowane (T2); nie uruchomiono: pełnego przepływu z Claude i obrazu \texttt{v0.3.4} \\
+Rdzeń agenta, skryptowy model testowy, osiem symulowanych person, demo offline & zaimplementowane (T4); model testowy to element testów, nie wzorzec jakości \\
+Zgłoszenia po stronie serwera: walidacja, księga, kod paragonu, bilety, retencja & zaimplementowane (T5); weryfikator zatrudnienia to atrapa, niczego nie weryfikuje (OP-1) \\
+Dostawcy modeli (Anthropic, zgodne z OpenAI, Ollama), interaktywne \texttt{interview} & zaimplementowane (T6); \textbf{nie wywołano żadnego prawdziwego dostawcy} \\
+Zestaw testów jakości (27 scenariuszy, asercje warstwy 1, sędzia warstwy 2, baseline, bramka CI) & zaimplementowane (T7); tylko profil z modelem testowym, \textbf{żaden prawdziwy model nie był oceniany} \\
+Serwer MCP (tryb A) & zaimplementowane (T8); \textbf{nie uruchomiono z prawdziwym klientem Claude} (OP-18) \\
+Panel web & zaimplementowane (T9); testowany względem atrapy backendu, nie prawdziwych usług (OP-17); tylko angielski; bez ręcznego przeglądu dostępności (OP-16) \\
+Sygnały (moduł i strony web) & zaimplementowane (T10, T10b); strony testowane względem atrapy zgodnej z kontraktem (OP-28); zrozumiałość dla czytelników nie była testowana (OP-26) \\
+Zgłoszenie z CLI (\texttt{submit}, \texttt{delete-receipt}) & zaimplementowane (T11); nie uruchomiono względem wdrożenia ani przez prawdziwe TLS (OP-23 do OP-25) \\
+Przegląd bezpieczeństwa, bramka wydania, opis wyników & planowane (T12) --- patrz niżej \\
+\bottomrule
+\end{longtable}
+
+\uwaga{Nic nie jest wdrożone i w tej fazie nic nie będzie. Pliki Fly.io
+i workflowy \texttt{flyio*.yml} są wygenerowane, ale nigdy nie uruchomione;
+repozytorium jest prywatne, a upublicznienie jest decyzją właściciela.
+\textbf{Projekt nie przetwarza danych żadnej prawdziwej osoby} i nie oferuje
+prawdziwych wywiadów --- dopóki nie istnieje polityka prywatności, podstawa
+prawna, działające usuwanie i przegląd prawnika (README, sekcja o celach
+niebędących celami).}
+
+Dokument \repopath{docs/release/RELEASE-GATE.md} (uruchomiony 2026-10-05) wydaje
+werdykt \textbf{NIE GOTOWE do publicznego wydania}. Pozycje bramki mają wynik
+PASS, FAIL, NOT RUN lub OWNER DECISION. Z tabeli bramki wynika:
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{PASS}: brak podatnych pakietów NuGet; obecność plików LICENSE,
+        SECURITY.md i innych; poprawność odnośników w dokumentacji; plakietki
+        tylko dla rzeczy, które istnieją.
+  \item \textbf{FAIL}: 16 commitów na \texttt{main} zawiera nazwę modelu
+        w komunikacie lub stopce (wbrew regule projektu --- decyzja właściciela:
+        zostawić albo przepisać historię); a także proces --- trzy dokumentacyjne
+        commity trafiły bezpośrednio na \texttt{main} bez PR i CI.
+  \item \textbf{OWNER DECISION}: jedna wysoka podatność npm (\texttt{braces}),
+        obecna tylko w zależnościach deweloperskich; widoczność repozytorium
+        pozostaje niezmieniona.
+  \item \textbf{NOT RUN}: skan sekretów całej historii prawdziwym skanerem,
+        audyt licencji zależności, weryfikacja źródeł prawnych (proxy odmówiło
+        dostępu do 9 źródeł), a także sprawdzenia ``w świecie rzeczywistym'':
+        żywy konektor Claude, logowanie dwuskładnikowe z prawdziwym
+        \texttt{authservice}, prawdziwe TLS, Windows i macOS, przegląd
+        z czytnikiem ekranu, ocena prawdziwego modelu.
+\end{itemize}
+
+\finding{Dokument bramki wyraźnie zastrzega, że to nie jest dowód na obecność
+sekretów w repozytorium --- to wykaz tego, co sprawdzono i czego nie.}
+
+\section{Problem i zasady projektowe}
+
+\subsection{Problem, który produkt próbuje rozwiązać}
+
+Wywiad pożegnalny prowadzony przez pracodawcę ma wrodzoną wadę: osoba, która
+odchodzi, rzadko mówi wprost to, co myśli o przełożonym, i trudno to potem
+porównać między firmami. Dokumentacja projektu nie opiera się jednak na
+obietnicy ``szczerości'' --- opisuje cel bardziej skromnie: ustrukturyzowany
+wywiad, który daje \emph{porównywalny} rekord, oraz agregaty, które nie
+pozwalają zidentyfikować pojedynczego autora. Dlatego ciężar projektu leży
+nie w samej rozmowie z modelem, lecz w tym, \emph{co się z nią dzieje dalej}:
+co jest zapisywane, czego celowo nie zapisuje się wcale i kto może coś
+połączyć z czym.
+
+\subsection{Zasady projektowe wynikające z briefu}
+
+Dokument \repopath{docs/architecture/PROJECT-BRIEF.md} jest wiążący dla każdego,
+kto pracuje nad repozytorium. Zasady, które kształtują produkt, to:
+
+\begin{enumerate}[itemsep=3pt]
+  \item \textbf{Konto nie ma związku z pracodawcą.} Logowanie do portalu
+        identyfikuje tylko konto. Pracodawca jest polem zgłaszanego rekordu;
+        nigdy nie modeluje się zdania ``to konto należy do pracodawcy X''.
+  \item \textbf{Rekord nie ma identyfikatora osoby.} Brak identyfikatora
+        użytkownika, adresu e-mail, IP, nazwiska i znacznika czasu (więcej
+        w rozdziale o rekordzie).
+  \item \textbf{Jeden wpis na pracodawcę na konto.} Wymusza to osobna
+        \emph{księga zgłoszeń}, w której nie ma treści ani identyfikatora rekordu,
+        tylko zaszyfrowany kluczem skrót (HMAC) pary: konto i pracodawca.
+  \item \textbf{Usuwanie przez kod paragonu.} Po zgłoszeniu użytkownik dostaje
+        losowy kod; serwer trzyma tylko jego skrót; okazanie kodu usuwa rekord
+        bez łączenia go z kontem.
+  \item \textbf{Agregaty tylko od progu K.} Domyślnie K wynosi 5 i dotyczy
+        \emph{każdej pokazywanej komórki}, a nie tylko całego pracodawcy;
+        publikacja jest wsadowa; zawsze podaje się niepewność; nie ma jednej
+        łącznej oceny pracodawcy ani rankingu.
+  \item \textbf{Rekordy są danymi osobowymi.} Nigdy nie nazywa się ich
+        ``anonimowymi'' ani ``zanonimizowanymi'' (ADR-0018); agregaty można
+        nazywać ``zagregowanymi''.
+  \item \textbf{Żadnych danych osobowych ani treści rozmów w logach, śladach
+        i zdarzeniach audytu.}
+  \item \textbf{Każdy rekord od klienta jest niezaufanym wejściem}: walidacja
+        schematu, wykrywanie PII, limity szybkości i rozmiaru.
+  \item \textbf{Zasady agenta:} brak pytań sugerujących; prośba o konkretny
+        przykład, gdy twierdzenie jest mgliste; nigdy nie pytać o nazwiska ani
+        ich nie zapisywać (wykryć i zamaskować); respektować wycofanie zgody
+        i przerwać na żądanie; na początku ujawnić, że to AI; w schemacie
+        ekstraktora nie ma pola na emocje, sentyment ani afekt.
+\end{enumerate}
+
+\subsection{Czego projekt jawnie nie robi (cele negatywne)}
+
+Brief zawiera listę ``non-goals'', które są równie ważne jak cele:
+
+\begin{itemize}[itemsep=2pt]
+  \item żadnego blockchaina, tokenów ani DAO (niezmienność kłóci się z prawem
+        do usunięcia danych w RODO);
+  \item żadnej publikacji pojedynczych opinii --- tylko agregaty powyżej minimum;
+  \item żadnych prawdziwych wywiadów z prawdziwymi ludźmi w tej fazie: wyłącznie
+        symulowane persony;
+  \item żadnej prawdziwej weryfikacji zatrudnienia: jest interfejs
+        \texttt{IEmploymentVerifier} i atrapa, a prawdziwa weryfikacja jest
+        opisana jako problem otwarty;
+  \item brak obsługi tokenów subskrypcji Claude (Free/Pro/Max) ani GitHub
+        Copilot jako backendu modelu. Dla Claude powodem jest dokumentacja
+        Anthropic (czytana 2026-10-05), według której podmioty trzecie nie
+        mogą oferować logowania Claude.ai ani kierować zapytań przez
+        poświadczenia planów subskrypcyjnych. Dla Copilota powodem jest to, że
+        warunków \emph{nie udało się zweryfikować} --- to nie jest ustalenie,
+        że są zabronione;
+  \item żadnego wdrożenia i żadnego upubliczniania repozytorium przez
+        sesje robocze.
+\end{itemize}
+
+Obsługiwany dostęp do modelu to: klucz API Anthropic, dowolny punkt końcowy
+zgodny z OpenAI i modele lokalne przez Ollama. Dla klucza Anthropic README
+zauważa, że zastosowania związane z zatrudnieniem podlegają wymaganiom
+Anthropic dla zastosowań wysokiego ryzyka; warunków OpenAI \emph{nie
+udało się odczytać} (są oznaczone jako niezweryfikowane).
+
+\subsection{Problemy otwarte --- co zostaje nierozwiązane}
+
+Plik \repopath{docs/OPEN-PROBLEMS.md} wylicza 29 problemów (OP-1 do OP-29).
+Przy każdym podaje: dlaczego ma znaczenie, co robi się teraz i co by go zamknęło.
+Zasada jest taka, że wymieniony problem to świadoma decyzja, a niewymieniony
+to dryf. Tabela poniżej pokazuje te, które najbardziej dotyczą tej części.
+
+\begin{longtable}{@{}p{0.09\linewidth}p{0.62\linewidth}p{0.2\linewidth}@{}}
+\toprule
+Nr & Problem & Waga \\
+\midrule
+\endhead
+OP-1 & Brak prawdziwej weryfikacji zatrudnienia --- system nie odróżni
+       prawdziwego byłego pracownika od skryptu, konkurenta czy samego pracodawcy;
+       każdy agregat jest ``deklarowany przez konta'' & wysoka \\
+OP-2 & Brak rejestru pracodawców (wolny tekst rozbijałby jednego pracodawcę
+       na wielu, co obchodzi próg K) & wysoka \\
+OP-3 & Granulacja pasm a małe grupy & wysoka \\
+OP-4 & Próba skrzywiona w stronę użytkowników technicznych --- do uruchomienia
+       trzeba hosta MCP lub CLI z kluczem & średnia \\
+OP-5 & Stronniczość modeli (inne pytania lub maskowanie nazwisk zależnie od
+       języka i pochodzenia) & średnia \\
+OP-6 & Wielojęzyczność --- stan to ``angielski testowany, polski nietestowany'' & średnia \\
+OP-7 & Logowanie CLI bez klientów publicznych w \texttt{authservice} --- stąd
+       bilety & średnia \\
+OP-12 & Kod paragonu: dostęp bez listy rekordów; zgubiony kod oznacza brak
+        możliwości usunięcia & średnia \\
+OP-13 & Korelacja na poziomie składowania między księgą a rekordami & średnia \\
+OP-18 & Tryb A: wierność hosta, tekst otwierający i niezweryfikowane
+        uruchomienie z Claude & wysoka \\
+OP-19 & K jest konwencją, a małe partie ujawniają małe różnice & wysoka \\
+\bottomrule
+\end{longtable}
+
+\finding{Najpoważniejsze ograniczenie jest wpisane w sam produkt: operator,
+który ma bazę, klucz podpisujący i żywy ruch, może skorelować konta z rekordami,
+a małe grupy mogą być rozpoznawalne.} Dokumentacja prywatności i model zagrożeń
+(część 3 przewodnika) opisują to szczegółowo.
+
+\section{Architektura}
+
+\subsection{Kształt systemu}
+
+Dokument \repopath{docs/architecture/00-ARCHITECTURE.md} opisuje system jako:
+jeden korzeń kompozycji (AppHost), jedno wspólne jądro, jedną usługę z własną
+bazą, jedną powierzchnię produktu i jedną zużywaną usługę tożsamości.
+Odniesieniem są zasady P1--P15 z repozytorium \texttt{architecture-}\allowbreak\texttt{standards};
+każde odstępstwo to ADR i wiersz w rejestrze odstępstw z datą i powodem.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\linewidth,height=0.5\textheight,keepaspectratio]{\dgm{system}}
+\caption{Architektura systemu (\texttt{docs/diagrams/system.mmd}): przeglądarka
+rozmawia tylko z portalem (bramka brzegowa i BFF); BFF wywołuje
+\texttt{authservice} oraz \texttt{interview-service} z tokenem z ciasteczka
+HttpOnly; klient MCP (Claude) uwierzytelnia się w \texttt{authservice}, a potem
+wywołuje \texttt{/mcp}. AppHost jedynie komponuje całość (tylko rozwój).}
+\end{figure}
+
+\subsection{Projekty w \texttt{src/}}
+
+\begin{longtable}{@{}p{0.38\linewidth}p{0.57\linewidth}@{}}
+\toprule
+Projekt & Rola \\
+\midrule
+\endhead
+\repopath{AppHost} & korzeń kompozycji (P1), tylko do rozwoju; jedno polecenie
+  uruchamia Postgres, \texttt{authservice}, \texttt{interview-service} i web \\
+\repopath{ServiceDefaults} & wspólne jądro (P2): telemetria, zdrowie, wykrywanie
+  usług, odporność, walidacja JWT, CORS, ograniczanie szybkości --- wyłącznie
+  ``instalacja'', bez logiki domenowej; rozmiar pilnuje skrypt
+  \texttt{check-kernel-size.sh} \\
+\repopath{Contracts} & obiekty DTO i stabilne kody odrzuceń przekraczające
+  granicę usług \\
+\repopath{InterviewService} & jedyna usługa; właściciel bazy \texttt{interviewdb};
+  zgłoszenia, księga, paragony, bilety, retencja; gości moduł Signals i punkt
+  MCP \\
+\repopath{Signals} & moduł sygnałów: reguły ujawniania, statystyka, wsadowy
+  publikator, własny schemat bazy; zna tylko jądro \\
+\repopath{Records} & rekord wywiadu: niezmienny model, walidacja schematu,
+  postać kanoniczna, wierność cytatów \\
+\repopath{Privacy} & deterministyczny detektor i maskownik PII \\
+\repopath{Agent} & rdzeń agenta: protokół, maszyna stanów, role, strażnik PII,
+  krok cytatów, model testowy \\
+\repopath{Personas} & symulowani rozmówcy sterowani danymi i ziarnem losowości \\
+\repopath{Providers} & dostawcy modeli za \texttt{IChatClient} \\
+\repopath{Cli} & program \texttt{exit-interview}: demo, \texttt{interview},
+  \texttt{providers}, \texttt{submit}, \texttt{delete-receipt} \\
+\repopath{Eval} & zestaw ocen jakości wywiadu i narzędzie \texttt{exit-interview-eval} \\
+\bottomrule
+\end{longtable}
+
+Poza \texttt{src/} istnieją: \texttt{web/app} (portal Next.js z BFF),
+\texttt{schemas/} (publikowane, wersjonowane schematy: rekord, wyjście
+ekstraktora, persona), \texttt{tests/} (projekty xUnit odpowiadające źródłom
+oraz scenariusze Playwright w \texttt{tests/e2e}) i \texttt{flyio/}
+(wygenerowana, niewdrożona topologia). Liczby zależności bezpośrednich
+projektów (np.\ 0 dla \texttt{Contracts} i \texttt{Privacy}, 12 dla jądra)
+pochodzą z tabeli w \texttt{00-ARCHITECTURE.md} i są odtwarzalne poleceniem
+\texttt{grep -c PackageReference} na plikach projektów.
+
+\subsection{Usługa tożsamości \texttt{authservice}}
+
+Projekt \emph{nie} implementuje logowania. Korzysta z osobnej usługi
+\texttt{authservice} jako przypiętego obrazu kontenera (z własną bazą
+\texttt{authdb} i własnym kluczem podpisującym; kod nigdy nie jest kopiowany).
+To \texttt{authservice} utrzymuje jedyny klucz podpisujący (RS256), a usługi
+walidują tokeny wyłącznie tym algorytmem, na podstawie zestawu kluczy JWKS.
+Rejestruje ona tylko klientów \emph{poufnych} OAuth (sekret co najmniej
+32 bajty, bez klienta publicznego, bez przepływu urządzenia, bez dynamicznej
+rejestracji). Ma to dwie konsekwencje, które kształtują architekturę:
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{Dwa schematy JWT} w \texttt{interview-service}: zwykły
+        (web/BFF) oraz schemat MCP, w którym token jest związany z odbiorcą
+        (\texttt{aud}) zasobu MCP, a zakres (\texttt{interview:submit})
+        egzekwuje sama usługa. Tokeny jednego schematu są odrzucane przez drugi
+        (testy negatywne macierzy tokenów).
+  \item \textbf{CLI nie używa OAuth.} Opublikowany plik binarny nie utrzyma
+        sekretu, więc zamiast tego portal mintuje jednorazowy bilet (rozdział~6).
+\end{itemize}
+
+Gdy obraz \texttt{authservice} nie jest dostępny, stos można uruchomić bez
+tożsamości (\texttt{Identity\_\_}\allowbreak\texttt{Enabled=false}); chronione punkty końcowe
+odpowiadają wtedy 401 i mówią o tym wprost. Zasada P8 (opcjonalne zależności
+degradują się) jest realizowana przez \texttt{IntegrationStatus}: punkt
+\texttt{/health} wylicza, co działa (tożsamość, uwierzytelnianie MCP, baza,
+eksport telemetrii, klucz księgi, weryfikator zatrudnienia, sygnały), a ten sam
+spis wypisuje baner startowy.
+
+\subsection{Portal web i BFF}
+
+\texttt{web/app} jest zarazem powierzchnią produktu i BFF (\emph{backend for
+frontend}). Przeglądarka rozmawia wyłącznie z tym samym źródłem; tokeny
+trzymane są w ciasteczkach HttpOnly (SameSite=Strict), a nie w skryptach strony.
+Najważniejsze mechanizmy (opis w tabeli ``The web panel'' w dokumencie
+architektury):
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{Bramka brzegowa} (\texttt{proxy.ts}): weryfikuje podpis,
+        wystawcę i odbiorcę tokenu, ma jawną listę ścieżek publicznych, wymusza
+        krok zgody, ustawia CSP z nonce na każde żądanie, \texttt{no-store}
+        i kontrolę tego samego źródła dla zmian stanu.
+  \item \textbf{Proxy z jedną ścieżką} (\texttt{app/api/proxy}): mapuje tylko
+        ścieżki \texttt{v1/*} i wstrzykuje token z ciasteczka.
+  \item \textbf{Osobna anonimowa ścieżka usuwania przez paragon}, bez konta
+        i bez tokenu --- bo ten punkt końcowy jest anonimowy z założenia (ADR-0049).
+  \item \textbf{Brak listy ``moje zgłoszenia''} --- celowo i na stałe: rekordy
+        nie są powiązane z kontami, więc takiej listy nie dałoby się zbudować
+        bez zerwania zasady prywatności.
+\end{itemize}
+
+Portal nie uruchamia żadnego modelu. Ekrany: strona główna, logowanie z drugim
+składnikiem, rejestracja i weryfikacja e-mail, zgoda, podłączenie klienta AI,
+bilet CLI (pokazywany raz), usuwanie przez kod paragonu, konto (eksport danych,
+usunięcie), strona prywatności oraz strony sygnałów. Portal jest po angielsku
+i ma bramkę dostępności axe-core; ręcznego przeglądu dostępności nie
+wykonano (OP-16).
+
+\subsection{Trzy tryby użycia}
+
+Brief definiuje trzy tryby. Wspólna cecha: \emph{serwer nigdy nie widzi
+zapisu rozmowy, tylko rekord.} Różnią się tym, kto rozmowę prowadzi i kto ją
+widzi.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth,height=0.45\textheight,keepaspectratio]{\dgm{p1-tryby}}
+\caption{Trzy tryby: kto prowadzi rozmowę i co trafia do serwera. W trybie A
+cała rozmowa widoczna jest dla Claude i jego dostawcy; w trybie B --- dla
+dostawcy modelu, który wybrałeś (albo dla nikogo, przy modelu lokalnym).}
+\end{figure}
+
+\begin{longtable}{@{}p{0.17\linewidth}p{0.38\linewidth}p{0.4\linewidth}@{}}
+\toprule
+Tryb & Jak działa & Kto widzi rozmowę \\
+\midrule
+\endhead
+\textbf{A: MCP z Claude} &
+Użytkownik łączy Claude (własny klient Anthropic) z serwerem MCP.
+Model-gospodarz prowadzi wywiad według \emph{promptu}, który serwer publikuje,
+a rekord wysyła narzędziem. Obsługiwany jest wyłącznie Claude (redirect URI
+\texttt{claude.ai}); inne hosty to praca przyszła (OP-9). &
+Claude i jego dostawca widzą całą rozmowę, serwer --- tylko rekord. README
+nazywa ten tryb najsłabszym z trzech pod względem prywatności i wierności:
+serwer nie obserwuje, czy host ujawnił AI, uzyskał zgodę, zadawał neutralne
+pytania. \\
+\textbf{B: CLI} &
+Program \texttt{exit-interview} prowadzi cały wielorolowy wywiad lokalnie
+(prowadzący, dopytujący, ekstraktor rekordu, strażnik PII) z kluczem API
+użytkownika lub modelem lokalnym. Zapis rozmowy zostaje w pamięci na maszynie. &
+Dostawca modelu, który wybrałeś, widzi całą rozmowę; przy Ollama na własnej
+maszynie program niczego nie wysyła. Do serwera trafia tylko rekord
+i bilet --- i tylko jeśli zdecydujesz się uruchomić \texttt{submit}. \\
+\textbf{C: portal} &
+Konto, zgody, bilety CLI, usuwanie przez paragon, prywatność oraz strony
+sygnałów. Nie uruchamia żadnego modelu. & Nie prowadzi rozmów. \\
+\bottomrule
+\end{longtable}
+
+\uwaga{Tryb offline (\texttt{demo}) uruchamia całą rozmowę z symulowaną osobą
+i deterministycznym modelem testowym: bez sieci, bez kluczy, bez wysyłania.
+Z tym samym ziarnem wynik jest identyczny bajt w bajt (sprawdzono: dwa
+uruchomienia \texttt{demo --persona talkative --seed 1} dały identyczne
+112 linii wyjścia, RESULTS.md §1).}
+
+\section{Rekord wywiadu}
+
+Rekord jest umową całego systemu: produkują go CLI i ścieżka MCP, waliduje
+i przechowuje usługa przyjmowania, agreguje moduł sygnałów, a zestaw ocen
+sprawdza jego wierność. Poniżej streszczenie dokumentu
+\texttt{docs/architecture/}\allowbreak\texttt{record-schema.md} i ADR-0007. Schemat
+(JSON Schema 2020-12, plik \texttt{record.v1.schema.json} w katalogu \texttt{schemas/})
+oraz biblioteka \texttt{Records} są źródłem prawdy.
+
+\finding{Rekord jest pseudonimowy, nie anonimowy (ADR-0018).} Zawiera
+ustrukturyzowane oceny sześciu tematów, dosłowne cytaty uzasadniające je
+i grube pasma kontekstu; nie zawiera niczego, co identyfikuje osobę lub łączy
+z jej kontem.
+
+\subsection{Pola rekordu}
+
+\begin{longtable}{@{}p{0.3\linewidth}p{0.65\linewidth}@{}}
+\toprule
+Pole & Znaczenie \\
+\midrule
+\endhead
+\texttt{schemaVersion} & ciąg \texttt{"1"}; wybiera umowę (tylko wersja główna) \\
+\texttt{interviewId} & 32 małe znaki szesnastkowe = 128 losowych bitów z CSPRNG
+  systemu; nie pochodzi z konta, pracodawcy, czasu ani treści \\
+\texttt{employerRef} & nieprzezroczyste odniesienie do pracodawcy, 3--64 znaki,
+  wzorzec \texttt{[a-z0-9]} z myślnikami; ścisły wzorzec wyklucza wolny tekst,
+  nazwiska i adresy e-mail \\
+\texttt{context.tenureBand} & pasmo stażu (wymagane) \\
+\texttt{context.seniorityBand}, \texttt{context.functionBand} & pasma opcjonalne;
+  gdy wstrzymane, są \emph{pominięte}, nigdy \texttt{null} \\
+\texttt{topics.<temat>} & zawsze wszystkie sześć tematów:
+  \texttt{onboarding}, \texttt{management}, \texttt{growth},
+  \texttt{pay\_vs\_promises}, \texttt{culture}, \texttt{reason\_for\_leaving} \\
+\texttt{status} & \texttt{no\_data} albo \texttt{covered}. \emph{Brak danych
+  nie jest niską oceną} \\
+\texttt{rating} & liczba całkowita 1--5 (1 bardzo negatywna, 5 bardzo
+  pozytywna) lub \texttt{null} \\
+\texttt{confidence} & \texttt{low}, \texttt{medium}, \texttt{high} lub
+  \texttt{null}: trzy poziomy, nie liczba --- ułamek udawałby precyzję,
+  której ekstrakcja nie ma \\
+\texttt{quotes} & do 5 dosłownych cytatów po maks.\ 400 punktów kodowych \\
+\texttt{piiMasked} & prawda, gdy cytaty pochodzą z zapisu, który przeszedł
+  maskownik PII; przyjmowanie odrzuca \texttt{false} domyślnie \\
+\texttt{interview.protocolVersion} & wersja protokołu wywiadu \\
+\texttt{interview.language} & kod języka ISO 639 \\
+\texttt{interview.aiDisclosed} & prawda, gdy prowadzący powiedział, że jest AI,
+  przed rozpoczęciem; przyjmowanie odrzuca \texttt{false} domyślnie \\
+\texttt{interview.durationBand}, \texttt{interview.turnBand} & pasma czasu trwania
+  i liczby tur (po cztery wartości) \\
+\bottomrule
+\end{longtable}
+
+Spójność tematu wymusza sam schemat: dla \texttt{no\_data} ocena i pewność są
+\texttt{null}, a cytatów jest zero; dla \texttt{covered} jest od 1 do 5
+cytatów, a ocena nie występuje bez cytatu wspierającego (inaczej kod błędu
+\texttt{TOPIC\_INCONSISTENT}). Agregacja musi liczyć \texttt{no\_data} jako
+brak, nigdy jako niski wynik --- dlatego to osobny stan.
+
+\subsection{Pasma kontekstu}
+
+Kontekst to dokładnie trzy pola, każde będące enumeracją --- klient nie może
+wpisać prozy (ADR-0007).
+
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+Pole & Wartości & Wymagane \\
+\midrule
+\texttt{tenureBand} & \texttt{lt\_6m}, \texttt{6m\_1y}, \texttt{1y\_3y}, \texttt{3y\_5y}, \texttt{5y\_10y}, \texttt{gt\_10y} & tak \\
+\texttt{seniorityBand} & \texttt{junior}, \texttt{mid}, \texttt{senior}, \texttt{management} & nie \\
+\texttt{functionBand} & \texttt{engineering}, \texttt{product\_design}, \texttt{sales\_marketing}, \texttt{operations\_support}, \texttt{corporate\_functions}, \texttt{other} & nie \\
+\bottomrule
+\end{tabularx}
+
+\medskip
+Uzasadnienie (ADR-0007): pełny iloczyn pasm to $6\times4\times6 = 144$ komórek.
+Pasma są nieliczne i szerokie, tak by żadne nie znaczyło ``garstki ludzi'' u
+średniego pracodawcy: \texttt{management} łączy kierowników zespołów, menedżerów
+i dyrektorów (jednoosobowe pasmo ``dyrektor'' byłoby nazwiskiem),
+\texttt{corporate\_functions} łączy finanse, prawo, HR i administrację, a
+\texttt{other} istnieje, by nikt nie musiał wybierać błędnego pasma. Staż jest
+jedynym wymaganym pasmem, bo jest najmniej identyfikujący, a najbardziej
+przydatny przy interpretacji tematów. Otwarte górne pasmo uniemożliwia
+singleton ``pracownik założyciel''. Metadane wywiadu też są w pasmach
+(czas: od \texttt{lt\_10m} do \texttt{gt\_40m}; liczba tur: \texttt{lt\_10},
+\texttt{10\_20}, \texttt{20\_40}, \texttt{gt\_40}), bo dokładny czas lub liczba
+tur to odcisk palca sesji.
+
+Limity są częścią kontraktu prywatności, a nie wyborem UX: 5 cytatów na temat,
+400 punktów kodowych na cytat (``około trzech, czterech zdań'': mieści jeden
+konkretny przykład, a nie długą identyfikującą anegdotę), co daje najwyżej 30
+cytatów i 12\,000 punktów kodowych na rekord, oraz ładunek maks.\ 160~KiB.
+Cytat nie może zawierać znaków sterujących, końców linii ani znaków
+nadpisujących kierunek tekstu. ADR zastrzega: liczby te to osądy, nie
+pomiary --- nic nie sprawdzono na prawdziwych wywiadach, bo ich nie ma.
+
+\subsection{Czego w rekordzie celowo nie ma}
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{Żadnego identyfikatora osoby}: identyfikatora użytkownika ani
+        konta, e-maila, adresu IP, nazwiska, urządzenia ani sesji. Jedynym
+        identyfikatorem jest losowy \texttt{interviewId}.
+  \item \textbf{Żadnego znacznika czasu}: to klucz do łączenia z logami dostępu.
+        Polityka prywatności dopuszcza najwyżej pasmo tygodnia ISO; schemat nie
+        niesie żadnego, czyli jest bardziej rygorystyczny.
+  \item \textbf{Żadnych emocji, sentymentu ani afektu.} Oceny dotyczą tematów,
+        nigdy wniosków o uczuciach osoby; ta sama lista zakazanych słów jest
+        sprawdzana testem architektury w schemacie rekordu i ekstraktora.
+  \item \textbf{Bez dokładnych dat} (dołączenia, odejścia, wywiadu), wieku,
+        płci i innych kategorii chronionych, lokalizacji, wielkości pracodawcy,
+        identyfikatorów przełożonego lub zespołu, tytułu stanowiska i
+        wynagrodzenia.
+  \item \textbf{Brak pól dodatkowych}: każdy obiekt ma
+        \texttt{additionalProperties: false}, więc nieznane pole nie może się
+        przemycić. Błąd dla nieznanego klucza podaje ścieżkę rodzica, nigdy
+        klucz (klucz mógłby być adresem e-mail).
+\end{itemize}
+
+Te zakazy są \emph{egzekwowane, nie obiecywane}: testy architektury oblewają
+build, jeśli właściwość schematu lub składowa modelu przypomina identyfikator,
+jeśli jakikolwiek obiekt schematu jest otwarty na dodatkowe pola albo jeśli
+pole kontekstu nie jest enumeracją (ADR-0011).
+
+\subsection{Cytaty: ryzyko resztkowe}
+
+Cytaty to tekst wolny, więc to one są głównym wektorem reidentyfikacji.
+Ograniczono je limitami, pobiera się je z zapisu zamaskowanego i sprawdza
+wierność (poniżej). Maskowanie jest heurystyczne i ma zmierzone granice
+(\texttt{docs/privacy/pii-detector.md}). Cytat nadal może zidentyfikować osobę
+opisem (``jedyna kobieta w biurze w Gdańsku''); rekord tego nie naprawi i model
+zagrożeń niesie to jako ryzyko resztkowe. Cytaty są też \emph{danymi
+nieaktywnymi}: nic ich nie interpretuje, a fragment JSON, odwołanie \texttt{\$ref}
+lub zdanie z wstrzyknięciem promptu wewnątrz cytatu jest tylko ciągiem znaków.
+Konsument musi tę dyscyplinę zachować: kodować przy wyświetlaniu, nigdy nie
+doklejać cytatu do zapytania ani promptu jako polecenia.
+
+\subsection{Walidacja i wierność cytatów}
+
+\texttt{RecordValidator.Validate} zwraca albo niezmienny \texttt{InterviewRecord},
+albo listę błędów (kod, ścieżka). \textbf{Błędy nigdy nie zawierają
+przesłanego tekstu.} Kolejność kontroli: rozmiar, składnia JSON i głębokość,
+zduplikowane klucze, schemat, polityka \texttt{piiMasked}. Wybrane kody:
+\texttt{PAYLOAD\_}\allowbreak\texttt{TOO\_LARGE}, \texttt{NOT\_JSON}, \texttt{DUPLICATE\_}\allowbreak\texttt{KEY},
+\texttt{UNKNOWN\_}\allowbreak\texttt{FIELD}, \texttt{TOPIC\_}\allowbreak\texttt{INCONSISTENT}, \texttt{AI\_NOT\_}\allowbreak\texttt{DISCLOSED},
+\texttt{PII\_NOT\_}\allowbreak\texttt{MASKED}, \texttt{VALIDATION\_}\allowbreak\texttt{TIMEOUT} (zabezpieczenie przed
+atakiem na wyrażenia regularne). Kody są częścią umowy: zmiana lub ponowne
+użycie tylko z nową wersją główną. Serializacja kanoniczna daje te same bajty
+dla tego samego rekordu.
+
+\texttt{QuoteVerifier} sprawdza, że każdy cytat jest dosłownym podciągiem
+zapisu rozmowy po jednej normalizacji stosowanej do obu stron (ciągi białych
+znaków zamieniane na jedną spację, końce przycięte). Wielkość liter,
+interpunkcja i znaki diakrytyczne porównuje się porządkowo, więc parafraza,
+zmiana wielkości liter czy zgubiony ogonek nie przejdą. \finding{Weryfikacja
+działa tylko po stronie klienta i w ocenach: serwer nigdy nie ma zapisu rozmowy,
+więc nie może sprawdzić cytatów.} Zmyślony cytat, który przechodzi schemat,
+jest po stronie serwera nieodróżnialny od prawdziwego; wrogi klient może
+przesłać cokolwiek (patrz model zagrożeń).
+
+\subsection{Wersjonowanie}
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{v1 jest niezmienna po wydaniu.} Po bramce wydania zmienia się
+        tylko brzmienie opisów (\texttt{description}).
+  \item \textbf{Zmiana addytywna = nowa wersja główna będąca nadzbiorem starej}:
+        może dodać pola opcjonalne, poszerzyć enum, podnieść limit lub dodać
+        opcjonalny temat; każdy ważny rekord v1 pozostaje ważny w v2, więc
+        przechowywane rekordy nie wymagają migracji. Ponieważ walidatory v1
+        odrzucają rekordy v2, wdrożenia aktualizują walidatory przed
+        producentami.
+  \item \textbf{Zmiana łamiąca} (usunięcie lub przemianowanie pola, zawężenie
+        enum, obniżenie limitu, zmiana typu, uczynienie pola wymaganym,
+        zmiana znaczenia \texttt{no\_data}) wymaga ADR, notatki migracyjnej
+        i kolejności wdrożenia.
+  \item \textbf{Żadna wersja schematu nie może zawierać identyfikatora osoby.}
+  \item Biblioteka osadza schemat z pliku publikowanego, a test porównuje je
+        bajt w bajt.
+\end{itemize}
+
+Otwarte kwestie rekordu: moduł sygnałów musi zastosować próg minimalnej liczby
+do \emph{każdego} publikowanego przekroju, także w podziałach na pasma (schemat
+tego nie wymusi); \texttt{employerRef} nie ma rejestru, więc dwa odniesienia
+mogą nazywać jednego pracodawcę; nie zmierzono, czy wyjście prawdziwych modeli
+wymaga normalizacji Unicode przed porównaniem cytatów.
+
+\section{Agent prowadzący wywiad}
+
+\subsection{Co to jest}
+
+Rdzeń agenta (\texttt{src/}\allowbreak\texttt{ExitInterviewAgent.Agent}, opis w
+\repopath{docs/architecture/interview-agent.md}) to rdzeń trybu B oraz
+implementacja referencyjna protokołu, który tryb A udostępnia jako prompty
+i zasoby. Prowadzi jeden ustrukturyzowany wywiad, maskuje to, co mówi
+rozmówca, jeszcze przy odbiorze i --- jeśli zgoda trwała przez cały czas ---
+zamienia zamaskowany zapis w zwalidowany \texttt{InterviewRecord}. Rdzeń
+sam niczego nie wysyła (robi to \texttt{submit}, rozdział~6).
+
+Naczelna zasada: \finding{program decyduje, co się dzieje; model tylko to
+formułuje.} Wynika z niej cała budowa.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth,height=0.45\textheight,keepaspectratio]{\dgm{p1-agent}}
+\caption{Granice zaufania agenta (uproszczenie diagramu z
+\texttt{interview-agent.md}). Surowa odpowiedź jest oczyszczana i maskowana
+\emph{zanim} cokolwiek ją zapisze, przeanalizuje lub pokaże modelowi; maszyna
+stanów, a nie model, wybiera każdy krok.}
+\end{figure}
+
+\subsection{Protokół}
+
+Protokół jest wersjonowany (wersja \texttt{1.1}, ADR-0062) i przechowywany jako
+dane w \texttt{interview-}\allowbreak\texttt{protocol.v1.json}, wbudowane w zestaw; te same dane
+czytają adapter MCP i CLI. Zmiana jakiegokolwiek brzmienia lub limitu w tym
+pliku jest zmianą zachowania protokołu i podnosi wersję (poboczną dla
+brzmienia i limitów, główną dla zmiany tematów lub kolejności). Wersja trafia do
+\texttt{interview.protocolVersion} każdego rekordu.
+
+\textbf{Tura otwierająca to stały tekst, a nie wyjście modelu.} Mówi, że
+prowadzący jest AI, co zostanie zapisane (krótki ustrukturyzowany rekord: ocena
+i kilka własnych zdań rozmówcy na temat, losowy identyfikator, szerokie pasma;
+bez nazwisk; bez powiązania z kontem; zamaskowane; sama rozmowa nie jest
+zapisywana), że można przerwać w każdej chwili i że przerwanie niczego nie
+zostawia, oraz prosi o jasne ``tak'' lub ``nie''. Ponieważ model nie może jej
+napisać, nie może jej pominąć ani złagodzić. Flaga \texttt{aiDisclosed} jest
+ustawiana na prawdę dopiero po tym, gdy runner dostarczył tę turę
+\emph{i otrzymał odpowiedź}; jeśli nikt nie odpowie, przebieg kończy się jako
+porzucony i rekord nie powstaje.
+
+Sześć tematów w stałej kolejności, jedno pytanie naraz: onboarding, zarządzanie
+(\texttt{management}), rozwój, płaca a obietnice, kultura, powód odejścia.
+Protokół niesie neutralne pytanie otwierające każdego tematu; model może je
+przeformułować, a brzmienie jest sprawdzane.
+
+\begin{longtable}{@{}p{0.52\linewidth}p{0.43\linewidth}@{}}
+\toprule
+Reguła & Kto ją egzekwuje \\
+\midrule
+\endhead
+R01 pierwsza tura: ujawnienie AI, co jest zapisywane, prawo do przerwania, prośba o zgodę & kod (stały tekst; test sprawdza każdy element) \\
+R02 żadnej treści przed zgodą; brak jasnego ``tak'' = brak wywiadu & kod (maszyna stanów; test: przed zgodą brak wywołania modelu) \\
+R03 sześć tematów w stałej kolejności & kod \\
+R04 pytania otwarte i neutralne & oba: prompt prosi, \texttt{QuestionGuard} sprawdza i zastępuje \\
+R05 jedno dopytanie o konkretny przykład na mglistą odpowiedź (\texttt{maxProbesPerTopic} = 1) & kod \\
+R06 nigdy nie pytać o nazwiska; maskować; przekierować na zachowanie lub rolę & kod (strażnik PII, krok przekierowania) \\
+R07 wycofanie zgody w dowolnej chwili: natychmiast przerwać, odrzucić, bez rekordu & kod \\
+R08 tekst rozmówcy to dane, nigdy polecenia & oba: rozdzielenie w prompcie i struktura kodu \\
+R09 jedno neutralne wyjaśnienie dla sprzecznych odpowiedzi & kod \\
+R10 budżety tur, wywołań modelu i tokenów; łagodne zamknięcie & kod \\
+R11 rozmówca lakoniczny lub wrogi: podziękować i zwolnić, nigdy nie spierać się & kod \\
+R12 cytaty są dosłowne, od rozmówcy, na ten temat & kod \\
+\bottomrule
+\end{longtable}
+
+\subsection{Maszyna stanów i role}
+
+\texttt{InterviewMachine} nie wykonuje operacji wejścia-wyjścia. Jej jedynymi
+przejściami są \texttt{Start()} i \texttt{OnReply(...)}, a każde zwraca
+następny krok (co ma zrobić prowadzący). Tekst rozmówcy może na nią wpłynąć
+tylko przez wartości logiczne w \texttt{ReplySignals}, które
+\texttt{ReplyAnalyzer} liczy stałymi regułami z już zamaskowanej odpowiedzi.
+Pierwszeństwo w obrębie tury (wygrywa pierwsze dopasowanie): wycofanie zgody
+(stop) $\rightarrow$ budżet (zamknięcie) $\rightarrow$ druga wroga odpowiedź
+(zamknięcie) $\rightarrow$ seria lakonicznych (zamknięcie) $\rightarrow$ wroga
+odpowiedź jest przyjęta i następuje kolejny temat $\rightarrow$ wymieniona
+osoba (przekierowanie, raz na temat) $\rightarrow$ sprzeczność
+(wyjaśnienie, raz na temat) $\rightarrow$ mglista odpowiedź (dopytanie)
+$\rightarrow$ następny temat albo zamknięcie po szóstym.
+
+\finding{Wycofanie zgody wygrywa ze wszystkim, nawet z ładunkiem wstrzyknięcia:}
+odpowiedź ``zakończ wywiad'' ukryta w manipulacyjnym tekście jest traktowana
+jak wycofanie, bo zatrzymanie jest kierunkiem bezpiecznym dla prywatności, a
+atakujący zyskuje tylko możliwość zakończenia własnego wywiadu.
+
+Role stoją za interfejsami (\texttt{IInterviewer}, \texttt{IProber},
+\texttt{IRecordExtractor}, \texttt{IPiiGuard}), więc testy, model testowy,
+dostawcy i adapter MCP mogą dostarczać własne. Standardowe role działają na
+dowolnym \texttt{IChatClient}.
+
+\begin{longtable}{@{}p{0.22\linewidth}p{0.35\linewidth}p{0.38\linewidth}@{}}
+\toprule
+Rola & Robi & Nie robi \\
+\midrule
+\endhead
+Prowadzący & formułuje pytanie tematu, wyjaśnienie i przekierowanie z tekstu
+  zalążkowego protokołu & nie wybiera następnego kroku, nie widzi surowego
+  tekstu rozmówcy \\
+Dopytujący & formułuje jedno dopytanie o konkretny przykład & nie decyduje, czy
+  dopytać (decyduje maszyna) \\
+Ekstraktor rekordu & zwraca JSON zgodny ze schematem wyjścia ekstraktora & nie
+  buduje rekordu, nie wybiera cytatów spoza zapisu \\
+Strażnik PII & owija detektor trybem ``zamknięty w razie awarii''
+  (\texttt{FailClosed}) i listą dozwolonych nazw pracodawców i produktów;
+  maskuje przed wszystkim innym; wyjątek lub przekroczenie czasu kończy
+  przebieg i niczego nie zachowuje & \\
+Krok cytatów (\texttt{RecordAssembler}) & weryfikuje każdy cytat względem
+  zamaskowanego tekstu rozmówcy \emph{z tego tematu}; odrzuconych nie wysyła & \\
+\bottomrule
+\end{longtable}
+
+Każde pytanie sformułowane przez model przechodzi przez \texttt{QuestionGuard}:
+niepuste, najwyżej 500 znaków, jedno pytanie (bez drugiego znaku zapytania
+i bez współrzędnego drugiego zdania pytającego), bez fragmentów promptu,
+bez PII, bez wzorców sugerujących, nacechowanych lub negatywno-polarnych,
+bez zamkniętych początków, a dopytanie musi prosić o przykład. Odrzucone pytanie
+zastępuje własne brzmienie protokołu (i jest liczone), więc niedbały lub
+przejęty model sprawia, że wywiad jest bardziej bezbarwny, a nie inny.
+
+\subsection{Od rozmowy do rekordu}
+
+\begin{enumerate}[itemsep=2pt]
+  \item Runner oczyszcza każdą odpowiedź (usuwa znaki sterujące i nadpisujące
+        kierunek, zwija białe znaki, obcina do \texttt{maxReplyChars} = 2000)
+        i \textbf{maskuje ją strażnikiem PII, zanim zostanie zapisana,
+        przeanalizowana lub pokazana jakiemukolwiek modelowi}. Surowa odpowiedź
+        nie jest zachowywana.
+  \item Gdy dialog kończy się z nienaruszoną zgodą, \emph{ekstraktor} widzi
+        wyłącznie zamaskowany zapis, w bloku danych, pod własnym promptem
+        systemowym; najwyżej dwie próby, a ponowna próba niesie tylko \emph{kody}
+        błędów.
+  \item Wyjście jest parsowane względem schematu ekstraktora (zamknięte
+        obiekty, bez pól na sentyment, emocję, afekt, nazwisko ani
+        identyfikator).
+  \item \texttt{RecordAssembler} buduje rekord: temat potrzebuje co najmniej
+        \texttt{minWordsForCoverage} własnych słów rozmówcy (inaczej
+        \texttt{no\_data}, cokolwiek powie ekstraktor); cytaty są normalizowane,
+        deduplikowane i sprawdzane względem tekstu rozmówcy z tego tematu,
+        odrzucane, jeśli to tylko znaczniki zastępcze, czytają się jak polecenie
+        do modelu albo ponowna kontrola PII je oflaguje; pewność tematu
+        sprzecznego jest ograniczona do \texttt{medium}.
+  \item Kanoniczny JSON przechodzi przez \texttt{RecordValidator}. Rekord jest
+        \emph{zgłaszalny} (\texttt{Submittable}), gdy wywiad się zakończył,
+        rekord jest ważny i ma co najmniej jeden temat \texttt{covered}
+        (rekord z samymi \texttt{no\_data} nic nie mówi i nie jest zgłaszalny).
+\end{enumerate}
+
+\subsection{Obrona przed wstrzyknięciem i budżety}
+
+Tekst rozmówcy jest niezaufanymi danymi. Trafia do promptu tylko wewnątrz
+\texttt{DataBlock}: jeden obiekt JSON na turę w osobnej linii (odpowiedź nie
+sfałszuje nagłówka tury ani znacznika), między znacznikami z losowym 64-bitowym
+nonce. Test odtwarza odpowiedź fałszującą znacznik końca i linię roli i sprawdza,
+że każdy prompt ma dokładnie jeden znacznik początku i końca. Agent nie
+udostępnia żadnemu modelowi narzędzi. Dokumentacja wylicza obronę w głąb:
+(1) rozdzielenie bloku danych, (2) przepływem steruje maszyna, nie model,
+(3) \texttt{QuestionGuard} i zastępcze brzmienie protokołu, (4) wyjście
+ekstraktora jest walidowane schematem i przeliczane przez kod, (5) cytaty muszą
+istnieć w słowach rozmówcy, a te czytające się jak polecenia są odrzucane,
+(6) zamknięty schemat rekordu, (7) zdarzenia \texttt{injection.suspected}
+czynią próby widocznymi dla zestawu ocen.
+
+\uwaga{Ryzyka resztkowe nie są ``zaklinane'': prawdziwy ekstraktor nadal może
+zostać namówiony do zawyżenia oceny tematu, który ma prawdziwe cytaty
+(cytaty ograniczają dowody, nie osąd); listy sygnałów są angielskie
+z kilkoma polskimi frazami; wierność cytatu nie oznacza prawdziwości
+(rozmówca mógł skłamać).}
+
+Budżety (w protokole, \texttt{limits}): 40 tur prowadzącego, 60 wywołań modelu,
+60\,000 szacowanych tokenów, 2000 znaków odpowiedzi, próg lakoniczności
+3 słowa i seria 3, 2 wrogie odpowiedzi do zamknięcia, po 1 dopytaniu,
+wyjaśnieniu i przekierowaniu na temat, 2 prośby o zgodę. Są to wartości
+startowe, a nie zmierzone optimum. Osiągnięcie budżetu zamyka wywiad
+łagodnie, a ekstrakcja nadal się odbywa. Z prawdziwym dostawcą nad tym stoi
+\emph{twardy} pułap (dwukrotność tokenów) zatrzymujący następne wywołanie.
+
+\subsection{Czego heurystyki potrafią, a czego nie}
+
+\texttt{ReplyAnalyzer} jest oparty na regułach celowo: decyzje chroniące
+rozmówcę muszą być testowalne i nie zależeć od ``nastroju'' modelu. Koszt to
+topornie czytanie: mglista to odpowiedź o 4--25 słowach z ogólnikiem
+(``w porządku'', ``jakoś'') i bez konkretnej wskazówki (cyfra, ``na przykład'',
+``ponieważ''); sprzeczność wykrywa się porównując kierunek słów pozytywnych
+i negatywnych między kolejnymi odpowiedziami, więc sarkazm i negacja ją mylą.
+Nazwiska pochodzą z detektora PII; w trybie \texttt{FailClosed} maskuje on
+także nierozpoznane słowa pisane wielką literą, co kosztuje naturalność
+rozmowy, a kupuje czułość. Mierzonej dokładności tych reguł jeszcze nie ma;
+klasyfikator wspierany modelem to kandydat na dalszą pracę.
+
+\subsection{Persony i skryptowy model testowy}
+
+Osiem symulowanych rozmówców to dane w \texttt{src/}\allowbreak\texttt{ExitInterviewAgent.}\allowbreak\texttt{Personas/Data},
+sprawdzane schematem. Wszystkie są syntetyczne (pracodawca to oczywiście
+fikcyjny \texttt{widgetron-ltd}, a nazwiska i adresy zmyślone, na zarezerwowanych
+domenach). Wybór wariantów odpowiedzi zależy od ziarna (SplitMix64), więc jest
+stabilny na każdej platformie.
+
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule
+Persona & Zachowanie & Oczekiwany wynik \\
+\midrule
+\texttt{talkative} & długie, konkretne odpowiedzi & wszystkie tematy pokryte, zgłaszalny \\
+\texttt{terse} & jedno do trzech słów & brak pokrytego tematu, niezgłaszalny \\
+\texttt{hostile} & jedna użyteczna odpowiedź, potem wrogość & zamknięcie po jednym przyjęciu; wrogich zdań nie cytuje się \\
+\texttt{vague} & ogólniki, potem szczegóły po dopytaniu & sześć dopytań (po jednym na temat) \\
+\texttt{names-manager} & podaje nazwisko przełożonego, e-mail i telefon & zamaskowane; jedno przekierowanie; podłożone dane nigdzie nie wyciekają \\
+\texttt{prompt-injection} & ładunki wymierzone w prowadzącego, ekstraktor i sędziego & protokół, tematy i kształt rekordu bez zmian \\
+\texttt{withdraws-consent} & dwa tematy, potem wycofuje zgodę & brak zapisu rozmowy i rekordu \\
+\texttt{contradictory} & opisuje zarządzanie, a potem odwrotnie & jedno wyjaśnienie; pewność ograniczona \\
+\bottomrule
+\end{tabularx}
+
+\medskip
+\texttt{ScriptedChatClient} to model offline: gra prowadzącego i dopytującego,
+zwracając tekst zalążkowy protokołu, a ekstraktora --- dzieląc zdania
+rozmówcy, wybierając najbardziej konkretne na cytaty i oceniając liczeniem słów
+pozytywnych i negatywnych. Nie ma sieci, poświadczeń ani losowości.
+\finding{To element testów i demonstracji, a nie wzorzec jakości.} Pokazuje,
+że instalacja działa od końca do końca (maszyna stanów, maskowanie, blok
+danych, schemat, krok cytatów, walidacja, śledzenie, determinizm i niezmienniki
+przy każdej personie), ale \emph{nie} pokazuje, czy prawdziwy model formułuje
+neutralne pytania, opiera się wstrzyknięciu, wiernie wyciąga dane ani czy jego
+oceny są użyteczne. Każda liczba z przebiegu z modelem testowym opisuje ten
+model.
+
+\subsection{Dostawcy modeli}
+
+Moduł \texttt{Providers} udostępnia prawdziwe modele za
+\texttt{Microsoft.Extensions.AI.IChatClient}. Dokument
+\repopath{docs/architecture/providers.md} (T6): zaimplementowane i
+zweryfikowane względem atrap, ale \textbf{nie wykonano żadnego wywołania
+prawdziwego dostawcy} (brak klucza i ograniczona sieć), a projekt niczego nie
+mierzy o jakości prawdziwych modeli.
+
+\begin{longtable}{@{}p{0.2\linewidth}p{0.4\linewidth}p{0.3\linewidth}@{}}
+\toprule
+\texttt{--provider} & Backend i pakiet & Klucz \\
+\midrule
+\endhead
+\texttt{anthropic} & API Anthropic z własnym kluczem; oficjalny pakiet
+  \texttt{Anthropic} & \texttt{ANTHROPIC\_API\_KEY} (wymagany) \\
+\texttt{openai-compatible} (alias \texttt{openai}) & dowolny punkt końcowy
+  zgodny z czatem OpenAI (hostowany lub lokalna brama); adapter
+  \texttt{Microsoft.Extensions.AI.OpenAI} & \texttt{OPENAI\_API\_KEY}
+  (wymagany dla \texttt{api.openai.com}, opcjonalny dla własnej bramy) \\
+\texttt{ollama} & lokalny serwer Ollama, natywne \texttt{/api/chat}; klient
+  pisany ręcznie (ADR-0032) & brak \\
+\texttt{mock} & skryptowy model offline & brak \\
+\bottomrule
+\end{longtable}
+
+Ustawienia pochodzą kolejno z: flagi, zmiennej środowiskowej, pliku
+konfiguracyjnego i wartości domyślnej; dostawca i model nie mają wartości
+domyślnych, a identyfikator modelu nigdzie nie jest wpisany na stałe.
+Sam klucz pochodzi \emph{wyłącznie} ze zmiennej środowiskowej: nie ma flagi
+\texttt{--api-key}, a plik konfiguracyjny z kluczem jest odrzucany. Klucz nigdy
+nie jest drukowany, logowany, śledzony ani wstawiany do błędu.
+
+\textbf{Protokół zaufania.} Dostawca widzi całą rozmowę (każde pytanie i każdą
+odpowiedź, w wywołaniu ekstraktora naraz), na warunkach \emph{twojego} konta,
+których projekt nie weryfikował. CLI mówi o tym i prosi o wpisanie \texttt{yes}
+przed pierwszym wywołaniem zewnętrznego dostawcy (\texttt{--yes-i-understand}
+dla skryptów); model na własnej maszynie dostaje krótszą informację bez pytania.
+Odpowiedzi są maskowane przy odbiorze, więc rozpoznane nazwisko nie dociera do
+dostawcy w kolejnych wywołaniach (strażnik jest heurystyczny). Zdalny serwer
+Ollama (adres LAN) traktuje się jak zewnętrzny, a ``lokalna'' brama zgodna z
+OpenAI może sama przekazywać dalej do zdalnego dostawcy --- tego program nie
+widzi. Nic nie jest zapisywane na dysk, o ile o to nie poprosisz
+(\texttt{--out}, \texttt{--save-transcript}).
+
+\textbf{Zachowanie przy awarii.} Kody 429, 5xx, przekroczenia czasu i błędy
+połączenia są ponawiane (domyślnie do 3 razy z losowanym wycofywaniem,
+\texttt{Retry-After} honorowany do 30~s). Kody 401, 403, inne 4xx i
+przekierowanie są \emph{fatalne}: wywiad się zatrzymuje, nic nie zostaje,
+kod wyjścia 5. Awaria jednego wywołania po ponowieniach oznacza, że ta tura
+używa własnego brzmienia protokołu; trzy takie wywołania z rzędu są fatalne.
+Ctrl-C lub koniec wejścia: rozmówca wyszedł, zapis odrzucony, nic zapisane.
+Cena nie jest wbudowana (nie da się jej zweryfikować stąd): koszt liczy się
+tylko, gdy podasz \texttt{--price-in} i \texttt{--price-out}.
+
+\textbf{Czego odmawia i dlaczego.} Poświadczeń subskrypcji Claude (nazwanie
+\texttt{CLAUDE\_CODE\_}\allowbreak\texttt{OAUTH\_TOKEN} jako źródła klucza jest odrzucane
+z odesłaniem do README --- ograniczenie: rozpoznawalnego formatu takiego tokenu
+nie udokumentowano, więc token wklejony do \texttt{ANTHROPIC\_API\_KEY} nie
+zostanie rozpoznany i odrzuci go dopiero API) oraz GitHub Copilot (brak
+adaptera, a adres bazowy w domenie \texttt{githubcopilot.com} jest odrzucany;
+nazwa hosta z ogólnej wiedzy, niezweryfikowana). Telemetria OpenTelemetry jest
+domyślnie \emph{wyłączona}; po włączeniu eksportuje tylko źródła agenta
+i dostawców, nigdy treści.
+
+Dodanie dostawcy (P10) to implementacja \texttt{IChatClient} i trzy drobne
+zmiany: składowa \texttt{Provider}\allowbreak\texttt{Kind}, wiersz \texttt{Provider}\allowbreak\texttt{Catalog} i jeden
+\texttt{case} w \texttt{Provider}\allowbreak\texttt{ChatClients.Create}; te same testy obejmują
+nowy typ.
+
+\section{Złożenie zgłoszenia i paragon}
+
+\subsection{Zasada: wysyłka jest osobna, opcjonalna i nigdy automatyczna}
+
+Wywiad kończy się plikiem rekordu (\texttt{interview --out}). Złożenie go na
+serwerze to osobna decyzja. Wszystkie ścieżki (portal, MCP, CLI) kończą się w
+jednej usłudze aplikacyjnej, \texttt{SubmissionService}, więc reguły są
+wszędzie te same.
+
+\begin{longtable}{@{}p{0.34\linewidth}p{0.12\linewidth}p{0.2\linewidth}p{0.26\linewidth}@{}}
+\toprule
+Punkt końcowy & Kto & Autoryzacja & Sekret w \\
+\midrule
+\endhead
+\texttt{POST /api/v1/submissions} & portal (BFF) & polityka \texttt{account} & \texttt{Authorization} \\
+narzędzie MCP \texttt{submit\_interview\_record} & host MCP & token MCP, zakres \texttt{interview:submit} & \texttt{Authorization} \\
+\texttt{POST /api/v1/tickets} & portal (BFF) & polityka \texttt{account} & \texttt{Authorization} \\
+\texttt{POST /api/v1/submissions/ticketed} & CLI & brak (anonimowy) & nagłówek \texttt{X-Submission-Ticket} \\
+\texttt{DELETE /api/v1/receipts} & każdy z kodem & brak (anonimowy) & nagłówek \texttt{X-Receipt-Code} \\
+\bottomrule
+\end{longtable}
+
+\subsection{Bilet: jak CLI zgłasza bez logowania}
+
+Ponieważ CLI nie ma logowania OAuth, konto wystawia mu jednorazowy \emph{bilet}.
+W portalu na stronie \texttt{/cli} (po zalogowaniu, ``Create a ticket'') powstaje
+losowy, krótkotrwały (15 minut domyślnie; wygaśnięcie zaokrąglane w górę do 5 minut, więc w praktyce 15--20), jednorazowy bilet, \emph{niezwiązany
+z żadnym pracodawcą}. Pokazywany jest raz. Serwer trzyma tylko jego skrót.
+Aby ograniczyć nadużycia, dozwolone są 3 niewykorzystane bilety na konto i 10
+wystawień na godzinę. Realizacja biletu daje serwerowi identyfikator konta
+(\texttt{sub}) jednokrotnie, z którego liczy się wpis księgi; potem wiersz
+biletu jest usuwany. Nie wymaga to żadnej zmiany w \texttt{authservice}.
+
+\finding{Zastrzeżenie, które CLI pokazuje użytkownikowi przed potwierdzeniem:
+chwila realizacji biletu jest punktem korelacji --- bilet wskazuje konto
+webowe, więc operator może zobaczyć, że zgłoszenie rekordu nastąpiło razem
+z realizacją biletu (T-09 w modelu zagrożeń, zaakceptowane w briefie).}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\linewidth,height=0.55\textheight,keepaspectratio]{\dgm{p1-zgloszenie}}
+\caption{Zgłoszenie z CLI i usunięcie przez paragon (uproszczenie diagramów z
+\texttt{cli-submission.md} i \texttt{submission-flow.md}).}
+\end{figure}
+
+\subsection{Co robi CLI, krok po kroku}
+
+\begin{enumerate}[itemsep=2pt]
+  \item \texttt{submit --record plik --server adres}: \textbf{ponowna kontrola
+        lokalna} rekordu (schemat, ujawnienie AI, co najmniej jeden pokryty
+        temat, skan PII); każda wątpliwość = odmowa.
+  \item \textbf{Podgląd dokładnie tego, co opuści maszynę}, wraz z samym
+        rekordem. Użytkownik wpisuje słowo \texttt{submit}. Dopiero wtedy
+        program prosi o bilet: ukryty monit, zmienna
+        \texttt{EXIT\_}\allowbreak\texttt{INTERVIEW\_}\allowbreak\texttt{TICKET} albo jedna linia standardowego wejścia.
+        \textbf{Nie ma flagi z biletem ani z kodem paragonu} (argv trafia do
+        listy procesów i historii powłoki); pilnuje tego test architektury.
+  \item Jedno żądanie \texttt{POST} na \texttt{/api/v1/submissions/ticketed}
+        z rekordem jako ciałem i biletem w nagłówku.
+\end{enumerate}
+
+Z maszyny wychodzi: rekord bajt w bajt tak, jak pokazano, bilet w jednym
+nagłówku oraz to, co wysyła każdy klient HTTP (adres klienta, czas,
+\texttt{User-Agent: exit-interview} bez wersji, ścieżka). Nie wychodzi: zapis
+rozmowy, prompty i odpowiedzi, nazwy plików, dostawca, model ani klucz API,
+ciasteczka, \texttt{Authorization}, zapytanie w adresie.
+
+Adres serwera pochodzi z \texttt{--server} lub
+\texttt{EXIT\_}\allowbreak\texttt{INTERVIEW\_}\allowbreak\texttt{SERVER\_URL}, \textbf{bez wartości domyślnej} (nic nie
+jest wdrożone); wymagany jest \texttt{https} (\texttt{http} tylko dla
+loopback); przekierowania nigdy nie są podążane; po wysłaniu choć jednego
+bajtu nic się nie ponawia; 10~s na połączenie i 30~s łącznie; odpowiedzi
+ponad 64~KiB są odrzucane.
+
+\subsection{Co serwer robi z rekordem}
+
+Serwer wykonuje kolejno: odczyt ograniczony (limit 160~KiB) i limity szybkości;
+dla ścieżki z biletem --- odczyt skrótu biletu tylko do odczytu (daje \texttt{sub},
+niczego nie zużywa); walidację rozmiaru, schematu, zduplikowanych kluczy
+i \texttt{piiMasked}; \emph{ponowny skan PII} każdego cytatu i pola
+tekstowego (każdy wyjątek lub przekroczenie czasu = odrzucenie); wymóg
+\texttt{aiDisclosed = true}; zapytanie weryfikatora zatrudnienia
+(\emph{nigdy nie dostaje rekordu}; odpowiedź ``niedostępny'' obniża poziom do
+\texttt{Unchecked} i zgłoszenie trwa dalej); wreszcie jedną transakcję: sprawdza
+wolność identyfikatora wywiadu i znacznika księgi, usuwa bilet (jeden
+usunięty wiersz = ten wywołujący wygrał), wstawia wpis księgi, rekord
+i paragon. Utrata wyścigu o unikalny indeks wycofuje wszystko.
+
+\subsection{Tabele i to, z czym da się je (nie) połączyć}
+
+\begin{longtable}{@{}p{0.2\linewidth}p{0.4\linewidth}p{0.33\linewidth}@{}}
+\toprule
+Tabela & Kolumny (skrót) & Cel \\
+\midrule
+\endhead
+\texttt{Records} & identyfikator wywiadu, \texttt{EmployerRef}, kanoniczny JSON,
+  poziom weryfikacji (\texttt{Verified}/\texttt{Unverified}/\texttt{Unchecked}),
+  \texttt{CreatedWeek} (poniedziałek) & sam rekord; tydzień służy tylko do
+  usuwania po wieku \\
+\texttt{SubmissionLedger} & losowe id, \texttt{KeyId}, \texttt{Tag} (HMAC,
+  unikalny), \texttt{CreatedWeek} & jeden wpis na pracodawcę na konto \\
+\texttt{Receipts} & losowe id, \texttt{CodeHash} (SHA-256, unikalny),
+  \texttt{RecordId} (klucz obcy, kaskada) & usuwanie przez kod paragonu \\
+\texttt{SubmissionTickets} & losowe id, \texttt{TokenHash}, \texttt{Sub},
+  \texttt{ExpiresAt} & bilety CLI; usuwane przy realizacji lub wygaśnięciu \\
+\bottomrule
+\end{longtable}
+
+Niezmienniki (każdy ma test): \emph{żadna tabela poza biletem nie trzyma
+\texttt{sub}; księga nie ma kolumny ani klucza obcego odnoszącego się do
+rekordu; żadna tabela nie trzyma jednocześnie wartości pochodzącej z konta
+i wartości identyfikującej rekord; każdy klucz jest losowy; jedyne
+przechowywane znaczniki czasu to pasma tygodnia (plus wygaśnięcie biletu).}
+Księga trzyma HMAC pary (konto, pracodawca) pod kluczem, którego baza nie ma;
+klucz jest rotowalny, a znacznik sprawdza się dla każdego aktywnego klucza.
+
+\uwaga{Czego \emph{nie} ukryto. (1) Wiersze zapisane w jednej transakcji mają
+wspólny identyfikator transakcji PostgreSQL i leżą blisko siebie w stercie:
+kto ma bezpośredni dostęp do plików lub kopii fizycznej, może sparować wpis
+księgi z rekordem, choć żadna kolumna ich nie łączy (T-08, T-09, OP-13).
+(2) Operator z kluczem HMAC i bazą może obliczyć znacznik dla dowolnego
+konta i pracodawcy i potwierdzić zgłoszenie. (3) Kto widzi żywy ruch, widzi
+jednoczesną realizację biletu i napływ rekordu. (4) Usunięcie rekordu przez
+paragon nie czyści wpisu księgi (nic ich nie łączy), więc konto pozostaje
+zamknięte dla tego pracodawcy do końca okna księgi (365 dni).}
+
+\subsection{Paragon i usuwanie}
+
+Po udanym zgłoszeniu serwer zwraca \emph{kod paragonu} --- losowy, pokazywany
+\textbf{raz}. Serwer trzyma tylko jego skrót SHA-256. Okazanie kodu przez
+\texttt{DELETE /api/v1/receipts} usuwa rekord bez łączenia go z kontem;
+odpowiedź \texttt{204} jest taka sama dla każdego poprawnie sformowanego kodu,
+więc nie potwierdza, że rekord istniał (stąd komunikat CLI: ``jeśli rekord
+o tym kodzie istniał, został właśnie usunięty''). Źle sformowany kod to
+\texttt{400 INVALID\_RECEIPT\_CODE} (literówka, a nie usunięcie). Odpowiedź ma
+dolny próg czasu (150~ms), a punkt końcowy limity szybkości (6 na IP na minutę,
+60 globalnie na minutę).
+
+CLI przyjmuje kod ze zmiennej \texttt{EXIT\_}\allowbreak\texttt{INTERVIEW\_}\allowbreak\texttt{RECEIPT\_CODE},
+ukrytego monitu lub standardowego wejścia --- nigdy z argumentu. Świeżo wydany
+kod pojawia się na standardowym wyjściu raz, plus opcjonalnie w pliku
+\texttt{--save-receipt} (tryb 0600, nigdy nie nadpisuje istniejącego pliku).
+\finding{Zgubiony kod nie jest odzyskiwalny: nikt nie może go dla ciebie
+wyszukać}, bo rekord nie ma powiązania z kontem, a usunięcie konta nie sięga
+rekordów (OP-12). W trybie MCP kod przechodzi przez hosta, więc Claude i jego
+dostawca mogą go przeczytać; każdy, kto go ma, może usunąć rekord.
+
+\subsection{Wyniki i kody odrzuceń}
+
+Odpowiedzi błędów to RFC 9457 (\texttt{application/problem+json}); żaden kod ani
+komunikat nie niesie przesłanego tekstu. Najważniejsze:
+
+\begin{longtable}{@{}p{0.1\linewidth}p{0.3\linewidth}p{0.55\linewidth}@{}}
+\toprule
+HTTP & Kod & Znaczenie \\
+\midrule
+\endhead
+201 & (ciało: kod paragonu) & zapisano; kod nigdy więcej nie jest pokazywany \\
+401 & \texttt{TICKET\_INVALID} & nieznany, wygasły, zużyty, źle sformowany albo brak biletu --- jedna odpowiedź \\
+403 & \texttt{EMPLOYMENT\_NOT\_VERIFIED} & tylko przy włączonej polityce ścisłej \\
+409 & \texttt{ALREADY\_SUBMITTED} & to konto już zgłosiło dla tego pracodawcy w oknie \\
+409 & \texttt{INTERVIEW\_ID\_TAKEN} & rekord jest już zapisany (zwykle wcześniejsza próba, której odpowiedź zginęła) \\
+413 & \texttt{PAYLOAD\_TOO\_LARGE} & ponad 160~KiB \\
+422 & kody biblioteki rekordu & naruszenie schematu, z listą (kod, ścieżka) \\
+422 & \texttt{AI\_NOT\_DISCLOSED} & nie powiedziano rozmówcy, że prowadzący jest AI \\
+422 & \texttt{PII\_DETECTED} & ponowny skan znalazł dane osobowe (tylko rodzaje, nigdy treść) \\
+422 & \texttt{PII\_CHECK\_FAILED} & skan nie mógł się zakończyć; nic nie zapisano \\
+429 & \texttt{TICKET\_LIMIT} / \texttt{rate\_limited} & zbyt wiele żywych biletów albo limit szybkości \\
+\bottomrule
+\end{longtable}
+
+Kody wyjścia CLI: 0 złożono, 2 błąd użycia, 3 niepotwierdzone lub brak biletu,
+4 rekord nie przeszedł lokalnej kontroli, 5 serwer odmówił, 6 błąd sieci lub
+nieznany wynik, 130 anulowano. Wynik jest \emph{nieznany} przy przekroczeniu
+czasu, zerwanym połączeniu lub anulowaniu po wysłaniu bajtu: serwer mógł
+zapisać rekord, a paragon przepadł (OP-24). Dlatego CLI niczego nie ponawia po
+wysłaniu bajtu.
+
+\subsection{Retencja}
+
+Usługa tła (\texttt{RetentionService}) co 5 minut (domyślnie) usuwa partiami po
+500: rekordy (wraz z paragonami) starsze niż 24 miesiące (założenie, ADR-0019),
+wpisy księgi starsze niż 365 dni (ADR-0028) i wygasłe bilety. Wiek liczy się do
+końca tygodniowego pasma. Loguje wyłącznie liczby.
+
+\subsection{Tryb A: złożenie przez narzędzie MCP}
+
+Serwer MCP (\texttt{interview-service}, ścieżka z \texttt{Mcp:Resource}, np.\
+\texttt{/mcp}; oficjalny pakiet \texttt{ModelContext}\allowbreak\texttt{Protocol.AspNetCore}, Streamable
+HTTP, bezstanowy) publikuje kontrakt przypięty migawką testową:
+
+\begin{longtable}{@{}p{0.14\linewidth}p{0.36\linewidth}p{0.45\linewidth}@{}}
+\toprule
+Rodzaj & Nazwa & Uwagi \\
+\midrule
+\endhead
+Prompt & \texttt{conduct\_exit\_}\allowbreak\texttt{interview(language?,} \texttt{employerHint?)} & jedna
+  wiadomość: zasady zaufania, dosłowne otwarcie, sześć tematów, reguły pytań
+  i rekordu, kolejność: waliduj, potwierdź, złóż \\
+Narzędzie & \texttt{validate\_}\allowbreak\texttt{interview\_record} & tylko do odczytu, idempotentne,
+  próba na sucho; kody, ścieżki, rodzaje PII \\
+Narzędzie & \texttt{submit\_}\allowbreak\texttt{interview\_record} & nie tylko do odczytu, nie
+  idempotentne; kod paragonu raz \\
+Zasoby & \texttt{exit-interview://}\allowbreak\texttt{schema/}\allowbreak\texttt{record/v1},
+  \texttt{.../protocol/v1}, \texttt{.../topics/v1} & schemat, protokół, tematy \\
+\bottomrule
+\end{longtable}
+
+{\sloppy Użytkownik łączy Claude (własny konektor z adresem, identyfikatorem klienta
+i sekretem), a Claude uwierzytelnia się w \texttt{authservice}
+(kod autoryzacji z PKCE; token z odbiorcą \texttt{/mcp} i zakresem
+\texttt{interview:submit}). Rozmowę prowadzi model-gospodarz,
+według promptu; serwer widzi \texttt{sub}, \texttt{client\_id}, zakres, argumenty promptu
+(język, wskazówka o pracodawcy) i rekord (najwyżej dwukrotnie: walidacja
+i zgłoszenie), ale nie zapis rozmowy ani adres e-mail. Ochrony serwera: dwa
+schematy JWT, zakres sprawdzany na poziomie polityki HTTP i ponownie dla
+każdego wywołania narzędzia, lista dozwolonych \texttt{Origin}, kontrola wersji
+protokołu i rozmiaru, brak sesji i starszego SSE, zamknięte słownictwo dla nazw
+wybieranych przez klienta, podłoga logowania SDK, limit szybkości na konto, a
+także test, że ścieżka nie używa próbkowania (\emph{sampling}), elicytacji ani
+katalogów \emph{roots}.\par}
+
+\finding{Granica zaufania trybu A jest także jego słabością: wywiad prowadzi
+model-gospodarz, nie ten projekt.} Czy ujawnia, że jest AI, uzyskuje jasne ``tak'',
+przerywa na żądanie, zadaje neutralne pytania i używa dosłownych cytatów, zależy
+od modelu wykonującego instrukcje, a serwer niczego z tego nie obserwuje.
+Sprawdza tylko to, co może: schemat, zamknięte pola, skan PII, flagę
+\texttt{aiDisclosed} (nie wie, czy to faktycznie powiedziano), księgę. Nie
+sprawdza nic w kwestii dosłowności cytatów (nie ma zapisu), zgody, przerwania,
+neutralności i dopytań. Dlatego powstał zestaw ocen: te same persony mają być
+uruchamiane przez hosty trybu A i oceniane tymi samymi miarami; \textbf{dziś ta
+liczba nie istnieje --- wierność jakiegokolwiek hosta jest niezmierzona}.
+Nie uruchomiono żadnego prawdziwego klienta Claude, a przepływ konektora,
+wykrywalność promptu i zachowanie hosta są niezweryfikowane (OP-18).
+
+\subsection{Podsumowanie części}
+
+Produkt składa się z kilku świadomych decyzji: model przynosi użytkownik;
+program, a nie model, steruje wywiadem; rekord jest mały, zamknięty i
+pozbawiony identyfikatorów; serwer widzi rekord, nie rozmowę; księga i paragon
+są od siebie odcięte; a wszystko, czego nie zmierzono (żywi dostawcy, żywy
+klient Claude, prawdziwe TLS, prawdziwy ruch, prawdziwa weryfikacja
+zatrudnienia), jest nazwane. Kolejne części przewodnika pokazują, jak z tego
+korzystać, co dokładnie chroni dane i jak mierzy się jakość wywiadu.
