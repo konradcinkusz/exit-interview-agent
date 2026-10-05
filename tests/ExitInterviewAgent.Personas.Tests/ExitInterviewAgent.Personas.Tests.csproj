@@ -9,13 +9,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="Fixtures" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\Shared\ForbiddenFieldNames.cs" Link="Shared\ForbiddenFieldNames.cs" />
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Personas\ExitInterviewAgent.Personas.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

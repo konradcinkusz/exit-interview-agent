@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1",
+  "id": "hostile",
+  "title": "Hostile",
+  "description": "Gives one useful answer, then turns hostile. The interviewer acknowledges once, and closes at the second hostile reply. Hostile sentences never become quotes.",
+  "language": "en",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "hostile"
+  ],
+  "typing": {
+    "wordsPerMinute": 60,
+    "thinkSeconds": 5
+  },
+  "responses": {
+    "consent": [
+      "Fine, go ahead, but this is a waste of time."
+    ],
+    "topics": {
+      "onboarding": [
+        "Onboarding was a mess: 3 different people gave me conflicting instructions in my first week and nobody owned the checklist."
+      ],
+      "management": [
+        "This is pointless. I am sick of being asked about my manager."
+      ],
+      "growth": [
+        "Stop asking me this stupid stuff, it is a useless exercise."
+      ],
+      "pay_vs_promises": [
+        "None of your business."
+      ],
+      "culture": [
+        "Leave me alone."
+      ],
+      "reason_for_leaving": [
+        "I am done with this."
+      ]
+    },
+    "fallback": [
+      "This is ridiculous."
+    ]
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "hostile",
+    "submittable": true
+  }
+}

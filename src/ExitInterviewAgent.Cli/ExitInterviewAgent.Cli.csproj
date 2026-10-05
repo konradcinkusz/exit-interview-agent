@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- `exit-interview`: offline demo of the interview agent with the mock model and a persona. No network, no submission (ADR-0026). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>exit-interview</AssemblyName>
+    <RootNamespace>ExitInterviewAgent.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Personas\ExitInterviewAgent.Personas.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Cli.Tests" />
+  </ItemGroup>
+</Project>

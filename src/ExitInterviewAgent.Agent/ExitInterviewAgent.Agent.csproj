@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The interview agent core: protocol, state machine, roles, mock model, tracing seam. Records + Privacy + IChatClient abstractions only (ADR-0022, ADR-0023). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="LateApexEarlySpeed.Json.Schema" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Privacy\ExitInterviewAgent.Privacy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Protocol\interview-protocol.v1.json" LogicalName="interview-protocol.v1.json" />
+    <EmbeddedResource Include="..\..\schemas\extractor-output.v1.schema.json" LogicalName="extractor-output.v1.schema.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Agent.Tests" />
+  </ItemGroup>
+</Project>

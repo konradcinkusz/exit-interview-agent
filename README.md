@@ -24,7 +24,7 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Documentation foundation: [privacy design](docs/privacy/DESIGN.md), [threat model](docs/security/THREAT-MODEL.md), [legal considerations](docs/legal/CONSIDERATIONS.md), [open problems](docs/OPEN-PROBLEMS.md), [evaluation methodology](docs/eval/METHODOLOGY.md) | **Implemented** (T3, documents only: they describe a design) |
 | Record schema v1, validation library, deterministic PII detector | **Implemented** (T1, [ADR-0007](docs/adr/0007-record-context-bands.md)..[0011](docs/adr/0011-no-per-person-identifier-in-the-record.md); [record schema](docs/architecture/record-schema.md)) |
 | Second JWT scheme for MCP (scope-enforced, RFC 9728 metadata, authservice client wired in the AppHost), BFF refresh rotation and consent step, account-deletion semantics, security headers | **Implemented** (T2, [ADR-0012](docs/adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)..[0014](docs/adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)). Not run here: Claude completing the flow, the `v0.3.4` image |
-| Interview agent core, persona simulator, mock model, offline CLI demo | Planned (T4) |
+| Interview agent core (protocol, state machine, roles, PII guard, quote step, tracing seam), scripted mock model, eight simulated personas, offline CLI demo | **Implemented** (T4, [ADR-0022](docs/adr/0022-interview-agent-core.md) to [0026](docs/adr/0026-cli-project-and-ci-artifacts.md); design in [interview-agent.md](docs/architecture/interview-agent.md)). The mock is a test seam, not a quality baseline |
 | Server-side submission: validation, PII re-scan, one-per-employer ledger (rotatable keyed HMAC), receipt-code deletion, CLI submission tickets, retention purge, `EmploymentVerifier` mock (verifies nothing: [OP-1](docs/OPEN-PROBLEMS.md)). The [flow and table layout](docs/architecture/submission-flow.md) say what each table can and cannot link | **Implemented** (T5, [ADR-0027](docs/adr/0027-store-time-buckets-and-one-transaction.md)..[0031](docs/adr/0031-submission-pipeline-and-employment-verifier-seam.md)). The MCP tool (T8), web screens (T9) and CLI client (T11) that call it are not built; the PostgreSQL tests need `TEST_POSTGRES_CONNECTION` (CI sets it) |
 | Model providers behind `IChatClient` and PII-free tracing | Planned (T6) |
 | Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
@@ -34,7 +34,7 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | CLI submission with a ticket | Planned (T11) |
 | Security review, release gate, results write-up | Planned (T12) |
 
-There is **no interview logic on `main` yet**. Nothing is deployed, and no real person's data is processed anywhere.
+The interview agent runs offline against simulated personas with a scripted mock model ([Try it offline](#try-it-offline)); it has **no real model provider, no submission and no interactive interviewee yet**, so no real interview can happen. Nothing is deployed, and no real person's data is processed anywhere.
 
 ## Non-goals, stated up front
 
@@ -89,10 +89,31 @@ The MCP path (connecting Claude) is off until you give the AppHost two public ht
 
 If `ghcr.io/konradcinkusz/authservice` cannot be pulled where you are, run without identity: `Identity__Enabled=false dotnet run --project src/ExitInterviewAgent.AppHost` (protected endpoints then answer 401 and say so). Details: [ADR-003](docs/adr/0003-identity-authservice-as-pinned-image.md).
 
+## Try it offline
+
+The CLI runs a whole interview with a simulated interviewee and the deterministic **mock model**: no network, no credentials, nothing submitted. The mock is a seam for tests and demos, **not a quality baseline**: it cannot show that a real model behaves well ([what the mock can and cannot show](docs/architecture/interview-agent.md#the-scripted-mock-model-what-it-can-and-cannot-show)).
+
+```bash
+dotnet run --project src/ExitInterviewAgent.Cli -- personas
+dotnet run --project src/ExitInterviewAgent.Cli -- demo --persona talkative --seed 1
+dotnet run --project src/ExitInterviewAgent.Cli -- demo --persona names-manager --seed 1 --out ./demo-out   # writes transcript.txt, record.json, report.txt
+dotnet run --project src/ExitInterviewAgent.Cli -- demo --persona withdraws-consent                         # no transcript, no record
+```
+
+`demo` prints the masked transcript, the record JSON, the validation result and an invariant report; exit code 0 means every invariant held (1: one failed, 2: usage error). The same seed gives byte-identical output.
+The personas are `talkative`, `terse`, `hostile`, `vague`, `names-manager`, `prompt-injection`, `withdraws-consent` and `contradictory` (synthetic; the employer is the fictional `widgetron-ltd`).
+
+Self-contained single-file binaries (CI builds them for `linux-x64`, `win-x64` and `osx-arm64` as workflow artifacts and runs only the Linux one; nothing is released):
+
+```bash
+dotnet publish src/ExitInterviewAgent.Cli -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out/linux-x64
+out/linux-x64/exit-interview demo --persona talkative --seed 1
+```
+
 ## Test it
 
 ```bash
-dotnet build -warnaserror && dotnet test                    # service, kernel guards, architecture tests
+dotnet build -warnaserror && dotnet test                    # service, kernel guards, records, PII detector, agent, personas, CLI, architecture tests
 scripts/check-kernel-size.sh                                # the shared-kernel ceiling
 cd web && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build
 cd ../tests/e2e && pnpm install --frozen-lockfile && npx playwright install --with-deps chromium && pnpm test
@@ -109,7 +130,11 @@ CI runs the same (plus container image builds and workflow linting): [`.github/w
 | `src/ExitInterviewAgent.Contracts` | DTOs that cross a service boundary |
 | `src/ExitInterviewAgent.InterviewService` | the single service; owns `interviewdb`; `/health`, `/alive`, `GET /api/v1/me` |
 | `web/app` | Next.js portal and BFF (HttpOnly-cookie sessions, runtime config, verifying edge gate, catch-all proxy) |
-| `tests/` | xUnit project for the service and kernel; Playwright journeys in `tests/e2e` |
+| `src/ExitInterviewAgent.Records`, `src/ExitInterviewAgent.Privacy` | the record schema, validation and quote fidelity ([record schema](docs/architecture/record-schema.md)); the deterministic PII detector ([PII detector](docs/privacy/pii-detector.md)) |
+| `src/ExitInterviewAgent.Agent` | the interview agent core: protocol, state machine, roles, PII guard, quote step, tracing seam, scripted mock model ([interview agent](docs/architecture/interview-agent.md), [trace schema](docs/eval/TRACE-SCHEMA.md)) |
+| `src/ExitInterviewAgent.Personas` | the simulated interviewees: data files, schema, seeded simulator |
+| `src/ExitInterviewAgent.Cli` | `exit-interview`: the offline demo |
+| `tests/` | xUnit projects mirroring the sources; Playwright journeys in `tests/e2e` |
 | `flyio/` | generated Fly.io topology, secrets and cost analysis (not deployed) |
 | `docs/` | [architecture and deviation register](docs/architecture/00-ARCHITECTURE.md), [ADRs](docs/adr/), [UI/UX and backlog](docs/ux/UI-UX.md), diagrams; [privacy design](docs/privacy/DESIGN.md), [threat model](docs/security/THREAT-MODEL.md), [legal considerations](docs/legal/CONSIDERATIONS.md), [open problems](docs/OPEN-PROBLEMS.md), [evaluation methodology](docs/eval/METHODOLOGY.md) |
 

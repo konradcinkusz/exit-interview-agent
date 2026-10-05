@@ -46,6 +46,43 @@ jobs:
       - name: Kernel size ceiling (P2)
         run: scripts/check-kernel-size.sh
 
+  cli:
+    name: exit-interview binaries (${{ matrix.rid }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, win-x64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # Workflow artifacts only: no release, no tag, no secret, nothing deployed (ADR-0026).
+      - name: Publish a self-contained single-file binary
+        run: >
+          dotnet publish src/ExitInterviewAgent.Cli -c Release -r ${{ matrix.rid }} --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out/${{ matrix.rid }}
+      # Only the Linux binary can run on this runner; the other two are built, not executed.
+      - name: Smoke run on linux-x64 (personas, a demo, a reproducible second run)
+        if: matrix.rid == 'linux-x64'
+        run: |
+          out/linux-x64/exit-interview personas
+          out/linux-x64/exit-interview demo --persona talkative --seed 1 | tee demo1.txt
+          grep -q "valid: yes, errors: 0" demo1.txt
+          if grep -q "\[FAIL\]" demo1.txt; then echo "an invariant failed"; exit 1; fi
+          out/linux-x64/exit-interview demo --persona talkative --seed 1 > demo2.txt
+          cmp demo1.txt demo2.txt
+          out/linux-x64/exit-interview demo --persona withdraws-consent | grep -q "(no record:"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exit-interview-${{ matrix.rid }}
+          path: |
+            out/${{ matrix.rid }}/exit-interview
+            out/${{ matrix.rid }}/exit-interview.exe
+          if-no-files-found: error
+          retention-days: 7
+
   web:
     name: web lint, typecheck, test, build
     runs-on: ubuntu-latest
