@@ -1,0 +1,119 @@
+{
+  "protocolRevisionsAccepted": [
+    "2024-11-05",
+    "2025-03-26",
+    "2025-06-18",
+    "2025-11-25",
+    "2026-07-28"
+  ],
+  "serverInfo": {
+    "name": "exit-interview-agent",
+    "version": "1.0.0"
+  },
+  "instructions": "Call the prompt conduct_exit_interview and follow it. Only the finished, user-confirmed record is submitted; the conversation itself never is.",
+  "capabilities": {
+    "tools": true,
+    "prompts": true,
+    "resources": true
+  },
+  "tools": [
+    {
+      "name": "submit_interview_record",
+      "title": "Submit an interview record",
+      "description": "Submits one finished exit-interview record on behalf of the signed-in user. Only call it after the user has seen the full record and explicitly confirmed. Returns a receipt code once: show it to the user immediately, it cannot be recovered. Never returns submitted text. One submission per employer per user.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "description": "The complete record as a JSON object, exactly as shown to and confirmed by the user. Format: resource exit-interview://schema/record/v1."
+          }
+        },
+        "required": [
+          "record"
+        ]
+      },
+      "annotations": {
+        "title": "Submit an interview record",
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "validate_interview_record",
+      "title": "Check an interview record",
+      "description": "Dry-run check of an exit-interview record against the published schema and the personal-data scan. Stores nothing and records nothing. Returns only status, error codes, schema paths and kinds of personal data found, never the text. Use it to fix mistakes before asking the user to confirm.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "description": "The complete record as a JSON object, exactly as it would be submitted. Format: resource exit-interview://schema/record/v1."
+          }
+        },
+        "required": [
+          "record"
+        ]
+      },
+      "annotations": {
+        "title": "Check an interview record",
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "conduct_exit_interview",
+      "title": "Conduct an exit interview",
+      "description": "Instructions for conducting a structured exit interview with the user, who is a former employee, and for building and submitting the short record. Start here.",
+      "arguments": [
+        {
+          "name": "language",
+          "description": "Interview language as a two or three letter code, for example en or pl. Defaults to en.",
+          "required": false
+        },
+        {
+          "name": "employerHint",
+          "description": "Optional employer name to pre-fill. Short plain text; it is confirmed with the user.",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "name": "interview_protocol_v1",
+      "title": "Interview protocol v1",
+      "uri": "exit-interview://protocol/v1",
+      "description": "The interview protocol document: the fixed opening, the six topics with neutral opening questions, wording for probes, limits and rules.",
+      "mimeType": "application/json"
+    },
+    {
+      "name": "record_schema_v1",
+      "title": "Exit interview record, JSON Schema v1",
+      "uri": "exit-interview://schema/record/v1",
+      "description": "The JSON Schema (draft 2020-12) every submitted record must satisfy.",
+      "mimeType": "application/schema+json"
+    },
+    {
+      "name": "topics_v1",
+      "title": "Topics and rating anchors v1",
+      "uri": "exit-interview://topics/v1",
+      "description": "The six topics in order, what each covers, and how to set rating and confidence.",
+      "mimeType": "text/markdown"
+    }
+  ],
+  "resourceTextSha256": {
+    "exit-interview://protocol/v1": "514dffbdb3b5d3dc",
+    "exit-interview://schema/record/v1": "b58dfaab166bd30a",
+    "exit-interview://topics/v1": "165e8ca95f2b1bd5"
+  },
+  "promptTextSha256": {
+    "default": "a4c6e919766aa231",
+    "pl+hint": "eda6aaa9dfa82d81"
+  },
+  "protocolVersion": "1.0"
+}

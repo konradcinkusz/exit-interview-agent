@@ -113,8 +113,12 @@ public sealed class PostgresSubmissionTests
         var results = await RaceAsync(Parallel, async i =>
         {
             var web = i % 2 == 0;
-            var response = await host.Client(web ? host.WebToken(sub) : host.McpToken(sub))
-                .PostAsync(web ? "/api/v1/submissions" : "/mcp/_submit", TestRecords.Json(TestRecords.Valid(employer)));
+            if (!web)
+            {
+                var viaMcp = await McpWire.CallToolAsync(host.Client(host.McpToken(sub)), "submit_interview_record", TestRecords.Valid(employer));
+                return viaMcp.Accepted ? HttpStatusCode.Created : viaMcp.Code == "ALREADY_SUBMITTED" ? HttpStatusCode.Conflict : viaMcp.Http;
+            }
+            var response = await host.Client(host.WebToken(sub)).PostAsync("/api/v1/submissions", TestRecords.Json(TestRecords.Valid(employer)));
             return response.StatusCode;
         });
 

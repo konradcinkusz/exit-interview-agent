@@ -53,7 +53,7 @@ The exhaustive search over small partitions finds this scenario (`AdversaryTests
 - **Utility is lost on purpose.** At an employer with one small band (a tenure band of three people), the whole tenure cut disappears for that topic, even though the other bands
   are large. Tenure is the dimension most likely to be withheld at a mid-sized employer. Trigger for revisiting: a measured share of withheld cuts that makes the cuts useless; the
   answer is recoding (merging adjacent bands), which changes the wire vocabulary and needs ADR-0009's process.
-- **What k does not do** (stated again in [AGGREGATION §7](../privacy/AGGREGATION.md#7-what-k-does-not-protect-against), [OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups) and OP-18 to OP-21): it does not stop an adversary with
+- **What k does not do** (stated again in [AGGREGATION §7](../privacy/AGGREGATION.md#7-what-k-does-not-protect-against), [OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups) and OP-19 to OP-22): it does not stop an adversary with
   several accounts (each extra record lowers the bound by one: k - m), nor one who knows who submitted, nor homogeneity (a unanimous cell shows that everyone in it gave that rating),
   nor the pattern of what is withheld (a withheld cut says some band is small). It is a convention, not a guarantee.
 - Distribution and verification are rarely shown below about 15 ratings (three bins of at least 5); that is the price of the same rule for every partition.

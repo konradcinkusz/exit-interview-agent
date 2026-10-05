@@ -1,6 +1,7 @@
 using ExitInterviewAgent.InterviewService.Infrastructure;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.InterviewService.Infrastructure.Logging;
+using ExitInterviewAgent.InterviewService.Mcp;
 using ExitInterviewAgent.ServiceDefaults;
 
 // Program.cs is a manifest (P9): each block is one capability, wired in the service's own extensions.
@@ -16,6 +17,7 @@ builder.Services.AddOpenApiDocument("interview-service", "v1", "Structured exit-
 builder.Services.AddInterviewPersistence(builder.Configuration);
 builder.Services.AddSubmissions(builder.Configuration, builder.Environment);
 builder.Services.AddSignalsModule(builder.Configuration, builder.Environment);
+builder.Services.AddInterviewMcp();
 
 var app = builder.Build();
 

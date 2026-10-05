@@ -1,5 +1,6 @@
 using ExitInterviewAgent.InterviewService.Endpoints;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
+using ExitInterviewAgent.InterviewService.Mcp;
 using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.ServiceDefaults;
 
@@ -17,6 +18,7 @@ public static class ServiceCollectionExtensions
 
     public static WebApplication UseInterviewPipeline(this WebApplication app)
     {
+        app.UseMcpTransportGuard();
         app.UseCors(CorsPolicies.Frontend);
         app.UseAuthentication();
         app.UseAuthorization();
@@ -43,11 +45,7 @@ public static class ServiceCollectionExtensions
         // The MCP resource server: public RFC 9728 metadata, and the mount point guarded by the MCP policy (ADR-0012).
         var mcp = app.Services.GetRequiredService<McpOptions>();
         app.MapProtectedResourceMetadata(mcp);
-        var mcpGroup = app.MapMcpMount(mcp);
-        if (mcpGroup is not null && app.Environment.IsDevelopment())
-        {
-            mcpGroup.MapMcpSubmissionProbe();
-        }
+        app.MapMcpMount(mcp);
         return app;
     }
 }

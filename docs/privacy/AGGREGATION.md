@@ -97,11 +97,11 @@ K is a convention, not a guarantee. Stated candidly, each with the test or open 
    `The_known_boundary_k_minus_one_other_records_are_recoverable...` documents the boundary instead of hiding it. Raise k for small employers; the real fix is verification.
 2. **Side knowledge.** An adversary who knows who else submitted, or that a group of five contains four known people, can eliminate ([T-01](../security/THREAT-MODEL.md), [OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups)).
 3. **Homogeneity.** A unanimous cell is shown (with a wide interval): everyone in it gave that rating, so a person known to be in the cell has a known rating. Suppressing unanimous cells would be an l-diversity rule, would
-   bias what is shown towards polarised employers, and the pattern of suppression would itself tell ([OP-19](../OPEN-PROBLEMS.md#op-19-homogeneous-cells-are-shown)).
-4. **The pattern of what is withheld.** A withheld cut says that some band in it has between 1 and k - 1 ratings, or that a group left out of the band has. It does not say which ([OP-20](../OPEN-PROBLEMS.md#op-20-what-is-withheld-is-itself-a-signal)).
+   bias what is shown towards polarised employers, and the pattern of suppression would itself tell ([OP-20](../OPEN-PROBLEMS.md#op-20-homogeneous-cells-are-shown)).
+4. **The pattern of what is withheld.** A withheld cut says that some band in it has between 1 and k - 1 ratings, or that a group left out of the band has. It does not say which ([OP-21](../OPEN-PROBLEMS.md#op-21-what-is-withheld-is-itself-a-signal)).
 5. **Differences across more than one record.** The cross-snapshot guarantee is for one record of the adversary's own moving between two batches. A batch in which a handful of known people submitted, with nothing else changing,
-   exposes their joint contribution (it is bounded by the batch size and the period: a longer period dilutes it; [OP-18](../OPEN-PROBLEMS.md#op-18-k-is-a-convention-and-small-batches-expose-small-differences)).
-6. **Utility.** At employers with a small band, whole cuts disappear (R3). That is the price of 1, and it is visible in the demo ([OP-21](../OPEN-PROBLEMS.md#op-21-clean-partitions-withhold-more-than-a-textbook-rule-would)).
+   exposes their joint contribution (it is bounded by the batch size and the period: a longer period dilutes it; [OP-19](../OPEN-PROBLEMS.md#op-19-k-is-a-convention-and-small-batches-expose-small-differences)).
+6. **Utility.** At employers with a small band, whole cuts disappear (R3). That is the price of 1, and it is visible in the demo ([OP-22](../OPEN-PROBLEMS.md#op-22-clean-partitions-withhold-more-than-a-textbook-rule-would)).
 7. **Not covered at all:** fabricated records (T-10), model error in ratings (OP-5), who the respondents are (OP-4), and an operator with the database, the key and live traffic (T-13).
 
 ## 8. API contract and UI copy contract

@@ -21,13 +21,14 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-12 | Receipt codes: access without a list of records | Medium |
 | OP-13 | Storage-level correlation between the ledger and the records | Medium |
 | OP-14 | One submission per employer is time-limited by the ledger window | Medium |
-| OP-15 | Anonymous receipt deletion behind the BFF shares one rate-limit key | Medium |
-| OP-16 | Manual accessibility pass | Low |
-| OP-17 | Two-factor sign-in has been tested only against the stub | Low |
-| OP-18 | K is a convention, and small batches expose small differences | High |
-| OP-19 | Homogeneous cells are shown | Medium |
-| OP-20 | What is withheld is itself a signal | Low |
-| OP-21 | Clean partitions withhold more than a textbook rule would | Medium |
+| OP-15 | Anonymous receipt deletion behind the BFF shares one rate-limit key | see section |
+| OP-16 | Manual accessibility pass | see section |
+| OP-17 | Two-factor sign-in has been tested only against the stub | see section |
+| OP-18 | Mode A: host fidelity, the opening text, and the unverified Claude run | High |
+| OP-19 | K is a convention, and small batches expose small differences | High |
+| OP-20 | Homogeneous cells are shown | Medium |
+| OP-21 | What is withheld is itself a signal | Low |
+| OP-22 | Clean partitions withhold more than a textbook rule would | Medium |
 
 ## OP-1. Real employment verification
 
@@ -99,8 +100,9 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 ## OP-8. MCP sampling support
 
 - **Why it matters.** Sampling would let our server ask the user's host model to run parts of the protocol, but client support is uneven.
-- **What we do now.** The brief says not to rely on it unless verified and recorded in an ADR ([brief §4](architecture/PROJECT-BRIEF.md)). We do not use it; support
-  in the host was **not verified** in this session.
+- **What we do now.** Not used, referenced or possible: the server is stateless and a test scans the assembly ([ADR-0042](adr/0042-mcp-sdk-and-streamable-http-stateless.md)). Anthropic's connector documentation,
+  read 2026-10-05 ([Build an MCP server for Claude](https://claude.com/docs/connectors/building/index)), says Claude "doesn't yet support" resource subscriptions, sampling and advanced or draft capabilities, which is why the design is right for now.
+  Elicitation is not listed as supported either way; also unused. Other hosts: not checked.
 - **What would close it.** Read the host's published documentation for the supported MCP features, record the result and date in an ADR, and
   add it only if it brings a privacy or quality benefit.
 
@@ -115,7 +117,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **Why it matters.** authservice registers MCP clients statically from configuration (its ADR-0005: no dynamic registration); each host needs its own
   client id, secret, redirect URIs, scopes and resource, held by the operator.
 - **What we do now.** Wired for Claude (T2, [ADR-0012](adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)): the AppHost configures one client, the service validates its tokens and
-  serves RFC 9728 metadata; the MCP transport is Planned (T8). Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
+  serves RFC 9728 metadata; the MCP transport is Implemented (T8, [mcp.md](architecture/mcp.md)). The operator runbook is [`guides/connect-claude.md`](guides/connect-claude.md): it marks every step not verified live. Needs two public https URLs locally ([`scripts/README.md`](../scripts/README.md)).
 - **What would close it.** A documented operator runbook per host and a startup check that fails loudly on a missing client; dynamic registration
   would need authservice to change its stance.
 
@@ -175,7 +177,17 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** Unit tests pin the three texts; the stub carries a contract note.
 - **What would close it.** The full-stack journey against the AppHost with a two-factor account enrolled through authservice (a later e2e layer).
 
-## OP-18. K is a convention, and small batches expose small differences
+## OP-18. Mode A: host fidelity, the opening text, and the unverified Claude run
+
+- **Why it matters.** In mode A the host model, not this project, conducts the interview. The server checks the record (schema, PII re-scan, AI-disclosure flag, size, one per employer) but cannot see whether consent was
+  obtained or withdrawn, whether the AI disclosure was said, whether questions were neutral, or whether quotes are verbatim ([mcp.md](architecture/mcp.md)). The protocol's opening says "the full conversation is not stored", which is true of this
+  service and not of the user's AI provider; the prompt adds a fixed note ([ADR-0045](adr/0045-mode-a-host-fidelity-and-opening-note.md)) whose wording has had no legal review. Nobody has run a real Claude client against this server,
+  so the connector flow, the prompt's discoverability to users and the host's adherence to the instructions are all **unverified**.
+- **What we do now.** Server-side validation, the confirm-before-submit instruction, a pinned and reviewed contract, an operator runbook that says what was and was not verified, and the README/connect copy that says mode A is the weakest of the three modes.
+- **What would close it.** (1) A live run against Claude with the real authservice image and two tunnels, recorded with date and versions. (2) The T7 harness running the personas against mode A hosts and reporting the same metrics as mode B.
+  (3) A lawyer's reading of the opening plus note. (4) A server-observable signal that is not the transcript (for example the interview's own turn and duration bands, already in the record) compared with what hosts report.
+
+## OP-19. K is a convention, and small batches expose small differences
 
 - **Why it matters.** K = 5 is the brief's number, not a measured privacy level. Three limits of any k-threshold remain after T10: (1) an adversary who adds one record of their own to an employer with k - 1 others sees
   the cell appear, and "everything minus mine" is exactly those k - 1 people; with *m* accounts it is k - m, and the ledger limits one submission per employer per account, not the number of accounts ([OP-1](#op-1-real-employment-verification),
@@ -185,25 +197,24 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What would close it.** Verification that makes an account cost something (OP-1); a minimum number of *changes* per batch before a cell is republished (this conflicts with deleting a record "at the next batch", so it needs
   a decision about erasure); noise addition evaluated against simulated re-identification, if the project later wants a formal guarantee instead of a convention; an employer-size floor from a registry ([OP-2](#op-2-employer-registry-and-identity)).
 
-## OP-19. Homogeneous cells are shown
+## OP-20. Homogeneous cells are shown
 
 - **Why it matters.** A cell where everyone gave the same rating is displayed (with a wide interval, never a point): a person known to be in the cell has a known rating. That is the homogeneity limit of k-anonymity (the l-diversity gap).
-- **What we do now.** Nothing suppresses it, on purpose: suppressing unanimous cells would show only polarised employers, and the pattern of suppression would itself tell (OP-20). The interval is wide at small n; the copy contract says what the
+- **What we do now.** Nothing suppresses it, on purpose: suppressing unanimous cells would show only polarised employers, and the pattern of suppression would itself tell (OP-21). The interval is wide at small n; the copy contract says what the
   numbers describe.
 - **What would close it.** A diversity rule evaluated for its cost in coverage, or showing only cells whose spread is above a floor, with the bias that introduces written down.
 
-## OP-20. What is withheld is itself a signal
+## OP-21. What is withheld is itself a signal
 
 - **Why it matters.** A withheld cut says some band in it has between 1 and k - 1 ratings, or that a group left out of the band does; an `insufficient_data` topic says fewer than k people rated it. Which band, and how many, are not said.
 - **What we do now.** Statuses are a fixed vocabulary; the response always has six topics and three cuts per displayable topic; no count of withheld cells is returned, logged or emitted as a metric; an employer below k and an unknown one get
   byte-identical answers.
-- **What would close it.** Publishing every cut in a fixed shape regardless of what it hides (not possible without noise), or recoding bands so withholding is rarer ([OP-21](#op-21-clean-partitions-withhold-more-than-a-textbook-rule-would)).
+- **What would close it.** Publishing every cut in a fixed shape regardless of what it hides (not possible without noise), or recoding bands so withholding is rarer ([OP-22](#op-22-clean-partitions-withhold-more-than-a-textbook-rule-would)).
 
-## OP-21. Clean partitions withhold more than a textbook rule would
+## OP-22. Clean partitions withhold more than a textbook rule would
 
 - **Why it matters.** A clean partition is withheld whole when any band holds 1 to k - 1 ratings, so at a mid-sized employer a single small band (a tenure band of three people) removes that topic's whole tenure cut. Distribution and
   verification breakdowns appear only from about 3k ratings. The cuts will often be empty for small employers, which weakens what the product says about *why* a topic is rated as it is.
 - **What we do now.** The textbook rule would show more and is unsafe across two snapshots ([ADR-0053](adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md)); the loss is chosen, documented and visible in the demo data.
 - **What would close it.** Recoding (merging adjacent bands such as `lt_6m` and `6m_1y` when one is small), which changes the wire vocabulary and needs the versioning process of ADR-0009; evidence needed: how many cuts are withheld on a population shaped like the
   expected users. **Trigger:** a measured share of withheld cuts that makes them useless.
-
