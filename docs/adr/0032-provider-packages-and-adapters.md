@@ -31,6 +31,8 @@ Two behaviours were found by running the SDKs against a fake handler (`/tmp` spi
 - **New providers** are an `IChatClient` plus one `case` in `ProviderChatClients.Create` and a row in `ProviderCatalog` (P10); the provider's own SDK exceptions must never escape (the wrapper handles that for any inner client).
 - The Agent project is untouched except for the failure-code seam ([ADR-0034](0034-resilience-budget-and-failure-semantics.md)): it still references no HTTP assembly and no SDK (architecture tests).
 
+- **Harness wiring (T7's registration point).** `ProviderProfiles.Create(provider, model, endpoint, requiredEnv, runtime?)` turns a profile of `evals/profiles.yaml` into the same client the CLI uses, and `ExitInterviewAgent.Eval.ProviderRegistration` (called by the eval tool's `Program`) registers it per provider name. The Eval project therefore references Providers; T7's architecture test is updated accordingly (five project references, and a source scan that only `ProviderRegistration.cs` mentions the Providers namespace), the harness's own no-network and no-`HttpClient` tests still hold. A profile's `requires_env` lists key variables only (at most one), the `EVAL_*` names are kept for the keyed gateway so a nightly run never picks up a developer's own key by accident, and a subscription-token variable is refused.
+
 ## Consequences
 
 - Three real providers behind one wrapper; `ProviderChatClients.Create(settings)` is the entry point T7 builds a real-model profile with.

@@ -111,6 +111,8 @@ A provider is an `IChatClient` plus three small edits (P10, ADR-0032):
 
 ## For the eval harness (T7)
 
+The harness is wired already: `ProviderRegistration.RegisterAll()` in the eval tool registers `anthropic`, `openai-compatible` and `ollama` from `evals/profiles.yaml` ([eval README](../eval/README.md#plugging-in-model-providers)); `ProviderProfiles.Create` is the entry point behind it. To build a client by hand:
+
 ```csharp
 var resolved = ProviderConfigResolver.Resolve(new ProviderCliOptions { Provider = "ollama", Model = "<model>" }, Environment.GetEnvironmentVariable);
 using var client = ProviderChatClients.Create(resolved.Settings);          // IChatClient: metered, budgeted, instrumented

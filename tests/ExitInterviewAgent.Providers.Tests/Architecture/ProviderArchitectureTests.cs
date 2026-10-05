@@ -15,10 +15,10 @@ public class ProviderArchitectureTests
         XDocument.Load(project).Descendants().Where(e => e.Name.LocalName is "ProjectReference" or "PackageReference").Select(e => (string?)e.Attribute("Include") ?? string.Empty);
 
     [Fact]
-    public void Only_the_cli_and_the_providers_own_tests_reference_the_providers_project()
+    public void Only_the_cli_and_the_eval_harness_reference_the_providers_project()
     {
         var offenders = Directory.GetFiles(Path.Combine(Root(), "src"), "*.csproj", SearchOption.AllDirectories)
-            .Where(p => !p.Contains("ExitInterviewAgent.Providers", StringComparison.Ordinal) && !p.Contains("ExitInterviewAgent.Cli", StringComparison.Ordinal))
+            .Where(p => !p.Contains("ExitInterviewAgent.Providers", StringComparison.Ordinal) && !p.Contains("ExitInterviewAgent.Cli", StringComparison.Ordinal) && !p.Contains("ExitInterviewAgent.Eval", StringComparison.Ordinal))
             .Where(p => References(p).Any(r => r.Contains("ExitInterviewAgent.Providers", StringComparison.Ordinal)))
             .ToList();
 
