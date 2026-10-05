@@ -17,6 +17,10 @@ public sealed class EndpointAccessTests : IDisposable
     private Task<(HttpResponseMessage Response, string Body)> PostAsync(string path, string? bearer, byte[]? body = null) =>
         _host.Client(bearer).PostAsync(path, TestRecords.Json(body ?? TestRecords.Bytes(TestRecords.Valid()))).ReadAsync();
 
+    private Task<(HttpResponseMessage Response, string Body)> SubmitViaMcpAsync(string? bearer, byte[]? record = null) =>
+        _host.Client(bearer).SendAsync(McpWire.Post(McpWire.CallToolBody("submit_interview_record", System.Text.Json.Nodes.JsonNode.Parse(record ?? TestRecords.Bytes(TestRecords.Valid()))!))).ReadAsync(
+            );
+
     [Fact]
     public async Task The_account_endpoint_takes_a_web_token_and_nothing_else()
     {
@@ -32,9 +36,10 @@ public sealed class EndpointAccessTests : IDisposable
     {
         var sub = TestRecords.NewSub();
 
-        Assert.Equal(HttpStatusCode.Unauthorized, (await PostAsync("/mcp/_submit", _host.WebToken(sub))).Response.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await PostAsync("/mcp/_submit", null)).Response.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, (await PostAsync("/mcp/_submit", _host.McpToken(sub))).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SubmitViaMcpAsync(_host.WebToken(sub))).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SubmitViaMcpAsync(null)).Response.StatusCode);
+        var accepted = await McpWire.CallToolAsync(_host.Client(_host.McpToken(sub)), "submit_interview_record", TestRecords.Valid());
+        Assert.True(accepted.Accepted);
     }
 
     [Fact]
@@ -42,7 +47,7 @@ public sealed class EndpointAccessTests : IDisposable
     {
         var token = _host.NewMcpToken(TestRecords.NewSub()).With(t => t.Scope = "offline_access").Build();
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await PostAsync("/mcp/_submit", token)).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SubmitViaMcpAsync(token)).Response.StatusCode);
     }
 
     [Fact]
@@ -51,7 +56,7 @@ public sealed class EndpointAccessTests : IDisposable
         var sub = TestRecords.NewSub();
         var employer = TestRecords.NewEmployer();
 
-        Assert.Equal(HttpStatusCode.Created, (await PostAsync("/mcp/_submit", _host.McpToken(sub), TestRecords.Bytes(TestRecords.Valid(employer)))).Response.StatusCode);
+        Assert.True((await McpWire.CallToolAsync(_host.Client(_host.McpToken(sub)), "submit_interview_record", TestRecords.Valid(employer))).Accepted);
         var (second, body) = await PostAsync("/api/v1/submissions", _host.WebToken(sub), TestRecords.Bytes(TestRecords.Valid(employer)));
 
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);

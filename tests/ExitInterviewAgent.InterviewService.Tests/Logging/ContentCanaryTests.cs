@@ -186,7 +186,7 @@ public sealed class ContentCanaryTests
         }
 
         // 4. The MCP path.
-        await host.Client(host.McpToken(SubCanary)).PostAsync("/mcp/_submit", TestRecords.Json(TestRecords.Valid(Employer + "y")));
+        await McpWire.CallToolAsync(host.Client(host.McpToken(SubCanary)), "submit_interview_record", TestRecords.Valid(Employer + "y"));
 
         // 5. Receipt deletion: known, again, unknown, malformed.
         await anonymous.SendAsync(Delete(receipt));

@@ -31,6 +31,8 @@
     <PackageVersion Include="LateApexEarlySpeed.Json.Schema" Version="4.2.0" />
   </ItemGroup>
   <ItemGroup Label="Interview agent (ADR-0023)">
+    <!-- MCP server (T8, ADR-0042): Apache-2.0, official C# SDK, Streamable HTTP, stateless by default -->
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
   </ItemGroup>

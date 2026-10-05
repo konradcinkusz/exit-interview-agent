@@ -79,6 +79,9 @@ public sealed class InterviewProtocol
     /// <summary>The protocol this build ships.</summary>
     public static InterviewProtocol Current { get; } = Load();
 
+    /// <summary>The exact bytes (as text) of the embedded protocol file, for clients that publish the protocol document itself (MCP resource, T8).</summary>
+    public static string CurrentJson { get; } = ReadResourceText();
+
     /// <summary>The same protocol with different bounds, for embedders and tests that need a tiny budget.</summary>
     public InterviewProtocol WithLimits(ProtocolLimits limits) => new(_dto with { Limits = limits });
 
@@ -90,6 +93,14 @@ public sealed class InterviewProtocol
             throw new InvalidDataException("The protocol must define each of the six topics exactly once.");
         if (!Opening.Contains("AI", StringComparison.Ordinal))
             throw new InvalidDataException("The opening turn must disclose that the interviewer is an AI.");
+    }
+
+    private static string ReadResourceText()
+    {
+        using var stream = typeof(InterviewProtocol).Assembly.GetManifestResourceStream("interview-protocol.v1.json")
+            ?? throw new InvalidOperationException("Embedded protocol is missing.");
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+        return reader.ReadToEnd();
     }
 
     private static InterviewProtocol Load()

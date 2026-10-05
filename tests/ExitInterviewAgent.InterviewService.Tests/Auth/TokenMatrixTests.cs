@@ -4,7 +4,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ExitInterviewAgent.InterviewService.Tests.Support;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -20,7 +23,7 @@ public sealed class TokenMatrixTests(ServiceFactory factory) : IClassFixture<Ser
 {
     public static TheoryData<string> Schemes => new() { "web", "mcp" };
 
-    private static string PathFor(string scheme) => scheme == "web" ? "/api/v1/me" : "/mcp/_probe";
+    private static HttpRequestMessage RequestFor(string scheme) => scheme == "web" ? new HttpRequestMessage(HttpMethod.Get, "/api/v1/me") : McpWire.ListTools();
 
     private TokenBuilder Valid(string scheme) => scheme == "web" ? factory.NewWebToken() : factory.NewMcpToken();
 
@@ -31,7 +34,7 @@ public sealed class TokenMatrixTests(ServiceFactory factory) : IClassFixture<Ser
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
-        return await client.GetAsync(PathFor(scheme));
+        return await client.SendAsync(RequestFor(scheme));
     }
 
     private async Task AssertRefusedAsync(string scheme, string token, HttpStatusCode expected = HttpStatusCode.Unauthorized)
@@ -252,14 +255,21 @@ public sealed class TokenMatrixTests(ServiceFactory factory) : IClassFixture<Ser
     [Fact]
     public async Task Mcp_principal_carries_only_sub_client_id_and_scope_not_the_email()
     {
-        var response = await CallAsync("mcp", factory.NewMcpToken("account-9").Build());
+        var seen = new ClaimCapture();
+        using var host = factory.WithWebHostBuilder(b => b.ConfigureServices(s => s.AddSingleton<IAuthorizationHandler>(seen)));
+        var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.NewMcpToken("account-9").Build());
 
-        var body = await response.Content.ReadFromJsonAsyncElement();
-        Assert.Equal("account-9", body.GetProperty("subject").GetString());
-        Assert.Equal("claude-test", body.GetProperty("clientId").GetString());
-        var claims = body.GetProperty("claims").EnumerateArray().Select(c => c.GetString()).ToArray();
+        var response = await client.SendAsync(McpWire.ListTools());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var principal = Assert.Single(seen.Principals);
+        Assert.Equal("account-9", principal.FindFirst("sub")?.Value);
+        Assert.Equal("claude-test", principal.FindFirst("client_id")?.Value);
+        var claims = principal.Claims.Select(c => c.Type).Distinct().Order().ToArray();
         Assert.Contains("scope", claims);
         Assert.DoesNotContain("email", claims);
+        Assert.All(claims, c => Assert.Contains(c, new[] { "sub", "client_id", "scope", "jti", "iss", "aud", "exp", "iat", "nbf" }));
     }
 }
 
@@ -277,14 +287,14 @@ public sealed class SingleSchemePerRouteTests(ServiceFactory factory) : IClassFi
         var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        await client.GetAsync(path);
+        await client.SendAsync(path == McpWire.Path ? McpWire.ListTools() : new HttpRequestMessage(HttpMethod.Get, path));
 
         lock (capture.Lines) return capture.Lines.Count(l => l.Contains("Bearer was not authenticated", StringComparison.Ordinal));
     }
 
     [Fact]
     public async Task A_valid_mcp_token_on_the_mcp_path_is_not_first_failed_by_the_web_scheme()
-        => Assert.Equal(0, await WebSchemeFailuresAsync(factory, "/mcp/_probe", factory.MintMcpToken("account-1")));
+        => Assert.Equal(0, await WebSchemeFailuresAsync(factory, McpWire.Path, factory.MintMcpToken("account-1")));
 
     [Fact]
     public async Task The_control_a_valid_mcp_token_on_a_web_path_is_failed_by_the_web_scheme()
