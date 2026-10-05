@@ -5,14 +5,18 @@ namespace ExitInterviewAgent.InterviewService.Tests.Support;
 /// <summary>Records every log line (message, structured attributes, exception) so tests can assert on what was logged.</summary>
 public sealed class CaptureLoggerProvider : ILoggerProvider, ILogger
 {
-    public List<string> Lines { get; } = [];
+    private readonly List<string> _lines = [];
+
+    /// <summary>A snapshot: the host logs from background threads while a test reads, so a live list would throw "Collection was modified".</summary>
+    public IReadOnlyList<string> Lines { get { lock (_lines) return [.. _lines]; } }
+
     public ILogger CreateLogger(string categoryName) => this;
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
     public bool IsEnabled(LogLevel logLevel) => true;
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         var attributes = state is IEnumerable<KeyValuePair<string, object?>> pairs ? string.Join(';', pairs.Select(p => $"{p.Key}={p.Value}")) : "";
-        lock (Lines) Lines.Add($"{formatter(state, exception)}|{attributes}|{exception}");
+        lock (_lines) _lines.Add($"{formatter(state, exception)}|{attributes}|{exception}");
     }
     public void Dispose() { }
 }
