@@ -225,13 +225,18 @@ export const en = {
     commandsTitle: "The CLI today",
     commandsIntro: "These are the commands the command-line tool has in this version:",
     commands: [
+      { command: "exit-interview interview --provider <p> --model <m> --out <dir>", what: "runs a real interview with your own model or API key and writes the record to a file; nothing is sent anywhere" },
+      { command: "exit-interview submit --record <file> --server <address>", what: "checks the record on your computer, shows exactly what will be sent, asks you to type \"submit\", then asks for the ticket and sends it" },
+      { command: "exit-interview delete-receipt --server <address>", what: "deletes a submission with its receipt code, which it asks for" },
       { command: "exit-interview personas", what: "lists the simulated interviewees" },
       { command: "exit-interview demo --persona <id> [--seed <n>] [--out <dir>]", what: "runs a full interview offline against a simulated person and prints the record" },
       { command: "exit-interview --help", what: "shows the usage" },
     ],
     commandsNote:
-      "Submitting a record with a ticket is not in a released version of the tool yet, so a ticket cannot be redeemed today. " +
-      "This page will show the submit command when it is.",
+      "Never put the ticket or a receipt code on the command line: the tool has no option for either, because command lines end up in process lists " +
+      "and shell history. It asks for the ticket with a hidden prompt, or reads it from the EXIT_INTERVIEW_TICKET environment variable or from standard input. " +
+      "There is no default server address: give the address of this site, over https. After a submission the tool shows a receipt code once. " +
+      "It is the only way to delete the record, and nobody can look it up for you.",
   },
   deleteSubmission: {
     title: "Delete a submission",

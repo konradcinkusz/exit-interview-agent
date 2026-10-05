@@ -125,15 +125,18 @@ test("the rate limit is explained with the wait the service asked for @smoke", a
   await expect(page.getByTestId("ticket-error")).toContainText("60 seconds");
 });
 
-test("the page lists only CLI commands that exist and says submitting is not released yet @smoke", async ({ page }) => {
+test("the page lists the CLI commands that exist and says secrets never go on the command line @smoke", async ({ page }) => {
   await openCli(page, accountName("ticket"));
 
   const commands = page.getByTestId("cli-commands");
   await expect(commands).toContainText("exit-interview demo --persona <id> [--seed <n>] [--out <dir>]");
   await expect(commands).toContainText("exit-interview personas");
+  await expect(commands).toContainText("exit-interview submit --record <file> --server <address>");
+  await expect(commands).toContainText("exit-interview delete-receipt --server <address>");
   await expect(commands).not.toContainText("--ticket");
-  await expect(commands).not.toContainText("submit");
-  await expect(page.getByTestId("cli-submit-note")).toContainText("not in a released version");
+  await expect(commands).not.toContainText("--receipt-code");
+  await expect(page.getByTestId("cli-submit-note")).toContainText("Never put the ticket or a receipt code on the command line");
+  await expect(page.getByTestId("cli-submit-note")).not.toContainText("not in a released version");
   await expect(page.getByTestId("ticket-facts")).toContainText("Not tied to any employer");
 });
 

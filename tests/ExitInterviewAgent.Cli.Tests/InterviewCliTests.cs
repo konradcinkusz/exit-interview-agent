@@ -32,7 +32,7 @@ public class InterviewCliTests : IDisposable
     }
 
     /// <summary>What a cooperative person would type: consent, then each topic answered concretely, then more concrete answers for any follow-up.</summary>
-    private static string Answers()
+    internal static string Answers()
     {
         var p = PersonaCatalog.Get("talkative");
         var lines = new List<string> { p.Responses.Consent[0] };
@@ -58,7 +58,7 @@ public class InterviewCliTests : IDisposable
         Assert.Contains("== Record ==", output);
         Assert.Contains("valid: yes, errors: 0", output);
         Assert.Contains("submittable: yes", output);
-        Assert.Contains("does not submit anything", output);
+        Assert.Contains("Submitting is optional and separate", output);
         Assert.Equal(["record.json"], Directory.GetFiles(Out).Select(Path.GetFileName));
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Out, "record.json")));
         Assert.Equal("1", doc.RootElement.GetProperty("schemaVersion").GetString());

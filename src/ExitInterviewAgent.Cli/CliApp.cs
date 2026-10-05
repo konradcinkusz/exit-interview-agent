@@ -10,7 +10,7 @@ namespace ExitInterviewAgent.Cli;
 /// <summary>
 /// <c>exit-interview</c>: <c>demo</c> runs a whole simulated interview offline with the scripted mock model and a
 /// persona, <c>personas</c> lists them (no network, no credentials); <c>interview</c> runs a real one with the user's own provider;
-/// <c>providers</c> inspects configuration. No submission. Exit code of <c>demo</c>: 0 all invariants hold, 1 an invariant failed, 2 usage error.
+/// <c>providers</c> inspects configuration; <c>submit</c> and <c>delete-receipt</c> talk to the submission service, only on request. Exit code of <c>demo</c>: 0 all invariants hold, 1 an invariant failed, 2 usage error.
 /// </summary>
 public static class CliApp
 {
@@ -22,6 +22,9 @@ public static class CliApp
                                    [--tenure <band>] [--seniority <band>] [--function <band>] [--save-transcript] [--yes-i-understand]
                                    [--max-tokens <n>] [--timeout-seconds <n>] [--max-retries <n>] [--num-ctx <n>]
                                    [--price-in <per-million>] [--price-out <per-million>] [--max-cost <amount>] [--config <file>]
+                                   [--server <url>] [--save-receipt <file>]
+          exit-interview submit --record <file|-> --server <url> [--save-receipt <file>] [--yes]
+          exit-interview delete-receipt --server <url>
           exit-interview providers [ping <provider flags> | forget-confirmations]
           exit-interview demo --persona <id> [--seed <n>] [--out <dir>]
           exit-interview personas
@@ -31,8 +34,20 @@ public static class CliApp
                     The API key is read from an environment variable only (ANTHROPIC_API_KEY, OPENAI_API_KEY, or the one --api-key-env names): there is
                     no --api-key flag. Settings come from flags, then EXIT_INTERVIEW_* environment variables, then the config file. Before an external
                     provider is used you are told where the transcript goes and asked to confirm (--yes-i-understand for scripts). The transcript stays
-                    in memory; --save-transcript (with --out) writes it. Ctrl-C or Ctrl-D stops and discards everything. Nothing is submitted anywhere.
+                    in memory; --save-transcript (with --out) writes it. Ctrl-C or Ctrl-D stops and discards everything. Nothing is submitted unless you
+                    type the confirmation word after seeing the exact record (only offered when a server address is configured).
                     Exit codes: 0 completed, 2 usage or configuration, 3 ended without a record by choice, 4 agent failure, 5 provider failure, 6 not confirmed, 130 cancelled.
+        submit      Sends a record file written by 'interview --out' to the service, with a one-time ticket minted on the web panel's /cli page.
+                    Before anything is sent the record is re-checked here (schema, AI disclosure, personal data), shown exactly as it will be sent, and you
+                    type "submit" to confirm. The ticket has no flag (arguments leak into process lists and shell history): it is read from
+                    EXIT_INTERVIEW_TICKET, a hidden prompt, or one line of standard input. --record - reads the record from standard input (then --yes
+                    and EXIT_INTERVIEW_TICKET are required). --yes skips the confirmation: for tests and scripts you control. The server address
+                    (--server or EXIT_INTERVIEW_SERVER_URL) has no default; https is required except for localhost. On success the receipt code is shown
+                    once: it is the only way to delete the record. --save-receipt writes it to a new file (mode 0600, never overwrites).
+                    Exit codes: 0 submitted, 2 usage, 3 not confirmed or no ticket, 4 record failed the local check, 5 server refused, 6 network failure, 130 cancelled.
+        delete-receipt
+                    Deletes the record behind a receipt code. The code comes from EXIT_INTERVIEW_RECEIPT_CODE, a hidden prompt, or one line of standard input.
+                    The service answers the same for every well-formed code, so the result reads "if it existed, it is deleted now".
         providers   Lists providers and checks local configuration without any network call. 'providers ping' makes one minimal live request.
                     OpenTelemetry export is off unless OTEL_TRACES_EXPORTER / OTEL_METRICS_EXPORTER or an OTLP endpoint is set; prompts and replies are never exported.
 
@@ -58,12 +73,19 @@ public static class CliApp
                 "demo" => await Demo(args[1..], stdout, stderr),
                 "interview" => await InterviewCommand.RunAsync(args[1..], host),
                 "providers" => await ProvidersCommand.RunAsync(args[1..], host),
+                "submit" => await SubmitCommand.RunAsync(args[1..], host),
+                "delete-receipt" => await DeleteReceiptCommand.RunAsync(args[1..], host),
                 _ => await Fail(stderr, $"Unknown command '{args[0]}'."),
             };
         }
         catch (ArgumentException e)
         {
             return await Fail(stderr, e.Message);
+        }
+        catch (OperationCanceledException) when (host.Cancellation.IsCancellationRequested)
+        {
+            await stderr.WriteLineAsync("Cancelled.");
+            return 130;
         }
         catch (ExitInterviewAgent.Providers.ProviderConfigurationException e)
         {
