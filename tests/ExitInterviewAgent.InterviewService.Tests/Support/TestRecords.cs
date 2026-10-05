@@ -29,7 +29,8 @@ public static class TestRecords
         }
         """;
 
-    public static string NewEmployer() => "emp-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(6));
+    // Letters only: a random run of digits in an employer slug can look like a phone number to the PII re-scan, which would make tests flaky.
+    public static string NewEmployer() => "emp-" + new string(RandomNumberGenerator.GetBytes(10).Select(b => (char)('a' + b % 26)).ToArray());
     public static string NewSub() => "acct-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8));
     public static string NewInterviewId() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
 

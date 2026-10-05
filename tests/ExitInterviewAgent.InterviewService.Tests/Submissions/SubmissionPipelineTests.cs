@@ -275,7 +275,7 @@ public sealed class SubmissionPipelineTests : IDisposable
     public async Task A_taken_interview_id_is_refused_and_leaves_no_ledger_entry_behind()
     {
         var record = TestRecords.Valid();
-        await SubmitAsync(TestRecords.NewSub(), TestRecords.Bytes(record));
+        Assert.Equal(HttpStatusCode.Created, (await SubmitAsync(TestRecords.NewSub(), TestRecords.Bytes(record))).Response.StatusCode);
         var before = await _host.InScopeAsync(async sp => await sp.GetRequiredService<InterviewDbContext>().SubmissionLedger.CountAsync());
 
         var clash = TestRecords.Valid(change: r => r["interviewId"] = record["interviewId"]!.GetValue<string>());
