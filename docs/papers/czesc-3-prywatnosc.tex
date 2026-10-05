@@ -1,0 +1,1415 @@
+% ============================================================================
+% Część 3 przewodnika: prywatność, bezpieczeństwo i aspekty prawne.
+% Plik jest wczytywany przez \input z przewodnik.pl.tex -- zawiera wyłącznie
+% treść od \section. Źródła prawdy: docs/privacy/, docs/security/,
+% docs/legal/, ADR-y oraz docs/research/RESULTS.md (jedyne źródło liczb
+% pomiarowych). Diagramy: docs/diagrams/p3-*.mmd.
+% ============================================================================
+
+\providecommand{\kod}[1]{{\urlstyle{tt}\nolinkurl{#1}}}
+
+\section{Obietnica prywatności i jej granice}
+\label{sec:p3-obietnica}
+
+Wartość produktu opiera się na szczerości: były pracownik opowiada
+interviewerowi, dlaczego odszedł, i zrobi to otwarcie tylko wtedy, gdy ma
+podstawy sądzić, że jego słów nie da się wiązać z jego osobą --- ani przez
+dawnego pracodawcę, ani przez operatora usługi, ani przez kogoś, kto kiedyś
+zdobędzie bazę danych. Projekt dzieli tę obawę na trzy powiązania, które
+próbuje utrudnić: \emph{osoba $\leftrightarrow$ rekord}, \emph{osoba
+$\leftrightarrow$ pracodawca} (konto celowo nie wie, o którym pracodawcy
+mówi) oraz \emph{rekord $\leftrightarrow$ moment zgłoszenia}
+(\repopath{docs/privacy/DESIGN.md}, §1). Poza tym stara się, by
+\emph{transkrypt} rozmowy w ogóle nie trafił do systemów operatora.
+
+\finding{Ta część przewodnika opisuje mechanizmy, które to realizują, ale
+zaczyna od zastrzeżenia: żaden z nich nie czyni rekordu anonimowym.} Reszta
+sekcji porządkuje, co jest obiecane, a co wyraźnie nie.
+
+\subsection*{Jak czytać statusy w tej części}
+
+Dokumentacja projektu rozróżnia stopnie pewności i ten przewodnik robi to
+samo. Gdy piszę, że coś jest \emph{zaimplementowane}, znaczy to, że jest w
+kodzie na gałęzi \texttt{main}. \emph{Przetestowane} znaczy, że istnieje test
+(lub pomiar) i że zapisano, jaką komendą go odtworzyć. \emph{Zaprojektowane}
+znaczy, że jest opisane, ale kodu jeszcze nie ma lub nie ma go w pełnej
+postaci. \emph{Niezweryfikowane} oznacza założenie albo twierdzenie, którego
+nikt nie sprawdził --- na przykład brzmienie przepisów, do których
+środowisko autorskie nie miało dostępu, albo zachowanie prawdziwego modelu
+językowego, którego żadna sesja nigdy nie uruchomiła. Wszystkie pomiary w
+repozytorium dotyczą danych syntetycznych: żaden rekord, pracodawca ani osoba
+nie są prawdziwe, a projekt \emph{nie jest wdrożony} (brief §2).
+
+\subsection{Rekord jest daną osobową, nie daną anonimową}
+
+Rekord nie zawiera identyfikatora użytkownika, ale zawiera cytaty
+dosłowne, identyfikator pracodawcy, grubo zakodowane pasma (staż, poziom
+stanowiska, funkcja) oraz losowy, pseudonimowy identyfikator wywiadu.
+Znajomy z zespołu rozpozna człowieka po wyjątkowej anegdocie albo stylu
+wypowiedzi, a w małym zespole sama kombinacja pracodawcy i pasm może
+wskazać jedną osobę. Dlatego \textbf{ADR-0018} przyjmuje stanowisko, które
+jest w tym projekcie fundamentem wszystkich pozostałych decyzji:
+
+\begin{quote}
+Projektuj, dokumentuj i testuj każdy komponent tak, \emph{jakby rekordy były
+danymi osobowymi w rękach administratora} --- w najlepszym razie
+pseudonimowymi.
+\end{quote}
+
+Konsekwencje są konkretne i widoczne w produkcie. Żaden komponent, dokument
+ani napis w interfejsie nie nazywa rekordów ,,anonimowymi''; dozwolone
+sformułowanie to ,,niepowiązane z Twoim kontem''. Agregaty wolno nazywać co
+najwyżej ,,zagregowanymi'' (ADR-0019 (f); \repopath{AGGREGATION.md}). Kontrole,
+które byłyby wymagane dla danych osobowych, obowiązują niezależnie od
+ostatecznej oceny prawnej: usuwanie kodem z paragonu, ograniczenie celu (brak
+rankingu i widoku pojedynczej osoby), limity przechowywania, brak treści w
+logach oraz lista pytań o podstawę prawną i ocenę skutków (DPIA) przed
+jakimikolwiek prawdziwymi danymi. Czy rekord jest anonimowy \emph{prawnie},
+to pytanie do prawnika, a nie coś, co architektura może zadeklarować.
+ADR-0018 zapisuje też koszt: zgubionego kodu z paragonu nie da się odzyskać, a
+usunięcie konta nie sięga rekordów. Gdyby prawnik uznał rekordy za anonimowe,
+kontrole można by świadomie poluzować; odwrotne odkrycie po starcie byłoby
+znacznie droższe.
+
+\subsection{Dwa rodzaje ,,anonimowości'' i dlaczego żaden nie jest tu pełny}
+
+Dla jasności warto rozdzielić dwa pojęcia (to rozróżnienie pochodzi z tego
+przewodnika, nie z terminologii repozytorium, ale opisuje to, co repozytorium
+faktycznie robi).
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Ochrona statystyczna} dotyczy tego, co da się wywnioskować
+    z \emph{opublikowanych liczb}. Projekt stosuje tu próg $k$ na każdą
+    wyświetlaną komórkę, czyste partycje i publikację batchami
+    (sekcja~\ref{sec:p3-agregacja}). To jest konwencja z udokumentowanymi
+    granicami, a nie gwarancja: $k=5$ to liczba z briefu, a dla przeciwnika z
+    $m$ kontami obowiązuje granica $k-m$ (zob. niżej).
+    \item \textbf{Ochrona kryptograficzna} dotyczy tego, co da się wywnioskować
+    z \emph{przechowywanych danych} przez kogoś, kto je zdobędzie. Tutaj
+    projekt używa klucza HMAC w ledgerze, haszy tokenów i kodów oraz
+    losowych kluczy wierszy (sekcja~\ref{sec:p3-ledger}). Ochrona działa
+    wobec kogoś, kto ma bazę, ale nie ma klucza. Nie działa wobec operatora,
+    który ma bazę \emph{i} klucz (może sprawdzić, czy konto S zgłaszało się
+    do pracodawcy E), a przy dodatkowej obserwacji ruchu na żywo także wobec
+    korelacji czasowej.
+\end{itemize}
+
+\uwaga{Żadna z tych dwóch ochron nie jest dowodem anonimowości. Projekt
+nie twierdzi, że rekord jest anonimowy; twierdzi, że określone, nazwane
+powiązania są trudniejsze do odtworzenia, i wymienia te, które pozostają.}
+
+\subsection{Co projekt gwarantuje, a czego nie}
+
+Tabela~\ref{tab:p3-gwarancje} zestawia obietnice z ich granicami. Każdy
+wiersz po prawej stronie ma odpowiednik w modelu zagrożeń (sekcja~\ref{sec:p3-zagrozenia}).
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Obszar} & \textbf{Co jest zrobione} & \textbf{Czego to nie obejmuje} \\
+\midrule
+Rekord &
+Schemat bez \texttt{userId}, e-maila, adresu IP, nazwy urządzenia, sesji i
+znacznika czasu; test architektury wymusza to przy każdym buildzie
+(ADR-0011). &
+Tożsamości z treści: cytat, anegdota, pasma w małym zespole (T-02). \\
+\addlinespace
+Transkrypt &
+W trybach A i B nigdy nie trafia do usług operatora. &
+Host MCP i dostawca modelu widzą go w całości (T-07, T-20); serwer nie
+zweryfikuje, czy cytaty są dosłowne w trybie A. \\
+\addlinespace
+Powiązanie konto--rekord &
+Rekord nie ma odniesienia do konta; ledger to klucz HMAC bez treści i bez id
+rekordu. &
+Operator z bazą \emph{i} kluczem i (opcjonalnie) ruchem na żywo (T-08, T-09,
+T-13). \\
+\addlinespace
+Agregaty &
+Próg $k$ na komórkę, uczciwe przedziały, brak rankingu, brak widoku
+pojedynczej osoby. &
+Przeciwnik z $m$ kontami ($k-m$), wiedza uboczna, jednomyślne komórki (T-01). \\
+\addlinespace
+Autentyczność &
+Jedno zgłoszenie na parę (konto, pracodawca) w oknie ledgera. &
+Nie odróżnia prawdziwego byłego pracownika od skryptu: weryfikator zatrudnienia
+to atrapa (T-10, OP-1). \\
+\addlinespace
+Usuwanie &
+Rekord usuwa się kodem z paragonu; konto usuwa się osobno. &
+Usunięcie konta nie usuwa rekordów; zgubiony kod oznacza brak możliwości
+usunięcia; usunięty rekord jest w opublikowanych liczbach do następnego batcha. \\
+\bottomrule
+\end{tabularx}
+\caption{Obietnice prywatności i ich granice (\repopath{DESIGN.md} §8, \repopath{THREAT-MODEL.md} §5).}
+\label{tab:p3-gwarancje}
+\end{table}
+
+Dokument \repopath{DESIGN.md} kończy się zdaniem, które dobrze streszcza
+postawę całej części: projekt \emph{nie} dowodzi autentyczności, \emph{nie}
+weryfikuje zatrudnienia, \emph{nie} broni się przed operatorem posiadającym
+bazę, klucz i ruch na żywo, \emph{nie} chroni transkryptu po przekazaniu go
+dostawcy AI lub hostowi MCP, i \emph{nie jest wdrożony}.
+
+% ============================================================================
+\section{Droga danych od rozmowy do sygnału}
+\label{sec:p3-droga}
+
+Rysunek~\ref{fig:p3-droga} pokazuje drogę jednego zgłoszenia. Poniżej każdy
+etap wraz ze stanem wdrożenia. Szczegółowe kolejności kroków po stronie
+serwera opisuje \repopath{docs/architecture/submission-flow.md}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[height=0.52\textheight]{\dgm{p3-data-path}}
+\caption{Droga zgłoszenia. Etapy od rozmowy do detektora to praca po stronie
+użytkownika i klienta; trzy zapisy (rekord, ledger, paragon) powstają w
+jednej transakcji; agregacja czyta wyłącznie rekordy, nigdy ledger.}
+\label{fig:p3-droga}
+\end{figure}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Rozmowa.} W trybie A (host MCP, obecnie wyłącznie
+    claude.ai) i trybie B (CLI z własnym kluczem lub modelem lokalnym)
+    transkrypt istnieje w dokładnie dwóch miejscach: na urządzeniu
+    użytkownika i u dostawcy modelu. Tryb C to portal webowy: konta, zgody,
+    bilety, usuwanie i agregaty; sam nie uruchamia modelu. Projekt nie
+    hostuje żadnego modelu.
+    \item \textbf{Lokalny podgląd (tryb B).} Zanim CLI cokolwiek wyśle,
+    ponownie waliduje rekord tymi samymi bibliotekami co serwer (schemat,
+    limity, zasady cytatów, ujawnienie AI) i skanuje każdy cytat oraz pola
+    tekstowe detektorem PII. Awaria sprawdzenia liczy się jako jego
+    niepowodzenie. Następnie pokazuje \emph{dokładnie to, co wychodzi}:
+    adres docelowy, liczbę bajtów, informację, że żądanie niesie rekord i
+    nagłówek biletu i nic więcej, oraz sam rekord dosłownie (ADR-0060).
+    W trybie A rekord przekazuje host przez narzędzie MCP, bez takiego
+    podglądu po naszej stronie.
+    \item \textbf{Detektor PII.} Maskuje dane osobowe w tekście, zanim zrobi
+    się z niego rekord. Serwer \emph{nie ufa} twierdzeniu klienta, że
+    rekord jest zamaskowany, i skanuje każdy cytat oraz każde pole
+    tekstowe ponownie; wyjątek lub przekroczenie limitu czasu oznaczają
+    odrzucenie zgłoszenia (plik \texttt{PiiScanner.cs}).
+    \item \textbf{Rekord.} Zapisywany bez identyfikatora osoby i bez
+    znacznika czasu w treści. Sklep dodaje wyłącznie \emph{bucket tygodnia}
+    (poniedziałek tygodnia ISO, UTC), potrzebny tylko do usuwania po
+    upływie wieku (ADR-0027).
+    \item \textbf{Ledger HMAC i paragon.} W tej samej transakcji powstaje
+    wpis ledgera (klucz HMAC pary konto--pracodawca) oraz paragon: serwer
+    zwraca kod \emph{raz}, a w bazie trzyma tylko jego skrót SHA-256.
+    \item \textbf{Bucket czasowy.} Jedyne czasy przechowywane to bucket
+    tygodnia w rekordzie i ledgerze oraz wygaśnięcie biletu zaokrąglone w
+    górę do 5 minut.
+    \item \textbf{Agregacja $k$.} Moduł Signals przelicza opublikowany
+    snapshot z rekordów, stosując próg $k$ na wyświetlaną komórkę.
+    \item \textbf{Publikacja batchami.} Jeden snapshot na okres
+    (domyślnie doba), nigdy w reakcji na zgłoszenie, usunięcie ani
+    zapytanie.
+\end{enumerate}
+
+\subsection{Kto widzi co}
+
+Tabela~\ref{tab:p3-kto} skraca macierz z \repopath{DESIGN.md} §4. Oznaczenia:
+T --- pełny transkrypt, R --- zgłoszony rekord, S --- identyfikator konta
+\texttt{sub}, E --- identyfikator pracodawcy, L --- wpis ledgera. To jest
+\emph{zamiar projektu}, który obowiązuje tam, gdzie mówi o tym status.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Strona} & \textbf{Tryb A (MCP)} & \textbf{Tryb B (CLI)} \\
+\midrule
+Użytkownik & T, R & T, R, bilet \\
+Host MCP / dostawca AI & host widzi T, R i argumenty wywołania narzędzia; dostawca widzi T na warunkach konta użytkownika & dostawca widzi T na warunkach klucza użytkownika (z modelem lokalnym nikt) \\
+Serwer interview-service & R i S (z tokenu) w chwili zgłoszenia; nigdy T & R i S (tylko przez realizację biletu); nigdy T \\
+Magazyn rekordów po zatwierdzeniu & R bez S & R bez S \\
+Ledger & L = HMAC(S, E) & L \\
+authservice & S, dane konta, zgody, audyt; bez R i bez E & S przy wystawieniu biletu \\
+Operator (sama baza) & R, agregaty; wpisy ledgera nieczytelne bez klucza & jak obok \\
+Operator (baza + klucz) & może sprawdzić ,,czy konto S zgłaszało się do E'' & jak obok \\
+Pracodawca / publiczność & wyłącznie agregaty, $n\ge k$, z niepewnością & jak obok \\
+\bottomrule
+\end{tabularx}
+\caption{Kto widzi co (skrót z \repopath{DESIGN.md} §4).}
+\label{tab:p3-kto}
+\end{table}
+
+Dwie konsekwencje, które dokumentacja wypowiada wprost. Po pierwsze, w
+trybie A serwer \emph{nie może zweryfikować dosłowności cytatów}, bo nie widzi
+transkryptu; w trybie B transkrypt jest na maszynie, której nie kontrolujemy.
+Oba tryby przesyłają \emph{twierdzenia}; wierność transkryptowi jest
+własnością, którą mierzy zestaw ewaluacyjny na symulowanych rozmowach, a nie
+coś, co ingest może wymusić. Po drugie, w trybie A strażnik PII musi działać
+po stronie serwera, bo model hosta nie jest nasz.
+
+\subsection{Retencja}
+
+Wartości w tabeli~\ref{tab:p3-retencja} to konfiguracja, a nie ustalenia
+prawne; kilka z nich dokumentacja sama nazywa założeniem.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{3.1cm}@{}}
+\toprule
+\textbf{Dane} & \textbf{Jak długo} & \textbf{Status} \\
+\midrule
+Transkrypt & Nigdy nie trafia do nas; u dostawcy wg jego warunków & poza naszą kontrolą \\
+Rekord & Do usunięcia kodem z paragonu albo maksymalnego wieku (domyślnie 24 miesiące) & zaimplementowane; 24 mies. to założenie (ADR-0019) \\
+Skrót kodu z paragonu & Razem z rekordem & zaimplementowane \\
+Wpis ledgera & Okno, domyślnie 365 dni (celowo krótsze niż wiek rekordu) & zaimplementowane; 365 dni to założenie (ADR-0028) \\
+Bilet CLI & 15 minut, wygaśnięcie zaokrąglone w górę do 5 minut, więc 15--20 minut; usuwany przy realizacji & zaimplementowane \\
+Agregaty & Snapshot przebudowywany raz na okres; komórka znika, gdy $n<k$ & zaimplementowane \\
+Kopie zapasowe & Według harmonogramu platformy & założenie: brak polityki, nic nie jest wdrożone \\
+\bottomrule
+\end{tabularx}
+\caption{Retencja (\repopath{DESIGN.md} §6, ADR-0027, 0028, 0030).}
+\label{tab:p3-retencja}
+\end{table}
+
+Wiek rekordu liczony jest od \emph{końca} bucketu tygodnia (rekord nie jest
+usuwany przed osiągnięciem wieku i bywa trzymany co najwyżej o tydzień dłużej;
+test z zegarem fałszywym obejmuje granicę).
+
+% ============================================================================
+\section{Detektor PII}
+\label{sec:p3-pii}
+
+Projekt \texttt{ExitInterviewAgent.Privacy} znajduje i maskuje dane
+osobowe w tekście rozmowy, zanim ten stanie się rekordem. Jest deterministyczny
+(reguły, sumy kontrolne, heurystyki językowe), nie używa modelu ani sieci i
+zależy tylko od frameworka (ADR-0010). Uzasadnienie wyboru: detektor oparty na
+modelu dodawałby koszt, opóźnienie, zależność sieciową i niepowtarzalność
+wyniku, a wysyłanie tekstu do modelu w celu znalezienia PII samo byłoby
+ujawnieniem.
+
+\finding{Najważniejsze zdanie dokumentacji detektora: to heurystyka o zmierzonych
+granicach, nie gwarancja.} Zmniejsza częstość, z jaką imię lub numer
+telefonu trafiają do rekordu; nie czyni wycieku niemożliwym. Jest jedną
+warstwą wśród kilku: interviewer jest instruowany, by nigdy nie pytać o
+imiona i nazwiska, użytkownik widzi podgląd w CLI, a cytaty mają limit
+długości (do 5 cytatów na temat, po 400 punktów kodowych, bez znaków
+sterujących).
+
+\subsection{Co wykrywa}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Rodzaj} & \textbf{Zastępnik} & \textbf{Reguła (skrót)} \\
+\midrule
+E-mail & \texttt{[EMAIL]} & Zwykłe adresy (litery Unicode) oraz forma zasłonięta \texttt{nazwa[at]host[dot]tld}. \\
+URL & \texttt{[URL]} & \texttt{http(s)://}, \texttt{ftp://}, \texttt{www.}, gołe hosty ze znanych TLD; nazwy technologii (\texttt{ASP.NET}, \texttt{Next.js}) wyłączone. \\
+Adres IP & \texttt{[IP\_ADDRESS]} & IPv4 i pełny IPv6; liczba po ,,version'' lub ,,build'' nie jest adresem. \\
+Uchwyt & \texttt{[HANDLE]} & \texttt{@nazwa} oraz identyfikatory w stylu \texttt{linkedin:}, \texttt{github/}. \\
+Numer urzędowy & \texttt{[NATIONAL\_ID]} & PESEL i NIP (suma kontrolna), REGON/KRS ze słowem kluczowym, dowód osobisty, paszport, SSN, NINO, IBAN i 26-cyfrowe rachunki. Ciąg 10--11 cyfr maskowany także przy złej sumie. \\
+Numer pracownika & \texttt{[EMPLOYEE\_ID]} & Oznaczony etykietą (\emph{employee ID}, \emph{numer pracownika}) i gołe \texttt{EMP-}, \texttt{EID-}, \texttt{PRC-}. \\
+Telefon & \texttt{[PHONE]} & 9--15 cyfr z separatorami, prefiksami i nawiasami; daty, zakresy płac i liczby z separatorem tysięcy wyłączone. \\
+Osoba & \texttt{[PERSON]} & Wskazówki, nie lista osób (niżej). \\
+\bottomrule
+\end{tabularx}
+\caption{Rodzaje danych wykrywanych przez detektor (\repopath{pii-detector.md}).}
+\label{tab:p3-pii}
+\end{table}
+
+\paragraph{Imiona i nazwiska.} Znajduje się je po wskazówkach (angielskich i
+polskich), a nie po słowniku osób: tytuły (Mr, Dr, Pan, Pani, mgr\ldots), konstrukcje
+relacji (,,my manager X'', ,,mój szef X'', ,,reported to X'', odmienione formy
+rzeczownika relacji), ciągi dwóch lub więcej wyrazów z wielkiej litery,
+inicjały, mały leksykon imion (162 angielskie i 127 polskich form podstawowych, z
+generowanymi polskimi końcówkami przypadków) oraz polskie kształty nazwisk
+(\emph{-ski, -cki, -wicz} i pokrewne). Wyrazy z wielkiej litery, które nie są
+nazwiskami (dni, miesiące, narodowości, miejsca, narzędzia, etykiety
+rozmówców), odsiewa lista stop i \emph{allow-list} (nazwy pracodawcy i
+produktów, które trzeba podać w opcjach, by ,,Orbit Suite'' nie było osobą;
+allow-list nigdy nie odmaskowuje e-maila ani URL).
+
+\paragraph{Czym jest ,,znalezisko''.} Znalezisko niesie rodzaj, pozycje UTF-16 w
+tekście oryginalnym i powód (wzorzec, heurystyka, tryb fail-closed) --- ale
+\emph{nie niesie tekstu}, więc można je logować bez wycieku tego, na co
+wskazuje (test refleksyjny sprawdza brak składowej typu string). Nakładające się
+kandydatury scala się w sumę, aby żaden fragment nie został niezamaskowany;
+maskowanie jest idempotentne.
+
+\subsection{Tryb fail-closed}
+
+Opcja \texttt{PiiOptions.FailClosed} oznacza: gdy nie wiadomo, maskuj. Dodatkowo
+maskuje nierozpoznane wyrazy z wielkiej litery w środku zdania, niejednoznaczne
+imiona na początku zdania (,,Mark'', ,,Will'') i ciągi 7--8 cyfr. Nigdy nie
+maskuje \emph{mniej} niż tryb domyślny (to jest przetestowane). Kosztem jest
+precyzja. Gdzie to się stosuje w repozytorium:
+
+\begin{itemize}[leftmargin=*]
+    \item w agencie wywiadu \texttt{PiiGuard} owija detektor z
+    \texttt{FailClosed = true} i allow-listą; maskuje, zanim cokolwiek
+    innego przeczyta tekst, a wyjątek lub przekroczenie czasu kończy
+    wywiad, niczego nie zachowując;
+    \item w ocenie (warstwa 1 harnessu) detektor działa także w trybie
+    fail-closed;
+    \item \textbf{po stronie serwera} ponowny skan ma
+    \texttt{Submission:Pii:FailClosed} z wartością domyślną \emph{false}
+    (konfigurowalne), limit 5000\,ms na cały rekord i jedną zasadę
+    nadrzędną: każdy wyjątek lub timeout to odrzucenie zgłoszenia. To
+    ważne rozróżnienie: ,,fail-closed'' w sensie \emph{obsługi błędu} (awaria
+    skanu blokuje zgłoszenie) obowiązuje zawsze, natomiast tryb
+    \emph{agresywnego maskowania} jest po stronie serwera opcją.
+\end{itemize}
+
+\subsection{Wyniki pomiarów}
+
+Wszystkie liczby w tabeli~\ref{tab:p3-pii-wyniki} pochodzą z
+\repopath{docs/research/RESULTS.md}, §2 (komenda odtwarzająca poniżej). Korpusy są syntetyczne, angielskie i polskie,
+napisane przez tego samego autora, który napisał reguły.
+
+\begin{Verbatim}[fontsize=\small]
+dotnet test tests/ExitInterviewAgent.Privacy.Tests \
+  --filter "Category=PiiEvaluation" --logger "console;verbosity=detailed"
+\end{Verbatim}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.9cm}>{\centering\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Korpus / tryb} & \textbf{Złote zakresy} & \textbf{Czułość (recall)} & \textbf{Precyzja} \\
+\midrule
+dev / domyślny & 68 & 68/68 = 100\% (95\% PU 95--100) & 68/68 = 100\% \\
+dev / fail-closed & 68 & 68/68 = 100\% & 68/74 = 91,9\% (PU 83--96) \\
+held-out / domyślny & 49 & 47/49 = 95,9\% (PU 86--99) & 47/47 = 100\% (PU 92--100) \\
+held-out / fail-closed & 49 & 49/49 = 100\% (PU 93--100) & 49/52 = 94,2\% (PU 84--98) \\
+over-masking / fail-closed & 7 & 7/7 & 7/7 \\
+\bottomrule
+\end{tabularx}
+\caption{Pomiary detektora PII (RESULTS.md §2); PU --- 95\% przedział ufności
+Wilsona.}
+\label{tab:p3-pii-wyniki}
+\end{table}
+
+Jak ostrożnie to czytać. Korpus \emph{dev} służył do strojenia reguł, więc jego
+wyniki są górną granicą. Korpus \emph{held-out} został napisany przed
+pierwszym uruchomieniem detektora i żadna reguła nie była strojona pod jego
+wyniki, ale: ten sam autor napisał reguły i korpus, więc dzielą założenia; korpus
+jest mały (49 zakresów, stąd szerokie przedziały); a po pierwszym uruchomieniu
+detektor dostał poprawki motywowane porażkami testów jednostkowych. Dokumentacja
+sama nazywa te liczby \emph{optymistycznym oszacowaniem i zabezpieczeniem przed
+regresją, a nie prognozą dla prawdziwych transkryptów}. Zbiór over-masking
+powstał pod konkretne poprawki ADR-0063 (przed poprawką: 30 znalezisk, w tym 23
+fałszywie dodatnie; po: 7 znalezisk i żadnego fałszywego), więc także nie jest
+niezależnym dowodem.
+
+Dwa chybienia na zbiorze held-out w trybie domyślnym to dwa nieznane imiona
+użyte samotnie w środku zdania (w zdaniu ,,Thanks to Aisha and Dmitri''); tryb
+fail-closed łapie oba. Fałszywe trafienia w fail-closed na tym zbiorze to dwa
+krótkie ciągi cyfr (numer zgłoszenia i zamówienia) i jedno odmienione słowo z
+wielkiej litery (nazwa narzędzia ,,Excelu'').
+
+Osobny wynik kosztowy: najgorszy czas reguły dla zasłoniętego e-maila spadł z
+1358\,ms do 0,0\,ms na 200\,000 nieprzerwanych liter dzięki ADR-0063; RESULTS.md
+zaznacza, że ta liczba pochodzi z opisu PR \#17 i \emph{nie została ponownie
+uruchomiona} w ostatnim przebiegu --- traktuję ją jako niezweryfikowaną w tym
+przewodniku. W zestawie testów projektu Privacy zaliczono 184 testy (RESULTS.md §4).
+
+\subsection{Ograniczenia, których detektor nie ukrywa}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Samotne nieznane imiona} w środku zdania (łapie je tylko
+    fail-closed).
+    \item \textbf{Inne języki niż angielski i polski}: zasady wielkich liter
+    są inne (niemiecki, czeski, słowacki, ukraiński), a wskazówek brak.
+    \item \textbf{Małe litery, przezwiska, transliteracje, inne pisma.}
+    \item \textbf{Identyfikacja bez nazwiska}: ,,jedyna kobieta w biurze w
+    Gdańsku'', ,,CFO, który odszedł w marcu''. Żaden detektor wzorcowy tego nie
+    znajdzie; to rezydualne ryzyko wolnotekstowych cytatów (T-02).
+    \item \textbf{Lokalizacje i organizacje} nie są wykrywane (adres ulicy
+    nie jest maskowany; nazwa firmy celowo nie).
+    \item \textbf{Nietypowe formaty liczb} (numer słowami, identyfikator ze
+    spacjami w nietypowych miejscach); zasłonięte e-maile tylko w formach
+    \texttt{[at]}, \texttt{(at)}, \texttt{\{at\}}.
+    \item \textbf{Fałszywie dodatnie}: nazwy projektów z wielkiej litery spoza
+    allow-listy (,,Project Phoenix'') mogą być zamaskowane jako osoba.
+    \item \textbf{Wrogi tekst}: wyrażenia mają ograniczone kwantyfikatory i
+    limit czasu dopasowania (2\,s na regułę), a wywołujący musi traktować wyjątek jako
+    ,,nie zgłaszaj''.
+\end{itemize}
+
+\uwaga{Czułość detektora na \emph{prawdziwych} transkryptach nie została
+zmierzona nigdy (RESULTS.md §6), a następny krok to pomiar na większym korpusie
+napisanym przez kogoś innego niż autor reguł (§7). Do tego czasu liczby z
+tabeli~\ref{tab:p3-pii-wyniki} nie są dowodem skuteczności w użyciu.}
+
+Wartość tego detektora w systemie wynika z kilku warstw, nie z jego doskonałości:
+agent nie pyta o nazwiska; masuje u siebie; użytkownik widzi podgląd; serwer skanuje
+ponownie; cytaty są krótkie; agregaty nie zawierają cytatów w ogóle (v1 nie
+pokazuje żadnych cytatów publicznie).
+
+% ============================================================================
+\section{Ledger zgłoszeń i paragon}
+\label{sec:p3-ledger}
+
+\subsection{Po co ledger}
+
+System ma wymusić \emph{jedno zgłoszenie na pracodawcę na konto}, nie przechowując
+informacji ,,konto X zgłosiło rekord R''. Ledger rozwiązuje to jedną tabelą,
+która zna konto (pośrednio) i pracodawcę (pośrednio), ale nie zna treści ani
+rekordu.
+
+\subsection{Budowa wpisu}
+
+Znacznik to szesnastkowy zapis wartości
+\texttt{HMAC-SHA-256(klucz, wejście)}, gdzie wejście to sklejenie (bajt po bajcie):
+
+\begin{Verbatim}[fontsize=\small]
+"exit-interview-agent/ledger/v1" || len(sub) || sub
+                                 || len(employerRef) || employerRef
+\end{Verbatim}
+
+gdzie długości są 4-bajtowymi liczbami w porządku big-endian, więc dwie różne pary
+(\texttt{sub}, pracodawca) nigdy nie dają tego samego ciągu bajtów (ADR-0028).
+Wiersz zawiera: losowy klucz uuid, identyfikator klucza, znacznik oraz bucket
+tygodnia ISO. \textbf{Nie ma} id rekordu, id wywiadu, odniesienia do paragonu ani
+klucza obcego (wymusza to \texttt{SchemaInvariantTests}, także względem
+zmigrowanego schematu PostgreSQL). Pracodawca nie jest w ledgerze w postaci
+jawnej.
+
+Dlaczego klucz: przestrzeń identyfikatorów pracodawców jest mała, więc
+nieszyfrowany skrót pary byłby odwracalny przez wyliczenie; klucz sprawia, że
+tabela jest nieczytelna dla kogoś, kto ma bazę, ale nie ma klucza. Unikalność
+rozstrzyga indeks unikalny bazy (test: 24 równoległe żądania na PostgreSQL daje
+dokładnie jeden sukces).
+
+\subsection{Rotacja klucza i okno}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Rotacja.} Konfiguracja \texttt{Ledger:ActiveKeyId} oraz
+    \texttt{Ledger:Keys}; sekret w base64, co najmniej 32 bajty, z
+    środowiska lub magazynu sekretów, nigdy ze źródeł. Nowe wpisy używają
+    klucza aktywnego, a przy wyszukiwaniu sprawdza się \emph{każdy} wymieniony
+    klucz --- dodanie klucza i przełączenie identyfikatora nie resetuje
+    deduplikacji. Stary klucz usuwa się z konfiguracji po upływie okna; wpisy
+    pod nieznanym kluczem są wtedy bezczynne do czasu czyszczenia. Rotacja to
+    praca operatora i \emph{nie jest zautomatyzowana}; nie ma wyprowadzania kluczy ani HSM.
+    \item \textbf{Brak klucza domyślnego.} Poza środowiskiem Development
+    usługa odmawia startu bez poprawnego zestawu kluczy. W Development
+    generowany jest klucz tymczasowy, o czym informują \texttt{/health} i
+    baner startowy; klucza nie loguje się, a wpisy pod nim nie przeżywają restartu.
+    \item \textbf{Okno.} Domyślnie 365 dni (\texttt{Submission:Retention:LedgerWindowDays}),
+    po czym zadanie czyszczące usuwa wpis. Uzasadnienie w ADR-0028: ledger to
+    jedyna tabela zapisująca ,,to konto pisało o tym pracodawcy'', więc każdy
+    dzień retencji poszerza powierzchnię ryzyka; a okno jest zarazem czasem, przez
+    który działa deduplikacja. 365 dni zamiast 730 (wieku rekordu) to połowa
+    ekspozycji. ADR wprost mówi, że liczba jest \emph{założeniem, nie pomiarem}.
+\end{itemize}
+
+\textbf{Konsekwencja, której nie wolno przemilczać:} po upływie okna to samo
+konto może zgłosić się ponownie do tego samego pracodawcy, a wcześniejszy rekord
+(jeśli nie został jeszcze usunięty) zostaje w agregacie. Zasada ,,jedno
+zgłoszenie na pracodawcę'' jest więc \emph{ograniczona w czasie} i nie wolno jej
+opisywać jako gwarancji stałej (T-10, OP-14).
+
+\subsection{Paragon i usuwanie}
+
+Po zgłoszeniu serwer zwraca losowy \emph{kod z paragonu} jeden raz i przechowuje
+tylko jego skrót. Zasady z ADR-0029:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Format}: 32 losowe bajty z CSPRNG systemu plus 2 bajty sumy
+    kontrolnej, base64 URL-safe, 46 znaków (256 bitów sekretu). W bazie
+    \texttt{SHA-256(kod)}, co jest wystarczające, bo wejście ma wysoką entropię.
+    \item \textbf{Nagłówek, nie URL}: kod idzie w \texttt{X-Receipt-Code} na
+    \kod{DELETE /api/v1/receipts}. URL trafia do logów dostępowych, do
+    spanu serwera HTTP i do historii przeglądarki; nagłówek domyślnie nie.
+    To świadome odstępstwo od formy ścieżkowej z treści zadania.
+    \item \textbf{Jednolite 204}: każdy \emph{poprawnie sformowany} kod
+    (aktywny, już usunięty, nigdy niewydany) dostaje to samo
+    \texttt{204 No Content}. Kod zniekształcony (zła długość, alfabet lub
+    suma kontrolna) dostaje \texttt{400 INVALID\_RECEIPT\_CODE}; suma kontrolna
+    jest obliczalna przez każdego, więc to nic nie zdradza o zapisanych kodach, a
+    literówka staje się widocznym błędem zamiast fałszywego ,,usunięto''.
+    Koszt: użytkownik z błędnym, ale poprawnie sformowanym kodem nie dostaje
+    sygnału. Dlatego tekst w interfejsie brzmi ,,\emph{jeżeli} zgłoszenie z tym
+    kodem istniało, zostało usunięte'', nigdy ,,usunięto pomyślnie''.
+    \item \textbf{Stały czas}: porównanie przez
+    \texttt{CryptographicOperations.FixedTimeEquals}, wyszukiwanie po haszu
+    przez indeks unikalny oraz \emph{podłoga czasu odpowiedzi} (domyślnie
+    150\,ms), by trafienie i chybienie nie różniły się opóźnieniem poniżej
+    podłogi. Podłoga \emph{nie} jest dowodem stałego czasu: przestój bazy
+    powyżej niej nadal się ujawni.
+    \item \textbf{Limity}: 6 żądań na minutę na klienta i globalny budżet 60
+    na minutę, bez kolejkowania.
+\end{itemize}
+
+Ścieżka przeglądarki idzie przez własną, anonimową trasę BFF, która nie czyta
+ciasteczek, nie wysyła tokenu ani zapytania i przekazuje dokładnie jeden nagłówek
+do dokładnie jednej trasy backendu (ADR-0049). To zamyka też przypadek osoby,
+która usunęła konto: nadal może usunąć zgłoszenie.
+
+\subsection{Co usuwanie robi i czego nie robi}
+
+\begin{itemize}[leftmargin=*]
+    \item Usunięcie rekordu \textbf{nie usuwa wpisu ledgera}, bo powiązanie nie
+    istnieje. Konto, które usunęło rekord, nie może zgłosić się ponownie do
+    tego pracodawcy do czasu oczyszczenia wpisu. To udokumentowane zachowanie dla
+    użytkownika, nie defekt.
+    \item Usunięcie \emph{konta} (w authservice) usuwa login, ale \emph{nie
+    rekordy}: żaden rekord nie ma odniesienia do konta, więc nie ma czego
+    usuwać po koncie (ADR-0014). Interfejs mówi to przed i po usunięciu i
+    nigdy nie obiecuje ,,wszystkie dane usunięte''. Wydane tokeny działają do
+    wygaśnięcia (MCP: 15 minut).
+    \item Kod jest sekretem na okaziciela: \emph{każdy}, kto go ma, może usunąć
+    rekord, a zgubiony kod oznacza brak możliwości usunięcia. Oba skutki
+    wynikają z braku powiązań.
+    \item Usunięty rekord zostaje w opublikowanych liczbach do następnego
+    batcha (sekcja~\ref{sec:p3-agregacja}); kopie zapasowe starzeją się według
+    harmonogramu platformy (założenie).
+\end{itemize}
+
+\subsection{Bilet dla CLI i punkt korelacji}
+
+CLI nie może trzymać sekretu klienta OAuth, a authservice rejestruje tylko
+klientów poufnych, więc panel webowy wystawia \emph{bilet} (ADR-0030): 256 losowych
+bitów, ważny 15 minut z wygaśnięciem zaokrąglonym w górę do 5 minut, jednorazowy,
+niepowiązany z żadnym pracodawcą; w bazie jego skrót, \texttt{sub} i wygaśnięcie
+(to jedyna tabela z \texttt{sub}). Limity: najwyżej 3 żywe bilety na konto i 10
+wystawień na godzinę. Realizacja (anonimowa, nagłówek
+\texttt{X-Submission-Ticket}) odbywa się w jednej transakcji z wpisem ledgera,
+rekordem i paragonem; bilet usuwa jedna atomowa instrukcja, której liczba
+zmienionych wierszy rozstrzyga zwycięzcę (test: 24 równoległe realizacje, jedna
+wygrywa).
+
+\textbf{Punkt korelacji pozostaje.} W chwili realizacji jedno żądanie niesie
+bilet (rozwiązywalny do \texttt{sub}) i rekord. Projekt zawęża to okno, ale go nie
+zamyka; ADR-0030 świadomie \emph{nie wprowadza} losowego opóźnienia, kolejek ani
+osobnych transakcji, bo nie ukryłyby chwili przed obserwatorem ruchu na żywo, a w cichym
+systemie także przed bazą. Obserwator krawędzi sieci (reverse proxy, logi
+platformy) może powiązać realizację biletu z wstawieniem rekordu --- model
+zagrożeń wpisuje to jako ryzyko zaakceptowane (T-09), nie rozwiązane. Wiersze jednej
+transakcji dzielą też ukryty identyfikator transakcji bazy i leżą obok siebie w
+stercie, więc ktoś z dostępem do plików bazy lub fizycznej kopii może w
+zasadzie sparować wpis ledgera z rekordem mimo braku kolumny łączącej (ADR-0027,
+OP-13); osobny schemat, DbContext lub rola dla ledgera \emph{nie są zbudowane}.
+
+% ============================================================================
+\section{Agregacja i kontrola ujawnienia}
+\label{sec:p3-agregacja}
+
+Moduł Signals (\repopath{docs/privacy/AGGREGATION.md}, ADR-0052 do 0056) jest
+zaimplementowany i przetestowany. Co publikuje: dla pracodawcy z co najmniej jedną
+wyświetlalną komórką, dla każdego z sześciu tematów --- liczbę ocen $n$, średnią z
+95\% przedziałem, etykietę rzetelności, pasmo pokrycia, a tylko gdy reguły
+pozwalają, trzypasmowy rozkład ocen, rozbicie według poziomu weryfikacji oraz
+przekroje po jednym paśmie (staż, seniority, funkcja). \emph{Nigdy} nie publikuje
+rekordu, cytatu, id wywiadu, kodu z paragonu, dokładnej liczby respondentów,
+liczby osób, które nie oceniły tematu, liczby wstrzymanych komórek, wyniku
+pracodawcy, średniej po tematach, rankingu, ,,najlepszego'' ani ,,najgorszego'',
+percentyla ani listy pracodawców w innej kolejności niż alfabetyczna.
+
+Ostatnie wyliczenie jest wymuszone \emph{nieobecnością}: nie istnieje pole,
+kolumna, zapytanie ani trasa, które mogłyby to wyrazić (test refleksyjny wylicza
+dozwolone nazwy właściwości; czytnik ma trzy metody i żadnego zapytania po
+wartości).
+
+\subsection{Reguły}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Nr} & \textbf{Reguła} \\
+\midrule
+R1 & $k$ stosuje się do \emph{każdej wyświetlanej komórki} (pracodawca $\times$ temat): domyślnie 5, minimum 3 (\texttt{Signals:MinimumGroupSize}; niższa wartość zatrzymuje usługę przy starcie). Poniżej $k$ temat to \texttt{insufficient\_data}, bez liczby. \\
+R2 & Tylko przekroje po jednym paśmie (staż, seniority, funkcja), bez iloczynu kartezjańskiego. \\
+R3 & Przekrój jest \emph{czystą partycją} albo jest wstrzymany w całości: każde pasmo puste lub $\ge k$ oraz grupa rekordów, które pominęły opcjonalne pasmo, równa zero lub $\ge k$. \\
+R4 & Rozkład (trzy stałe przedziały: 1--2, 3, 4--5) i poziomy weryfikacji publikowane w całości albo wcale, tą samą regułą, tylko na komórce pracodawca $\times$ temat. \\
+R5 & Liczba respondentów jest pasmem o dolnej krawędzi $\ge k$ (przy $k=5$: 5--9, 10--24, 25--49, 50+); pokrycie to pasmo (\texttt{high} $\ge 75\%$, \texttt{medium} 40--74\%, \texttt{low} $<40\%$). \\
+R6 & Publikacja batchami: jeden snapshot na okres, nigdy w reakcji na zgłoszenie, usunięcie ani żądanie. \\
+R7 & Gruby czas: snapshot niesie początek swojego okresu, nie chwilę zakończenia przebiegu. \\
+R8 & Usunięcia działają od następnego batcha, a API to mówi. \\
+R9 & Niepewność przy każdej liczbie w tym samym obiekcie: $n$, średnia, przedział, rzetelność, pokrycie. \\
+R10 & Jedna odpowiedź na ,,nic do pokazania'': nieznany pracodawca i pracodawca poniżej $k$ dostają bajt w bajt identyczne 404. \\
+R11 & Brak kompozytu, rankingu, wyniku pracodawcy, najlepszy/najgorszy, percentyla; listy alfabetycznie. \\
+R12 & Nic poniżej $k$ nie jest zwracane, logowane, cache'owane ani emitowane (body, błąd, log, etykieta metryki, nagłówek cache). \\
+\bottomrule
+\end{tabularx}
+\caption{Reguły ujawnienia (\repopath{AGGREGATION.md} §2); każda ma wskazany kod i test.}
+\label{tab:p3-reguly}
+\end{table}
+
+\subsection{Czyste partycje i dlaczego nie reguła podręcznikowa}
+
+Przykład z dokumentacji. Pracodawca ma 26 ocen tematu ,,kultura''; pasma stażu:
+\texttt{1y\_3y} 12, \texttt{3y\_5y} 11, \texttt{gt\_10y} 3. Reguła tylko-na-komórkę
+pokazałaby 12 i 11 i ukryła 3 --- a czytelnik policzyłby $26-12-11=3$ i
+ujawnił trzy osoby. Reguła podręcznikowa (ukryj też najmniejszą pokazaną
+komórkę, aż reszta będzie $\ge k$) jest bezpieczna dla \emph{jednego}
+snapshotu. System wstrzymuje cały przekrój stażu dla tego tematu
+(\texttt{suppressed}); inne przekroje oraz $n$, średnia i przedział tematu nie
+są dotknięte.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[height=0.36\textheight]{\dgm{p3-disclosure}}
+\caption{Decyzja o publikacji komórki i przekroju.}
+\label{fig:p3-disclosure}
+\end{figure}
+
+Powód odrzucenia reguły podręcznikowej to przeciwnik z dwoma snapshotami
+różniącymi się o jeden rekord --- jego własny, dodany lub usunięty kodem z
+paragonu (ADR-0053 podaje przykład: pasma seniority 5, 4 i jeden rekord poza
+pasmami; przeciwnik dodaje rekord ,,senior'' i odejmuje). Dla reguły czystych partycji
+dokumentacja podaje dwie gwarancje:
+
+\begin{quote}
+\emph{W obrębie jednego snapshotu} każda grupa osób, którą da się wyodrębnić
+dodawaniem i odejmowaniem wyświetlonych liczb, ma 0 lub co najmniej $k$ członków.
+\emph{Między dwoma snapshotami różniącymi się własnym rekordem przeciwnika}
+każda grupa \emph{innych} osób, którą da się wyodrębnić, ma 0 lub co najmniej
+$k-1$ członków.
+\end{quote}
+
+Dowody są testowe: \texttt{AdversaryTests} wylicza \emph{wszystkie} partycje trzech
+pasm plus grupy ,,poza'' z licznościami od 0 do $2k$, dla $k=3,4,5$, i każdego
+sąsiada o jeden rekord; \texttt{PropertyTests} robi to samo przez cały potok na 300 i 250
+losowych populacjach na $k$ (ziarno stałe). Cztery mutanty (brak uzupełniającego
+tłumienia; reguła podręcznikowa; próg przesunięty o jeden; zapomniana grupa
+,,poza'') są łapane; mutant podręcznikowy przechodzi test jednego snapshotu i
+oblewa test dwóch --- stąd cała reguła. Zestaw Signals ma 102 zaliczone testy
+(RESULTS.md §4).
+
+\subsection{\texorpdfstring{Statystyka: przedział $t$ z regularyzacją}{Statystyka: przedział t z regularyzacją}}
+
+$n$ jest dokładne, średnia to średnia próbkowa do dwóch miejsc. Przedział to
+\emph{Student $t$ z wariancją regularyzowaną ku priorowi} 6 pseudoobserwacji o
+wariancji 2,5, przycięty do skali 1--5 i zaokrąglony na zewnątrz (ADR-0054;
+implementacja własna, 150 linii znanej matematyki). Powód: zwykły przedział $t$
+dla próbki identycznych ocen daje przedział o zerowej szerokości, czyli
+najgorsze możliwe wrażenie pewności. Pięć piątek daje 3,8--5,0, a nie punkt.
+
+Pomiar pokrycia nominalnego 95\% (RESULTS.md §3; komenda poniżej).
+\begin{Verbatim}[fontsize=\small]
+dotnet test tests/ExitInterviewAgent.Signals.Tests \
+  --filter IntervalCoverageTests --logger "console;verbosity=detailed"
+\end{Verbatim}
+Oba testy zaliczone; na wydrukowanych kolumnach pokrycie mieściło się w zakresie
+93,3\%--100\% dla $n=5$ do 40 na syntetycznej baterii (np. $n=5$: rozkład
+równomierny 97,1\%, spolaryzowany 93,3\%, skrajny 50/50 94,4\%); test wymaga
+więcej niż 90\% dla każdego rozkładu. Dla populacji prawie zdegenerowanej przy
+$n=5$ zwykły przedział $t$ pokrywa 22,9\%, a regularyzowany 100\%. Minimum 92,4\%
+($n=20$, rzadki dolny ogon), które raportowała sesja implementująca moduł,
+znajduje się w kolumnie, którą ucięła konsola, i RESULTS.md oznacza je jako
+\emph{nie odczytane ponownie} --- w tym przewodniku jest to więc liczba z drugiej ręki.
+
+Zastrzeżenia zapisane obok liczb: stałe priora zostały dobrane na tej samej baterii
+(to osąd, nie wynik); oceny w komórce nie są niezależnymi próbami; oceny to
+odczyt modelu z rozmowy, a ten błąd nie jest w przedziale; nic nie sprawdzono na
+prawdziwych danych, bo takie nie istnieją. \emph{Rzetelność} rośnie z $n$ względem
+$k$: \texttt{low} poniżej $2k$, \texttt{moderate} poniżej $6k$, \texttt{high} od
+$6k$ (przy $k=5$: 10 i 30). \emph{Pokrycie} jest metryką przeciwwagą --- udział
+populacji komórki, która oceniła temat --- w tym samym obiekcie co średnia.
+Instrukcja czytania: średnia i przedział to jeden fakt; szeroki przedział znaczy
+,,wcześnie'', nie ,,błędnie''; nakładające się przedziały to nie różnica.
+
+\subsection{Batche i honest deletion}
+
+Snapshot jest przebudowywany z tego, co przechowano, \emph{raz na okres}
+(\texttt{Signals:PublishInterval}: pełne godziny, od 1 godziny do 7 dni; domyślnie
+doba), idempotentnie (odcisk: okres, interwał, wersja reguł, $k$) i odporny na
+restart. Między batchami liczby się nie ruszają. Nowy rekord, usunięcie kodem z
+paragonu i czyszczenie wiekowe pojawiają się dopiero w następnym batchu;
+\emph{usunięty rekord jest do tego czasu nadal liczony}, a API i interfejs to
+mówią (\texttt{deletionsAppearAtNextPublication}). Zmiana $k$ lub wersji reguł
+republikuje od razu, bo zaostrzenie nie może czekać do północy --- ADR-0055
+wprost zapisuje, że to ujawni rekordy, które napłynęły od ostatniego batcha,
+temu kto czyta później. Publikator działa jako pojedyncza instancja (ADR-0052).
+Metryki: \texttt{signals.publications} z etykietą \texttt{outcome} (published,
+skipped, failed); liczba wstrzymanych komórek nie jest emitowana, bo sama jest
+oświadczeniem o małych grupach.
+
+\subsection{\texorpdfstring{Czego $k$ nie chroni}{Czego k nie chroni}}
+
+Dokumentacja (\repopath{AGGREGATION.md} §7) wylicza to otwarcie:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Złośliwe konto z własnym rekordem.} Dodanie jednego rekordu do
+    pracodawcy z $k-1$ innymi sprawia, że komórka się pojawia, a ,,wszystko
+    minus mój rekord'' to dokładnie te $k-1$ osób; granica to $k-1$ (domyślnie
+    grupa 4 osób). Przeciwnik z $m$ kontami dostaje $k-m$ (ledger ogranicza jedno
+    zgłoszenie na parę konto--pracodawca, nie liczbę kont). Test dokumentuje tę
+    granicę zamiast ją ukrywać.
+    \item \textbf{Wiedza uboczna}: znajomość, kto jeszcze zgłosił się, pozwala
+    eliminować.
+    \item \textbf{Jednorodność}: jednomyślna komórka jest pokazana (z szerokim
+    przedziałem); osoba znana jako należąca do niej ma znaną ocenę (OP-20).
+    \item \textbf{Wzorzec tego, co wstrzymano}: wstrzymany przekrój mówi, że
+    jakieś pasmo ma od 1 do $k-1$ ocen (OP-21).
+    \item \textbf{Różnice na więcej niż jednym rekordzie}: gwarancja między
+    snapshotami dotyczy jednego własnego rekordu przeciwnika; batch, w którym
+    zgłosiło się kilka znanych osób, ujawnia ich łączny wkład (OP-19).
+    \item \textbf{Użyteczność}: u pracodawców z małym pasmem znikają całe przekroje
+    (OP-22); stażu dotyczy to najczęściej.
+    \item \textbf{Poza zakresem}: sfabrykowane rekordy (T-10), błąd modelu w
+    ocenach (OP-5), kim są respondenci (OP-4), operator z bazą, kluczem i ruchem (T-13).
+\end{enumerate}
+
+\subsection{Kontrakt API i tekstów}
+
+\texttt{GET /api/v1/signals/employers} i \texttt{/{employerRef}}, polityka
+\texttt{account} (otwarcie dla anonimowych to osobna, późniejsza decyzja),
+limit 30 żądań na minutę na konto. Kody: \kod{SIGNALS_EMPLOYER_NOT_FOUND} (404
+także dla pracodawcy poniżej $k$), \texttt{SIGNALS\_INVALID\_EMPLOYER\_REF}
+(400), \texttt{rate\_limited} (429). Cache: \texttt{private, max-age} do
+następnego batcha, \texttt{ETag}, \texttt{Last-Modified} = początek batcha.
+Teksty przy liczbach są \emph{kontraktem} (poniżej tłumaczenie; oryginał jest angielski, a interfejs może go tłumaczyć, ale nie wolno mu gubić sensu): m.in. ,,Zagregowano z rekordów
+zgłoszonych przez użytkowników tego narzędzia. Zatrudnienie jest deklarowane, nie
+zweryfikowane'', ,,szeroki przedział znaczy: wcześnie, nie błędnie'', ,,Pracodawcy
+są wymienieni alfabetycznie. To narzędzie nie tworzy rankingu''. Strony webowe
+renderują to, co zwróciło API, i niczego z niego nie wyprowadzają (ADR-0067 do
+0069); testy Vitest i przeglądarkowe sprawdzają brak cyfr w temacie
+\texttt{insufficient\_data}, brak elementów rankingu i sortowania oraz jedną
+identyczną stronę dla pracodawcy nieznanego, poniżej $k$ i błędnego odniesienia.
+Nie sprawdzono tego, czy czytelnik nie porówna pracodawców na oko (OP-26).
+
+% ============================================================================
+\section{Tożsamość i autoryzacja}
+\label{sec:p3-tozsamosc}
+
+\subsection{authservice}
+
+Tożsamość to osobna instancja \texttt{authservice}, konsumowana jako obraz
+przypięty do wersji (\texttt{v0.3.4}), z własną bazą \texttt{authdb} i własnym
+kluczem podpisu (ADR-0003); pozostałe usługi tylko walidują tokeny względem
+JWKS. Konto trzyma \texttt{sub}, e-mail, poświadczenia, wiersze zgód i własny audyt;
+nigdy treści wywiadu, pracodawcy ani rekordu. Portal logowania to \emph{wyłącznie
+konto}, bez powiązania z pracodawcą (brief §3.1). Zgody są wersjonowane w
+authservice (niezmienne wiersze: dokument, wersja, czas, IP, user agent, locale),
+co oznacza, że authservice musi trzymać IP i user agent --- stąd zasada, by nigdy
+nie łączyć ledgera ani biletów z tą stroną w logach. Obraz \texttt{v0.3.4} nie
+został uruchomiony w środowisku autorskim (proxy blokowało warstwy); równoważność
+z kodem źródłowym potwierdzono różnicą wersji (ADR-0012), a przepływy dwuskładnikowe,
+rejestracja i eksport były testowane tylko względem atrapy odwzorowującej kontrakt
+(OP-17, RESULTS.md §6).
+
+\subsection{Dwa schematy JWT}
+
+Claude (MCP) loguje użytkownika przez serwer autoryzacji OAuth 2.1 authservice, a jego tokeny
+nie są tokenami portalu. \textbf{Obie rodziny są podpisane tym samym kluczem i
+opublikowane w tym samym JWKS}, więc sama sygnatura ich nie odróżni. Odróżnia je
+ścisła walidacja wystawcy i odbiorcy (ADR-0012):
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+ & \textbf{Web / BFF} & \textbf{MCP} \\
+\midrule
+Schemat / polityka & \texttt{Bearer} / \texttt{account} & \texttt{McpBearer} / \texttt{mcp-submit} \\
+Wystawca (\texttt{iss}) & \texttt{Jwt:Issuer} & \texttt{Mcp:Issuer}, jeden dokładny napis \\
+Odbiorca (\texttt{aud}) & \texttt{Jwt:Audience} & \texttt{Mcp:Resource}, postać kanoniczna, bez tolerancji ukośnika \\
+Inne kontrole & wyłącznie RS256, czas życia & RS256, czas życia, \texttt{typ} = \texttt{at+jwt}, \texttt{sub} obecne, zakres \texttt{interview:submit} \\
+Klucze & JWKS z \texttt{Jwt:Authority} & metadane RFC 8414 z \texttt{Mcp:MetadataAddress} \\
+\bottomrule
+\end{tabularx}
+\caption{Dwa schematy JWT w interview-service (ADR-0012). Punkty końcowe nazywają politykę, nigdy schemat.}
+\label{tab:p3-jwt}
+\end{table}
+
+Po walidacji zasada \emph{minimalizacji danych} zostawia w principalu tylko
+\texttt{sub}, \texttt{client\_id}, \texttt{scope}, \texttt{jti}, \texttt{iss},
+\texttt{aud}, \texttt{exp}, \texttt{iat}, \texttt{nbf}; claim \texttt{email}, który
+authservice wkłada w każdy token, nigdy nie dociera do handlera. Dwa dialekty
+tokenów normalizuje się raz, na krawędzi, do jednego wewnętrznego principala.
+Skutek: token portalu nie wywoła punktu MCP, a token MCP nie wywoła
+\texttt{/api/v1/*}. Macierz \texttt{TokenMatrixTests} sprawdza dla obu schematów:
+zły wystawca, zły lub brakujący odbiorca, token wygasły, brak podmiotu, nieznany
+\texttt{kid}, nieznany klucz podszywający się pod znany \texttt{kid}, \texttt{alg=none},
+HS256 z kluczem publicznym jako sekretem, zmieniony ładunek, a dla MCP także
+bliskie pomyłki wystawcy i odbiorcy, zły \texttt{typ} i warianty zakresu (T-17,
+status: zmitygowane). Tokenu nie da się cofnąć: dostępowy MCP żyje 15 minut, a
+token usuniętego konta działa do \texttt{exp} (zaobserwowane).
+
+\subsection{Polityki, deny by default, limity}
+
+Test \texttt{EndpointAuthorizationMatrixTests} wymienia każdy punkt końcowy.
+Anonimowe są dokładnie: \texttt{/health}, \texttt{/alive}, dwa adresy metadanych
+zasobu chronionego (RFC 9728), \kod{POST /api/v1/submissions/ticketed} i
+\kod{DELETE /api/v1/receipts} (oraz OpenAPI tylko w Development). Pozostałe muszą
+nazywać politykę \texttt{account} (\texttt{/api/v1/*}) lub \texttt{mcp-submit}
+(\texttt{/mcp/*}); nowy punkt bez polityki łamie build. Limity z przeglądu
+bezpieczeństwa: 120/min na konto dla ogólnego API, wystawianie biletów 10 na godzinę i
+nie więcej niż 3 żywe, Signals 30/min na konto, anonimowe punkty 6/min na klienta i
+60/min globalnie, ciało żądania do 160 KiB (limit egzekwowany podczas odczytu; ciało bez
+długości jest odrzucane), MCP 120/min i 176 KiB.
+
+\subsection{Serwer zasobu MCP}
+
+Tryb A: host łączy się z punktem \texttt{Mcp:Resource}. Metadane zasobu chronionego
+(RFC 9728) są publiczne i podają authservice jako pierwszy serwer autoryzacji
+(Claude używa pierwszego wpisu i nie ma ścieżki zapasowej); wszystkie wartości
+pochodzą z konfiguracji, nie z nagłówka \texttt{Host}. Odpowiedź 401 niesie
+\texttt{WWW-Authenticate} z \texttt{resource\_metadata} i zakresem, 403 dla tokenu
+bez zakresu --- \texttt{insufficient\_scope}. Serwer eksponuje minimum:
+statyczne, wersjonowane prompty i zasoby oraz narzędzia, których jedynym
+argumentem jest rekord (\texttt{validate\_interview\_record},
+\texttt{submit\_interview\_record}); pole \texttt{transcript} jest odrzucane jako
+\texttt{UNKNOWN\_FIELD} (test). \emph{Strażnik transportu} (ADR-0043) odrzuca żądanie z
+nagłówkiem \texttt{Origin} spoza listy \texttt{Mcp:AllowedOrigins} (domyślnie pusta;
+403 \texttt{ORIGIN\_NOT\_ALLOWED}; łącznik Claude działa z serwerów Anthropic i
+\texttt{Origin} nie wysyła), nieobsługiwaną wersję protokołu (400), ciała ponad
+limit (413) oraz zastępuje stałą każdą nazwę metody, narzędzia lub URI spoza
+zamkniętego słownika, zanim zobaczy je SDK. Ważne zastrzeżenie, wielokrotnie
+powtarzane w dokumentach: \emph{żaden prawdziwy klient Claude nigdy nie połączył się z tym
+serwerem}, a to, czy host posłucha instrukcji (np. nie przesyłaj rozmowy do innych
+narzędzi), nie było mierzone (T-07, OP-18).
+
+\subsection{BFF, sesje i zgody}
+
+Przeglądarka rozmawia tylko z własnym originem. Tokeny leżą w ciasteczkach
+\kod{HttpOnly}, \kod{SameSite=Strict}; strona ich nie widzi (ADR-0013).
+Odświeżanie jest \emph{single-flight} po stronie serwera: authservice po
+powtórnym użyciu zużytego tokenu odświeżającego unieważnia całą rodzinę, a
+przeglądarka wysyła wiele żądań naraz, więc niekoordynowana rotacja kończyłaby
+sesję użytkownika. Wylogowanie unieważnia tokeny odświeżające w authservice
+(w miarę możliwości). Bramka zgód: po zalogowaniu BFF czyta status zgód i,
+jeśli wymagana jest akceptacja (lub status nieznany --- bramka zawodzi w stronę
+zamknięcia), każda strona przekierowuje na \texttt{/consent}, a \texttt{/api/proxy/*}
+odpowiada 403 \texttt{consent\_required}. Znacznik zgody w ciasteczku to jednak
+\emph{bramka UX, nie granica autoryzacji}; autorytatywny zapis jest w authservice.
+Rotacja single-flight działa w obrębie procesu --- przy wielu maszynach webowych
+wymagałaby wspólnego magazynu. Dwuskładnikowe logowanie, rejestracja i weryfikacja
+e-maila idą przez BFF (ADR-0050); MFA jest w authservice opcjonalne, a decyzja, czy
+portal ma je wymagać, jest otwarta.
+
+\subsection{CSP z nonce i CSRF}
+
+\textbf{CSP} jest budowany dla każdego żądania w bramce brzegowej (ADR-0047): świeży
+128-bitowy nonce, \texttt{script-src 'self' 'nonce-\ldots'} bez
+\texttt{unsafe-inline}, bez \texttt{unsafe-eval} i --- celowo --- bez
+\texttt{strict-dynamic} (z nim przeglądarka ufałaby skryptom tworzonym przez
+JavaScript, czyli dokładnie temu, co robi wstrzyknięty fragment); w produkcji
+\texttt{style-src 'self'} bez \texttt{unsafe-inline}, bo żaden kod nie pisze
+atrybutu \texttt{style=} ani elementu \texttt{<style>}. Do tego
+\texttt{default-src 'self'}, \texttt{connect-src 'self'} (sens BFF),
+\texttt{frame-ancestors 'none'}, \texttt{object-src 'none'}, \texttt{form-action 'self'}, a
+także Cross-Origin-Opener-Policy i Cross-Origin-Resource-Policy. Test
+przeglądarkowy na artefakcie produkcyjnym: każda strona ładuje się bez naruszeń CSP i
+bez zewnętrznego żądania, wstrzyknięty skrypt i atrybut zdarzenia są odrzucane, nonce
+różni się w każdej odpowiedzi. Rezydua zapisane w ADR: \texttt{'self'} ufa każdemu
+plikowi JS serwowanemu przez origin; CSP to obrona w głąb za ucieczką znaków
+Reacta (brak \texttt{dangerouslySetInnerHTML}); ścieżka wykluczona z matchera nie
+dostaje CSP; CSS-only exfiltration przy wstrzyknięciu znaczników nie jest zatrzymana
+(dziś nie ma znaczników renderowanych od użytkownika).
+
+\textbf{CSRF} (ADR-0048) ma dwie warstwy: ciasteczka \texttt{SameSite=Strict} oraz
+bramka brzegowa, która przed jakimkolwiek handlerem odrzuca 403
+\texttt{cross\_origin\_request} żądanie zmieniające stan (\texttt{POST}, \texttt{PUT},
+\texttt{PATCH}, \texttt{DELETE}) do \texttt{/api/*} z \texttt{Sec-Fetch-Site}
+innym niż \texttt{same-origin}/\texttt{none} lub z hostem \texttt{Origin} różnym od hosta
+żądania. Żądanie bez obu nagłówków (curl) przechodzi --- nie pożyczy ciasteczek
+przeglądarki. Kontrola obejmuje też anonimową trasę paragonu, żeby wroga strona nie
+mogła wyczerpać cudzego budżetu limitu. Dodatkowo: bilet żyje wyłącznie w stanie
+Reacta jednej strony (nie w web storage, ciasteczku ani URL) i jest czyszczony przy
+wygaśnięciu, przycisku, odmontowaniu, \texttt{pagehide} i przywróceniu z bfcache;
+kod z paragonu wpisuje się w pole bez atrybutu \texttt{name}, opróżniane natychmiast po
+wysłaniu; \texttt{Cache-Control: no-store} na każdej stronie i odpowiedzi API poza
+\texttt{/healthz} i \texttt{/api/config}. Pozostaje: złośliwe rozszerzenie
+przeglądarki lub XSS pokonuje pamięć strony, a schowek trzyma bilet, dopóki
+użytkownik czegoś innego nie skopiuje.
+
+% ============================================================================
+\section{Telemetria bez treści}
+\label{sec:p3-telemetria}
+
+Zasada z briefu §6: żadnych danych osobowych ani treści wywiadu w logach, śladach
+i zdarzeniach audytu. W repozytorium jest ona realizowana warstwami, z których
+każda ma test, a testy mają dowodzić, że \emph{mogą} zawieść.
+
+\paragraph{Ślady agenta: tylko metadane, z konstrukcji (ADR-0025).} Jedno
+\texttt{ActivitySource} z rozpiętościami dla sesji, tury, sondowania, strażnika PII,
+wywołania modelu, ekstrakcji i weryfikacji. Typ \texttt{SpanTags} oferuje
+zapisywacze dla liczb całkowitych, wartości logicznych, nazw wyliczeń i kontrolowanych
+kodów --- i \emph{nie ma przeciążenia dla napisu}; kod przyjmuje się tylko, jeśli ma
+do 48 znaków z \texttt{[A-Za-z0-9\_.:-]}. Wyjątki dostawców są ponownie rzucane
+wyłącznie jako nazwy typów. Test kanarkowy uruchamia każdą personę, dopisując
+znacznik do każdej odpowiedzi rozmówcy, upewnia się, że znacznik jest w zapisanym
+transkrypcie (test ma moc), i sprawdza, że ani on, ani żadne wstawione imię
+czy adres nie występują w żadnej nazwie rozpiętości, tagu, zdarzeniu, statusie,
+bagażu ani wierszu logu; skaner sam oblewa na celowym wycieku. Cena: część
+szczegółów diagnostycznych jest celowo niedostępna.
+
+\paragraph{Serwis: kanarek w logach (T5, T8, T11).} \texttt{ContentCanaryTests}
+puszcza przez jeden scenariusz zgłoszenie przyjęte, zduplikowane, niepoprawne
+schematycznie, odrzucone za PII, zniekształcone, zbyt duże, wystawienie i
+realizację biletu (także złego i zużytego), ścieżkę MCP, usuwanie kodem (znanym,
+powtórzonym, nieznanym, zniekształconym), czyszczenie wiekowe i weryfikator, który
+rzuca wyjątek z kanarkiem w treści. Przechwytywane są wszystkie kanały: wiersze
+logów (łącznie z logami poleceń EF Core na poziomie Trace), tagi, zdarzenia, status i
+bagaż aktywności, ładunki event sources oraz tagi metryk. Sam przechwyt jest testowany
+na widzenie każdego kanału, a regresje logujące ciała i nagłówki żądań są wykazane
+jako wykrywane. Jedyna metryka wyniku ma etykietę \texttt{accepted} albo kod
+odrzucenia. \texttt{McpCanaryTests} rozszerza to na MCP i znalazł \textbf{trzy wycieki
+w SDK}, które naprawiono: pełne wychodzące wiadomości (z kodem z paragonu) na poziomie
+Trace, nazwy wybierane przez klienta w wierszach logów oraz te same nazwy w tagach
+metryk i rozpiętości. Poprawki: podłoga logowania SDK na Information (konfiguracja nie
+może jej obniżyć) i \texttt{McpBodyScrubber}; każda poprawka jest wykazana jako potrzebna.
+
+\paragraph{E-maile.} Poza minimalizacją claimów (sekcja~\ref{sec:p3-tozsamosc}),
+\texttt{ILoggerFactory} jest owinięty tak, że każdy komunikat, argument
+strukturalny i tekst wyjątku ma adresy e-mail zastąpione
+znacznikiem \texttt{[email-\allowbreak redacted]}, zanim zobaczy je jakikolwiek dostawca (ADR-0014). To
+sieć na adresy, nie na imiona ani inne PII --- polityką jest brak treści w pierwszej
+kolejności.
+
+\paragraph{Telemetria dostawców modeli (ADR-0035).} Dwa źródła i jedna miara;
+rozpiętość \kod{provider.call} z atrybutami konwencji GenAI (serii 1.37) i
+metrykami o niskiej kardynalności; \emph{przechwytywanie treści jest wyłączone i
+niedostępne}: nie ma opcji, przełącznika ani zmiennej środowiskowej, która
+zapisałaby prompty lub odpowiedzi (skan źródeł i refleksja), a test ustawia standardowy
+przełącznik przechwytywania i sprawdza, że nic nie wycieka. Kanarek rozszerzono na
+wszystkie klienty dostawców (znacznik rozmówcy, klucz API, nagłówek odpowiedzi, ścieżka
+bazowego URL, treść błędu echo żądania). Eksport jest wyłączony domyślnie i opt-in
+standardowymi zmiennymi OTEL; konsolowy eksporter drukuje po zakończeniu wywiadu. Testy
+dostawców wykonano na atrapach: \emph{żadne prawdziwe wywołanie dostawcy nie zostało
+wykonane}.
+
+\paragraph{Signals.} Publikator loguje jedną linię na publikację (liczba pracodawców,
+wersja reguł, $k$), a przy awarii tylko \emph{typ} wyjątku; żaden pracodawca, cytat,
+id rekordu ani liczba wstrzymanych komórek nie jest argumentem logu ani etykietą
+metryki (jedyna etykieta to \texttt{outcome}).
+
+\paragraph{CLI.} Typ \texttt{RedactedSecret} (ADR-0059) nie da się wypisać
+(\texttt{ToString()} zwraca \texttt{[redacted]}), brak flagi niosącej sekret
+(test architektury), kod z paragonu trafia na stdout raz oraz opcjonalnie do pliku z
+\texttt{--save-receipt} (tryb 0600), a testy kanarkowe przechodzą przez wszystkie wyniki
+(utworzone, bilet odrzucony, znalezione PII, limit, 500 echo, odmowa połączenia\ldots).
+Granica: .NET-owy napis nie da się wyzerować, więc zrzut procesu tego samego
+użytkownika może go zawierać (OP-23).
+
+\subsection{Czego telemetria nie obejmuje}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Logi platformy} (proxy, load balancer, wolne zapytania bazy) są poza
+    kontrolą aplikacji (T-15, status: otwarte).
+    \item Standardowy span HTTP zawiera metodę, trasę, status, User-Agent i czas ---
+    nie treść, ale czas.
+    \item Odniesienie do pracodawcy jest w ścieżce URL Signals, więc trafia do logów
+    żądań i \texttt{url.path} w śladach tak jak każdy URL; to publiczny
+    identyfikator, a nie atrybut zgłaszającego. Jeżeli czytanie pracodawcy nie ma być
+    w ogóle śladowalne, odniesienie trzeba by przenieść do ciała POST.
+    \item \textbf{Wiersze audytu authservice zawierają e-mail aktora} (np. przy
+    usunięciu konta) --- poza tym repozytorium, sprzeczne z briefem §6 dla danych
+    tożsamości; propozycja dla authservice jest w raporcie T2.
+    \item Nazwa i wersja aplikacji klienta MCP (\texttt{clientInfo}) pojawia się w
+    logach Information; wybiera ją aplikacja, nie rozmowa.
+    \item Ślady agenta w \emph{ewaluacji} mogą zawierać treść (symulowane persony);
+    ten sam schemat spanów w produkcji nie ma jej zawierać --- oba tryby mają się
+    różnić konfiguracją, ,,nie nadzieją''.
+\end{itemize}
+
+% ============================================================================
+\section{Model zagrożeń i przegląd bezpieczeństwa}
+\label{sec:p3-zagrozenia}
+
+Dwa dokumenty, które trzeba umieć odróżnić. \repopath{THREAT-MODEL.md} to model
+STRIDE per przepływ danych i granica zaufania, spisany na etapie projektu (wersja
+v0) i aktualizowany w miarę dodawania kodu; autor sam podkreśla, że to
+analiza statyczna specyfikacji, \emph{nie test penetracyjny}. \repopath{SECURITY-REVIEW.md}
+to przegląd według listy kontrolnej z 2026-10-05: macierz autoryzacji, audyt
+zależności, sekrety, łańcuch dostaw, kontenery, wektory wstrzyknięć --- oparty na
+grepach, czytaniu konfiguracji i testach, także nie na pentestach. Żaden z nich nie
+zastępuje testu penetracyjnego, a dokumentacja nie wskazuje niezależnego
+recenzenta.
+
+Model definiuje aktywa (m.in. A1 powiązanie osoba--rekord, A2 treść rekordu, A3
+transkrypt, A4 integralność agregatów, A5 sekrety na okaziciela, A6 dostępność i
+koszt), aktorów (uczciwy użytkownik, złośliwy klient, wrogi rozmówca, były pracodawca,
+ciekawski lub skompromitowany operator, dostawca AI/host MCP, atakujący zewnętrzny,
+łańcuch dostaw) i dziewięć granic zaufania. Tabela~\ref{tab:p3-zagrozenia} to
+wybrane wiersze rejestru ryzyka (§4 modelu) wraz ze stanem; pełna lista ma 20 zagrożeń.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{1.1cm}>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}p{6.4cm}>{\raggedright\arraybackslash}p{3.0cm}@{}}
+\caption{Wybrane zagrożenia, mitygacje i status (THREAT-MODEL.md §3--4; SECURITY-REVIEW.md §9).}\label{tab:p3-zagrozenia}\\
+\toprule
+\textbf{ID} & \textbf{Zagrożenie} & \textbf{Mitygacja (stan)} & \textbf{Status} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Zagrożenie} & \textbf{Mitygacja (stan)} & \textbf{Status} \\
+\midrule
+\endhead
+\midrule \multicolumn{4}{r}{\emph{ciąg dalszy na następnej stronie}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+T-01 & Deanonimizacja przez małe grupy, pasma, różnicowanie &
+$k$ na komórkę, czyste partycje, batche, niepewność; wyczerpujące i losowe testy z mutantami (zaimplementowane, T10/T10b) &
+Zmitygowane w kodzie; reszta ($k-m$, wiedza uboczna, jednorodność, wzorzec wstrzymań) otwarta \\
+\addlinespace
+T-02 & Reidentyfikacja z treści: styl, epizody, imiona &
+Detektor PII, limity cytatów, agent nie pyta o imiona; agregaty nie niosą cytatów (test); brak publikacji cytatów &
+Otwarte (granice detekcji); ryzyko średnie \\
+\addlinespace
+T-03 & Prompt injection przez tekst rozmówcy &
+Brak narzędzi z zapisem w trybie wywiadu; maszyna stanów prowadzi przepływ; tekst rozmówcy tylko w bloku danych; persona i atrapa modelu w testach &
+Otwarte: zachowanie prawdziwych modeli niezmierzone; tryb A tylko doradczy \\
+\addlinespace
+T-04 & Wstrzyknięcie do ekstraktora, sfabrykowane cytaty &
+Walidacja schematu, cytaty jako podciągi transkryptu tam, gdzie transkrypt dostępny; limity &
+Otwarte: dla klienta, którego nie kontrolujemy, wierność to twierdzenie \\
+\addlinespace
+T-06 & Stored XSS, markdown, brak nagłówków &
+Pięć nagłówków, CSP z nonce, React bez \texttt{dangerouslySetInnerHTML}, testy przeglądarkowe (T2, T9, T10b) &
+Zmitygowane (web); ryzyko niskie \\
+\addlinespace
+T-07 & Eksfiltracja przez host MCP &
+Jedno narzędzie z polem rekordu, brak pola \texttt{transcript}, strażnik transportu; ujawnienie w komunikatach (zaimplementowane po stronie serwera) &
+Zaakceptowane i ujawnione; zachowanie hosta niezmierzone, brak prawdziwego klienta \\
+\addlinespace
+T-08 & Korelacja ledgera (operator z bazą $\pm$ klucz) &
+HMAC z kluczem poza bazą, bucket tygodnia, brak klucza obcego; \texttt{SchemaInvariantTests} &
+Zaakceptowane (baza + klucz); artefakty magazynu otwarte (OP-13) \\
+\addlinespace
+T-09 & Korelacja przy realizacji biletu &
+Zaokrąglone wygaśnięcie, bilet niezwiązany z pracodawcą, jedna transakcja, nagłówek zamiast URL, kanarki; batching i jitter świadomie odrzucone &
+Zaakceptowane (brief §4) \\
+\addlinespace
+T-10 & Fałszywe, zreplikowane i masowe rekordy; brak weryfikacji &
+Ledger (jedno na parę konto--pracodawca w oknie), limity, walidacja, ponowny skan PII, agregaty oznaczone jako deklarowane; weryfikator jest atrapą &
+\textbf{Otwarte}, ryzyko wysokie, nierozwiązane (OP-1) \\
+\addlinespace
+T-11 & Wyliczanie i timing kodów z paragonu &
+256 bitów, skrót, stały czas, jednolite 204, podłoga 150\,ms, limity &
+Zmitygowane; reszta zaakceptowana \\
+\addlinespace
+T-12 & Przejęcie konta &
+authservice (blokada, TOTP, rotacja); single-flight, odwołanie przy wylogowaniu, bilet wymaga żywej sesji; przetestowane na atrapie &
+Zmitygowane w portalu; otwarte: MFA opcjonalne, brak przebiegu z prawdziwym obrazem \\
+\addlinespace
+T-13 & Insider z bazą, kluczem i ruchem &
+Nie do zapobieżenia &
+Zaakceptowane \\
+\addlinespace
+T-14 & Łańcuch dostaw &
+Przypięty tag obrazu, skan sekretów (gitleaks) w CI; akcje przypięte tagiem, nie SHA &
+Otwarte (T12) \\
+\addlinespace
+T-15 & Wyciek przez log, ślad, błąd &
+Minimalizacja claimów, scrubber e-maili, kanarki w ścieżkach zgłoszenia, MCP, dostawców, CLI &
+Zmitygowane dla tych ścieżek; otwarte dla logów platformy \\
+\addlinespace
+T-17 & Pomylenie tokenów dwóch schematów &
+RS256, ścisły \texttt{iss}/\texttt{aud}/\texttt{typ}/zakres, macierz \texttt{TokenMatrixTests} &
+Zmitygowane; ryzyko niskie \\
+\addlinespace
+T-18 & Odmowa usługi, koszt &
+Limity per konto/klient/globalne, limity ciała; jedna instancja &
+Zmitygowane (jedna instancja); otwarte dla replik \\
+\addlinespace
+T-19 & Przymus prawny, spór z pracodawcą &
+Operator ma mało do ujawnienia; brak prawdziwych danych &
+Zaakceptowane; część powodu braku prawdziwych wywiadów \\
+\addlinespace
+T-20 & Ujawnienie transkryptu dostawcy AI &
+Poza kontrolą; ostrzeżenie CLI i wpisany \texttt{yes} przed pierwszym wywołaniem &
+Zaakceptowane i ujawnione \\
+\end{longtable}
+
+\subsection{Ustalenia przeglądu T12}
+
+Przegląd podsumowuje ustalenia według ważności: jedno wysokie (zależność
+deweloperska) i jedno średnie (współdzielony klucz limitu).
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{3.2cm}@{}}
+\toprule
+\textbf{Ustalenie} & \textbf{Opis} & \textbf{Stan} \\
+\midrule
+\texttt{braces} $\le$ 3.0.3, GHSA-vfj7-8cjw-p6xm (wysokie) &
+Wyczerpanie stosu przy głęboko zagnieżdżonych wzorcach glob. Ścieżka:
+\texttt{app > eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > braces}.
+Zależność deweloperska linteru; \texttt{pnpm audit --prod} nie zgłasza podatności;
+poprawionej wersji brak. Skutek: spowolnienie builda lub CI, nie runtime. &
+\textbf{Otwarte}, przegląd rekomenduje akceptację jako ryzyko dev-only i
+obserwację aktualizacji Next.js; decyzja należy do właściciela (\kod{OWNER-FOLLOWUPS.md}). \\
+\addlinespace
+OP-15: wspólny klucz limitu dla usuwania paragonem (średnie) &
+BFF nie przekazuje IP odwiedzającego do backendu (ze względów prywatności), więc
+wszyscy użytkownicy portalu dzielą jeden klucz limitu (6/min na klienta, 60/min globalnie);
+jeden użytkownik może zablokować innych na minutę. &
+\textbf{Otwarte}; opcje: przekazywanie nagłówka za zaufanym proxy
+(\kod{Submission:ClientIpHeader}), akceptacja lub test obciążeniowy; decyzja
+operatora odroczona. \\
+\addlinespace
+Akcje CI przypięte tagiem &
+\texttt{actions/checkout@v4} itd. bez przypięcia SHA. &
+Otwarte (T-14); zalecane przed publicznym repo. \\
+\addlinespace
+Obraz authservice bez skrótu, CodeQL bez wysyłki &
+Przypięcie po skrócie obrazu i \texttt{CODEQL\_UPLOAD: true} zaplanowane przed upublicznieniem. &
+Zadania wydania (nie wykonane). \\
+\addlinespace
+Przepływ 2FA authservice &
+Testy kanarkowe i przepływy dwuskładnikowe dotyczą atrapy, nie prawdziwego obrazu. &
+Do monitorowania (OP-17). \\
+\bottomrule
+\end{tabularx}
+\caption{Otwarte ustalenia przeglądu bezpieczeństwa (SECURITY-REVIEW.md §8, §11).}
+\label{tab:p3-ustalenia}
+\end{table}
+
+\paragraph{Uwaga o \texttt{braces} i audycie zależności.} \textbf{braces} jest
+,,wysokie'' według skali audytu, ale w praktyce jest zależnością deweloperską
+linteru; produkcyjny audyt (\texttt{pnpm audit --prod}) nie zgłasza podatności
+(RESULTS.md §5). Dla NuGet: SECURITY-REVIEW.md pisze, że nie mógł uruchomić
+\texttt{dotnet list package --vulnerable} bez SDK, natomiast RESULTS.md (później
+skompilowany z SDK 10.0.112) raportuje brak podatnych pakietów w żadnym
+projekcie. Obie informacje są prawdziwe w swoich datach; to drugie jest świeższe.
+
+\paragraph{Nierozbieżność do odnotowania.} Wiersz T-08 w tabeli
+SECURITY-REVIEW §9 opisuje projekt ledgera jako ,,założenie architektury, nie testowane'',
+podczas gdy model zagrożeń wskazuje testy niezmienników schematu
+(\texttt{SchemaInvariantTests}, także względem PostgreSQL) i testy równoległości. Rozsądne
+odczytanie: schemat i unikalność są testowane, a korelacja operatora z kluczem nie jest
+testowalna i jest zaakceptowana.
+
+\subsection{Ryzyka rezydualne}
+
+Model zagrożeń kończy się listą ryzyk, które projekt świadomie zostawia: (1)
+nieodróżnialność prawdziwego byłego pracownika od skryptu; (2) operator z bazą, kluczem i
+ruchem; (3) małe grupy pokonują $k$-anonimowość; (4) host i dostawca widzą cały
+transkrypt, a serwer nie sprawdzi wierności; (5) wolnotekstowe cytaty niosą
+tożsamość; (6) wspólny klucz limitu przez BFF; (7) korelacja ledgera z rekordami na
+poziomie magazynu oraz ograniczenie czasowe reguły ,,jedno na pracodawcę''.
+
+\subsection{Pokrycie testami i co z niego wynika}
+
+Raport wyników (RESULTS.md §4) podaje 1620 zaliczonych testów i 17 pominiętych, w tym
+184 w Privacy, 102 w Signals i 359 w InterviewService (15 pominiętych: tylko PostgreSQL,
+które CI uruchamia przez \texttt{TEST\_POSTGRES\_CONNECTION}). W raporcie ewaluacji
+harnessu z atrapą modelu wszystkie dwanaście twardych ograniczeń ma zero porażek;
+dla prywatności istotne są trzy: C-01 (żadne imię osoby w rekordzie: 0/41/4), C-02 (brak
+innego PII w rekordzie: 0/41/4) i C-08 (kanarek nieobecny w telemetrii: 0/15/30), gdzie
+kolumny to porażki/zaliczenia/nie dotyczy w 45 przebiegach. Raport od razu zastrzega, że \emph{żaden}
+z tych wyników nie mówi nic o tym, jak zachowuje się prawdziwy model --- agent działał
+wyłącznie przeciw skryptowej atrapie, która niczego nie rozumie, a nikt i nic prawdziwego nie
+brało udziału. Dowodzi to, że zabezpieczenia po stronie kodu działają i że harness
+umie wykryć ich awarię; nie dowodzi bezpieczeństwa wywiadu z prawdziwym modelem.
+
+% ============================================================================
+\section{Aspekty prawne}
+\label{sec:p3-prawo}
+
+\uwaga{Ta sekcja \textbf{nie jest poradą prawną} ani deklaracją zgodności.
+Streszcza dokument \repopath{docs/legal/CONSIDERATIONS.md}, który sam o sobie
+mówi: \emph{rozważania, nie porada prawna}; wymienia pytania, na które musi odpowiedzieć
+prawnik, zanim zostanie przeprowadzony jakikolwiek prawdziwy wywiad. Żaden
+przepis (RODO, AI Act) nie został w tym środowisku przeczytany: strony EUR-Lex i
+organów nadzorczych były zablokowane przez zasady ruchu wychodzącego. Wszystkie
+stwierdzenia o treści rozporządzeń są więc \emph{niezweryfikowane} i służą jako
+wskazówka dla prawnika, nie jako twierdzenie. Numery artykułów pochodzą z
+ogólnej wiedzy i wymagają sprawdzenia.}
+
+\subsection{Skala statusów zewnętrznych twierdzeń}
+
+Dokument używa trzech statusów: \emph{zweryfikowane} (pobrano dokument pierwotny i
+przeczytano obowiązujący tekst), \emph{zgłoszone przez źródło wtórne} (powiedział to
+tylko podsumowujący lub fragment wyszukiwarki) i \emph{niezweryfikowane} (nie
+przeczytano). Data weryfikacji wierszy to 2026-10-05.
+
+\subsection{Warunki dostawców modeli}
+
+Projekt nie hostuje modelu; użytkownik przynosi dostęp. Obsługiwane: klucze API
+(Anthropic, punkty zgodne z OpenAI) oraz modele lokalne (Ollama). Nieobsługiwane:
+tokeny OAuth subskrypcji Claude oraz GitHub Copilot jako backend. Podstawa:
+
+\begin{itemize}[leftmargin=*]
+    \item Strony Anthropic (zweryfikowane 2026-10-05): osoby trzecie nie mogą
+    oferować logowania Claude.ai ani kierować żądań przez poświadczenia Free/Pro/Max;
+    Warunki konsumenckie zakazują dostępu zautomatyzowanego poza kluczem API.
+    Wniosek: \emph{tokeny subskrypcji nie są obsługiwane} --- to stanowisko
+    zweryfikowane.
+    \item GitHub Copilot jest nieobsługiwany, \emph{ponieważ warunków nie dało się
+    zweryfikować}, a nie dlatego, że przeczytano je i okazały się zakazujące; README musi
+    mówić ,,nie dało się zweryfikować'', nigdy ,,zakazane''.
+    \item Klucze API Anthropic są obsługiwane z zastrzeżeniami: nie przeczytano
+    stanowiska wobec modelu ,,przynieś własny klucz'' (BYOK); a użycie musi pozostać poza
+    decyzjami o jednostkach --- polityka użytkowania wymienia ,,zatrudnienie'' wśród
+    zastosowań wysokiego ryzyka, a ocena, że ten projekt (agregaty o pracodawcach, bez
+    decyzji o rozmówcy) leży poza listą, jest \emph{oceną własną}, którą prawnik ma
+    potwierdzić.
+    \item Warunki OpenAI, licencje Gemma/Qwen/Mistral, warunki GitHub: niezweryfikowane
+    lub tylko ze streszczenia. Dla Llama 3.1 przeczytano politykę akceptowalnego
+    użycia (zakazuje dyskryminacji w zatrudnieniu); projekt nie dołącza żadnych wag.
+    Szczegóły retencji API Anthropic: zgłoszone przez źródło wtórne.
+\end{itemize}
+
+\subsection{RODO: pytania, nie wnioski}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.6cm}@{}}
+\toprule
+\textbf{Temat} & \textbf{Rozważanie (według CONSIDERATIONS §2)} & \textbf{Status} \\
+\midrule
+Czy rekord to dana osobowa? &
+Test: czy osoba jest możliwa do zidentyfikowania środkami, których użycie jest
+racjonalnie prawdopodobne (art. 4 ust. 1 i motyw 26, jak zwykle cytowane). Projekt
+przyjmuje, że \emph{tak} (ADR-0018). &
+niezweryfikowane (przepisy); decyzja wewnętrzna \\
+\addlinespace
+Role &
+Operator instancji jako administrator; dostawca AI/host jako własny administrator
+lub podmiot przetwarzający; osoby wymienione w tekście jako osoby, których dane
+dotyczą. Oprogramowanie open source bez operatora nie jest operatorem. &
+niezweryfikowane \\
+\addlinespace
+Podstawa prawna &
+Zgoda (art. 6 ust. 1 lit. a) to naturalny kandydat dla rozmówcy; uzasadniony interes
+(lit. f) bardziej typowy dla przetwarzania o osobach trzecich i wymagałby testu
+równowagi. Żadna nie jest wybrana. &
+\textbf{decyzja dla prawnika} \\
+\addlinespace
+Szczególne kategorie (art. 9) &
+Wolny tekst może ujawnić zdrowie, przynależność związkową, poglądy. Wykrywanie i
+maskowanie będą miały fałszywie negatywne; agent nie może takich danych
+zachęcać; wyświetlanie cytatów domyślnie wyłączone (T-02). &
+niezweryfikowane (przepis) \\
+\addlinespace
+Prawa osoby a nieodtwarzalne powiązania &
+\emph{Uczciwe napięcie.} Dostęp, sprostowanie i usunięcie (art. 15--17) zakładają
+odnalezienie danych osoby; projekt celowo nie potrafi znaleźć rekordów osoby.
+Mechanizm: kod z paragonu. Art. 11 i art. 12 ust. 2 bywają czytane jako istotne
+(administrator, który nie może zidentyfikować osoby, nie musi zbierać dodatkowych
+danych, lecz musi działać, gdy osoba poda dane umożliwiające identyfikację). Czy kod
+spełnia ten wymóg i czy \emph{dostęp} da się zrealizować w ogóle --- pytanie otwarte;
+produkt nie zaoferuje ,,pokaż moje rekordy'' bez złamania niepowiązalności. &
+niezweryfikowane; \textbf{otwarte} \\
+\addlinespace
+DPIA (art. 35) &
+Kryteria zwykle używane (kontekst pracy, podmioty wrażliwe jak pracownicy, nowa
+technologia, systematyczność) prawdopodobnie zachodzą. Przyjąć, że DPIA jest
+\emph{wymagana}, zanim pojawią się prawdziwe dane. &
+niezweryfikowane; \textbf{przyjąć jako wymaganą} \\
+\addlinespace
+Transfery międzynarodowe &
+Wybór dostawcy i klucza przez użytkownika decyduje, dokąd trafia transkrypt;
+produkt musi powiedzieć użytkownikowi, który dostawca go odbierze, zanim cokolwiek
+wyśle. Transfery po stronie operatora nie istnieją (nic nie jest wdrożone). &
+niezweryfikowane \\
+\addlinespace
+Retencja &
+Ograniczenie przechowywania wymaga określonego okresu; brief wymaga maksymalnego
+wieku rekordu konfigurowanego przez operatora (domyślnie 24 miesiące, założenie dla
+prawnika). &
+propozycja \\
+\addlinespace
+Osoby trzecie w tekście (art. 14) &
+Obowiązki informacyjne wobec osób wymienionych są trudne, gdy administrator nie może się
+z nimi skontaktować; maskowanie imion przy ingeście jest łagodzeniem, wyjątki z tytułu
+niewspółmiernego wysiłku do oceny prawnika. &
+niezweryfikowane \\
+\addlinespace
+Decyzje zautomatyzowane (art. 22) &
+Produkt nie podejmuje żadnej decyzji o rozmówcy; sygnały to agregaty o pracodawcach. &
+ocena \\
+\bottomrule
+\end{tabularx}
+\caption{Rozważania RODO z CONSIDERATIONS §2 --- pytania do prawnika, nie ustalenia.}
+\label{tab:p3-rodo}
+\end{table}
+
+\subsection{Zgody w produkcie}
+
+Zgody na warunki i politykę prywatności są wersjonowane w authservice i egzekwowane
+bramką w BFF (sekcja~\ref{sec:p3-tozsamosc}); zgoda na przetwarzanie wywiadu jest
+osobna. \emph{Wycofanie zgody w trakcie wywiadu} zatrzymuje wywiad i odrzuca
+transkrypt po stronie klienta (reguła agenta; zaimplementowane w trybie B, ze
+scenariuszem ograniczenia C-03: 0 porażek, 4 zaliczenia w przebiegach, które wycofują zgodę
+lub porzucają rozmowę; w trybie A to instrukcja dla hosta, nie egzekwowalna --- T-16).
+Co zostało wycofane po zgłoszeniu, obsługuje usunięcie kodem z paragonu. Dokumentacja
+wprost zaznacza, że pytanie, czy wycofanie zgody jest równie łatwe jak jej
+udzielenie, przy niepowiązalnym rekordzie, należy do prawnika.
+
+\subsection{Zawiadomienie o AI i inne kwestie AI Act}
+
+Również tu wszystkie stwierdzenia są oceną z ogólnej wiedzy, \emph{niezweryfikowaną},
+bo rozporządzenie (UE) 2024/1689 nie było dostępne.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Przejrzystość (art. 50).} System wchodzący w bezpośrednią interakcję z
+    ludźmi generalnie ma obowiązek powiedzieć, że to AI, o ile nie jest to oczywiste.
+    Interviewer \emph{musi} powiedzieć na początku każdego wywiadu, że jest AI;
+    zapisuje się to jako \texttt{aiDisclosed} w metadanych rekordu, a serwer odrzuca
+    \texttt{false} (ADR-0011, ADR-0019 (d)). Ograniczenie C-04 (\texttt{aiDisclosed} tylko
+    po ujawnieniu): 0 porażek / 45 zaliczeń w harnessie z atrapą.
+    \item \textbf{Brak wnioskowania o emocjach.} AI Act bywa opisywany jako
+    zakazujący rozpoznawania emocji w miejscu pracy (art. 5 ust. 1 lit. f). Schemat
+    ekstraktora nie ma pola emocji, sentymentu ani afektu (ADR-0011, ADR-0019 (d);
+    test architektury odrzuca takie nazwy); C-07: 0 porażek, 37 zaliczeń, 8 nie dotyczy.
+    \item \textbf{Kategoria wysokiego ryzyka (załącznik III, zatrudnienie).} Ocena:
+    \emph{prawdopodobnie poza} załącznikiem III(4) w obecnym kształcie, bo system
+    produkuje agregaty o pracodawcach, a nie podejmuje decyzji o rozmówcy. Mogłoby się
+    to zmienić, gdyby powstał widok dla pracodawcy z rankingiem lub oceną jednostek,
+    rekord na osobę albo użycie wyników w decyzjach HR. Strukturalną osłoną są
+    antycele: brak widoku pojedynczej osoby i brak rankingu.
+    \item \textbf{Daty i zmiany.} Według wyników wyszukiwania (zgłoszone przez źródło
+    wtórne, nic nie otwarto) obowiązki i daty zastosowania zostały zmienione w
+    2026~r.; \emph{nie polegać na tym}, trzeba sprawdzić tekst w Dzienniku Urzędowym.
+    Role dostawcy/użytkownika (\emph{deployer}) nie były analizowane.
+\end{itemize}
+
+\subsection{Zniesławienie i reakcja pracodawców}
+
+Pojedyncza opinia o możliwej do zidentyfikowania organizacji, często z pamięci, może
+wywołać groźby prawne niezależnie od prawdziwości. Dlatego \emph{pojedyncze opinie nie
+są publikowane nigdy} (brief §2): publikuje się agregaty powyżej $k$ z niepewnością,
+nigdy cytaty ani oceny pojedyncze, i mówi ,,deklarowane przez konta'', dopóki
+zatrudnienia nie da się zweryfikować. To usuwa główną ekspozycję publikacyjną, ale
+nie ekspozycję bazy, która rekordy trzyma; operator może też stanąć wobec żądań
+ujawnienia (T-19). Przepisy o zniesławieniu i dobrach osobistych (w Polsce dokument
+przykładowo wspomina Kodeks cywilny art. 23--24 i Kodeks karny art. 212) oraz pozycja
+operatorów platform w UE \emph{nie zostały przeczytane}: niezweryfikowane, do prawnika.
+
+\subsection{Dlaczego prawdziwe wywiady są poza zakresem}
+
+Dokumentacja wymienia sześć warunków wstępnych, z których każdy musi istnieć w formie
+pisemnej i zrecenzowanej, zanim ruszy pierwszy prawdziwy wywiad:
+
+\begin{enumerate}[leftmargin=*]
+    \item polityka prywatności i warunki do przeczytania przed pierwszym pytaniem, z
+    wersjonowaną zgodą w authservice;
+    \item udokumentowana podstawa prawna i ukończona DPIA;
+    \item działające usuwanie --- kod z paragonu wdrożony i przetestowany end-to-end, łącznie
+    ze starzeniem się kopii zapasowych i przeliczeniem agregatów;
+    \item przegląd schematu, ról, tabeli retencji i tekstów dla użytkownika przez
+    \emph{prawnika}, w każdej jurysdykcji, w której operator działa i w której mieszkają
+    rozmówcy;
+    \item operator, który przyjmuje rolę administratora i obowiązki reagowania na
+    incydenty (nic nie jest wdrożone);
+    \item przegląd bezpieczeństwa (T12) z ustaleniami zamkniętymi lub zaakceptowanymi
+    przez właściciela.
+\end{enumerate}
+
+Do tego czasu: tylko symulowane persony i żadnych prawdziwych danych osobowych w
+repozytorium. Z perspektywy tego przewodnika oznacza to, że warunek 6 jest częściowo
+spełniony (przegląd T12 istnieje; jego ustalenia, tabela~\ref{tab:p3-ustalenia}, nie są
+zamknięte), a warunki 1--5 wymagają pracy poza kodem.
+
+\subsection{Zadania ponownej weryfikacji}
+
+Dokument kończy się listą dla osoby z dostępem do sieci: przeczytać RODO (art. 4, 6, 9,
+11, 12, 14, 15--17, 22, 26, 28, 35, 44--49, motyw 26) i AI Act (załącznik III(4),
+art. 5, 6, 50, tekst omnibusa 2026) i zastąpić stwierdzenia sekcji RODO i AI Act
+cytowanymi, datowanymi wierszami; przeczytać warunki OpenAI, licencje wag, warunki
+GitHub i stronę retencji Anthropic; ponownie przeczytać wiersze Anthropic, jeśli są
+starsze niż kilka miesięcy; uzyskać opinię prawnika o napięciu praw osoby oraz o
+ADR-0018. Dopóki to się nie stanie, odpowiedź na pytanie ,,czy to jest zgodne z
+RODO?'' brzmi: \emph{tego nie wiemy}.

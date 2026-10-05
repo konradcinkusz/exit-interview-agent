@@ -1,0 +1,20 @@
+sequenceDiagram
+    autonumber
+    actor O as Osoba
+    participant C as CLI exit-interview
+    participant W as Portal /cli
+    participant S as Usługa
+    O->>C: interview --out katalog
+    C-->>O: record.json (tylko gdy rekord poprawny)
+    O->>W: Utwórz bilet (jednorazowy, 15-20 min)
+    W-->>O: bilet, pokazany raz
+    O->>C: submit --record katalog/record.json --server https://...
+    C-->>O: lokalna kontrola i dokładny podgląd
+    O->>C: wpisuje "submit"
+    C->>O: prosi o bilet (zmienna, ukryty monit, stdin)
+    C->>S: POST /api/v1/submissions/ticketed
+    S-->>C: 201 i kod paragonu
+    C-->>O: kod paragonu, raz
+    O->>C: delete-receipt --server https://...
+    C->>S: DELETE /api/v1/receipts
+    S-->>C: 204 (tak samo dla każdego poprawnego kodu)

@@ -15,6 +15,8 @@ A tool and a portfolio piece, not a company and not a public review platform. Th
 
 ## Status
 
+Polish guide (product, usage, privacy, quality; PDF built on demand): [`docs/papers/przewodnik.pl.tex`](docs/papers/przewodnik.pl.tex), via the *Build Guide PDF* workflow or the build steps in its header.
+
 Kept honest: **Implemented** means on `main`; everything else is a plan owned by a task in the [brief's backlog](docs/architecture/PROJECT-BRIEF.md#10-backlog-and-dependency-graph-orchestrator-assigns-sessions-may-add-rows-via-pr).
 
 | Area | State |

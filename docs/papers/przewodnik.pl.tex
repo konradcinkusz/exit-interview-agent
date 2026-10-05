@@ -1,0 +1,62 @@
+% ============================================================================
+% Exit Interview Agent -- Przewodnik (wydanie polskie), budowany do PDF.
+%
+% To NIE jest artykuł naukowy w rozumieniu standardu architecture-standards
+% (docs/research/00-RESEARCH-DOCUMENTATION.md): nie odpowiada na nowe pytanie
+% badawcze, tylko syntetyzuje to, co projekt ma już w docs/. Preambuła domowa
+% (house-preamble.tex) służy spójności wizualnej; \paperstatus niesie status
+% PROJEKTU, a nie oznaczenie draft/verified badania.
+%
+% Źródłem prawdy są pliki w docs/ (ADR-y, architecture/, eval/, privacy/,
+% security/, research/RESULTS.md). Każda liczba w tym dokumencie pochodzi z
+% docs/research/RESULTS.md albo z kodu i jest tam odtwarzalna komendą.
+% Świadomie akceptowany dryf: ten dokument to kuratorska prezentacja, nie
+% mechaniczna transformacja -- nic nie wymusza, by zmiana w docs/ trafiła tu.
+%
+% Odstępstwo od „jednego pliku": rozdziały są w czesc-*.tex i wczytywane przez
+% \input (dokument ma kilkadziesiąt stron). Nadal jedno wejście budowania.
+%
+% Budowanie (PDF to wynik builda -- nie jest commitowany):
+%   cd docs/papers && npm ci && cd ../.. && scripts/render-diagrams.sh
+%   cd docs/papers && pdflatex przewodnik.pl.tex && pdflatex przewodnik.pl.tex
+% Na żądanie: .github/workflows/build-guide-pdf.yml (workflow_dispatch).
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\newcommand{\paperstatus}{WERSJA ROBOCZA PROJEKTU}
+\newcommand{\headerleft}{Exit Interview Agent --- przewodnik}
+\newcommand{\pdftitleline}{Exit Interview Agent: przewodnik po produkcie i jego obsłudze}
+\newcommand{\pdfauthorline}{Konrad Cinkusz}
+\def\houselang{polish}
+\input{house-preamble}
+
+% Dodatki poza domowym zestawem pakietów (wymagane przez ten dokument):
+\usepackage{longtable}
+\usepackage{fancyvrb}
+\usepackage{amssymb}
+\usepackage{pifont}
+\usepackage{float}
+\setcounter{tocdepth}{2}
+
+% Polecenia pomocnicze dokumentu
+\newcommand{\komenda}[1]{\texttt{#1}}
+\newcommand{\uwaga}[1]{\par\medskip\noindent\colorbox{lightgray}{\parbox{\dimexpr\linewidth-2\fboxsep}{\textbf{\color{accentorange}Uwaga.} #1}}\par\medskip}
+
+\begin{document}
+
+\housetitle
+  {Exit Interview Agent}
+  {Przewodnik po produkcie, jego architekturze, prywatności i obsłudze}
+  {Konrad Cinkusz}
+  {github.com/konradcinkusz/exit-interview-agent}
+  {prezentuje docs/ projektu}
+
+\tableofcontents
+\newpage
+
+\input{czesc-1-produkt}
+\input{czesc-2-obsluga}
+\input{czesc-3-prywatnosc}
+\input{czesc-4-jakosc}
+
+\end{document}

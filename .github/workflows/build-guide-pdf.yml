@@ -1,0 +1,51 @@
+name: Build Guide PDF
+
+# Renders docs/papers/przewodnik.pl.tex to PDF on demand. PDFs are build
+# output (architecture-standards 00-RESEARCH-DOCUMENTATION.md): nothing this
+# workflow produces is committed; download it from the run's Artifacts.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-guide-pdf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build guide PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Render diagrams
+        run: |
+          set -euo pipefail
+          (cd docs/papers && npm ci)
+          scripts/render-diagrams.sh
+
+      - name: Build Polish guide
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: przewodnik.pl.tex
+          working_directory: docs/papers
+
+      - name: Rename PDF
+        run: mv docs/papers/przewodnik.pl.pdf ExitInterviewAgent_Przewodnik_PL.pdf
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExitInterviewAgent_Przewodnik_PDF
+          path: ExitInterviewAgent_Przewodnik_PL.pdf
+          if-no-files-found: error
+          retention-days: 30

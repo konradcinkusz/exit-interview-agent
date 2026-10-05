@@ -1,0 +1,9 @@
+flowchart TB
+    G["RELEASE-GATE: 14 pozycji"] --> P["PASS<br/>NuGet, pliki repozytorium,<br/>linki, badge, README (częściowo)"]
+    G --> F["FAIL<br/>nazwy modeli w historii,<br/>commity bez PR i CI"]
+    G --> N["NOT RUN<br/>skan sekretów całej historii,<br/>audyt licencji, źródła prawne,<br/>testy w świecie rzeczywistym"]
+    G --> O["OWNER DECISION<br/>advisory braces (npm)"]
+    G --> U["UNCHANGED<br/>widoczność repozytorium"]
+    F --> V(["werdykt: NOT READY<br/>dla publicznego wydania"])
+    N --> V
+    O --> V

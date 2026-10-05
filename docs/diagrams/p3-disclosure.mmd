@@ -1,0 +1,7 @@
+flowchart TD
+    A["Komórka: pracodawca x temat<br/>liczba ocen n"] --> B{"n >= k ?"}
+    B -- nie --> X["insufficient_data<br/>(brak liczby, brak n)"]
+    B -- tak --> C["Publikuj n, średnią,<br/>przedział 95%, rzetelność, pokrycie"]
+    C --> D{"Przekrój po jednym paśmie<br/>(staż, seniority, funkcja):<br/>każde pasmo puste lub >= k<br/>ORAZ grupa poza pasmami<br/>zero lub >= k ?"}
+    D -- tak --> E["cut: published<br/>(puste pasma jako none)"]
+    D -- nie --> F["cut: suppressed<br/>cały przekrój wstrzymany"]

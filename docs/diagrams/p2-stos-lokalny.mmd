@@ -1,0 +1,12 @@
+flowchart LR
+    DEV["dotnet run<br/>AppHost"] --> PG[("Postgres 17-alpine<br/>wolumen exit-interview-agent-pgdata")]
+    PG --> IDB[("interviewdb")]
+    PG --> ADB[("authdb")]
+    IDB --> IS["interview-service<br/>/health"]
+    ADB --> AS["authservice v0.3.4<br/>obraz, port 5100<br/>/health/ready"]
+    AS -->|"JWKS, Jwt__Authority"| IS
+    IS --> W["web (Next.js, pnpm dev)<br/>/healthz"]
+    AS -->|"AUTH_SERVICE_URL"| W
+    B(["Przeglądarka"]) --> W
+    W -->|"BFF: /api/proxy"| IS
+    DEV -.-> DASH["panel Aspire<br/>localhost:15200"]
