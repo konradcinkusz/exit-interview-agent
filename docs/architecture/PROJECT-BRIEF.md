@@ -5,6 +5,12 @@ session on the owner's instructions. Where this file and the standards disagree 
 the standards win and the deviation goes in an ADR. Where they disagree on a *project fact*
 (scope, decisions below), this file wins.
 
+## Amendments
+
+- 2026-10-05, [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md): §2 provider wording made
+  precise; §6 gains coarse timestamps, per-cell K with batching, AI disclosure and no affect field, record retention,
+  and the "never anonymous" rule; §10 gains T2/T5/T12 backlog items.
+
 ## 1. Goal
 
 An open-source AI agent that runs structured exit interviews with former employees, produces
@@ -30,8 +36,11 @@ aspire, nextjs, open-source.
 - No real employment verification: define the `EmploymentVerifier` interface, ship a mock,
   document real verification as an open problem.
 - Do NOT support Claude subscription/OAuth tokens or GitHub Copilot as a model backend.
-  Anthropic prohibits subscription OAuth tokens (Free/Pro/Max) in third-party tools; Copilot
-  terms for use as a backend were not verifiable. Say so in the README. Supported model
+  Anthropic's own documentation states that third parties may not offer Claude.ai login or
+  route requests through Free/Pro/Max credentials (read 2026-10-05; source row in
+  [CONSIDERATIONS §1](../legal/CONSIDERATIONS.md#1-model-provider-terms-what-we-may-and-may-not-support));
+  the terms for using GitHub Copilot as a backend **could not be verified** (2026-10-05), which is
+  the reason it is unsupported, not a finding that it is prohibited. Say so in the README. Supported model
   access: API keys (Anthropic, OpenAI-compatible endpoints) and local models (Ollama).
 - **No deployment of any kind** in this phase of the project. Everything is built and tested
   locally (Aspire AppHost, containers, `dotnet test`, Playwright against localhost). Do not
@@ -102,18 +111,27 @@ C. **Web app** — Next.js with BFF: account, consents, own submissions, deletio
   id in the record. Topics: onboarding, management, growth, pay vs promises, culture,
   reason for leaving.
 - **Submission ledger**: separate table, keyed HMAC of (sub, employer id) with a rotatable
-  key; no content, no record id; purged after a configurable window. One submission per
+  key; no content, no record id; at most a day-level timestamp (or none); purged after a configurable window. One submission per
   employer per account. Document that an operator with DB + key access could correlate;
   list as residual risk in the threat model.
+- **Coarse timestamps.** The record carries at most an ISO-week bucket; the ledger stores a day or no
+  timestamp, so row timing is never a join key.
+- **Retention.** Records have an operator-configurable maximum age after which they are purged; the
+  default is documented in ADR-0019.
+- **Records are personal data** ([ADR-0018](../adr/0018-records-are-treated-as-personal-data.md)) and are never
+  called "anonymous" or "anonymised". Aggregates may be called "aggregated".
 - **Deletion by receipt code**: on submission the user gets a random code; the server keeps
   its hash; presenting the code deletes the record without linking it to the account.
-- Aggregates only when n >= K (configurable, default 5), always with uncertainty; no single
+- Aggregates only when n >= K (configurable, default 5), always with uncertainty; K applies per
+  displayed cell, not only per employer; publication is batched; no cross-product breakdowns that
+  would let small cells be differenced; no single
   composite employer ranking; follow metric-ethics (anti-goals enforced by architecture,
   counter-metrics, confidence on every number, unit of evaluation is the artifact).
 - No PII or interview content in logs, traces, or authservice audit events.
 - Agent rules: no leading questions; ask for a concrete example when a claim is vague; never
   ask for or store names of individuals (detect and mask); respect consent withdrawal and
-  stop on request.
+  stop on request. The interviewer discloses at the start that it is an AI (`aiDisclosed` in the
+  record metadata); the extractor schema has no emotion, sentiment or affect field.
 - Every record from a client is untrusted input: schema validation, PII detection, rate
   limits, size limits.
 
@@ -208,5 +226,14 @@ via `add_repo` (read) and cloned. **Read the standards; do not re-derive them.**
 | T10 | Signals module: aggregates n>=K with uncertainty, read model, web view | T5, T9 |
 | T11 | CLI submission with ticket | T5, T4 |
 | T12 | Security review (`security-review` guide), threat model final, results write-up (`research-documentation`), README badges (real ones only), `open-source-release` gate run | all |
+
+Amendments adopted by [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md):
+
+- T12 additionally: add CSP, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to
+  `web/app/next.config.ts` (threat model T-06), and re-verify the unverified legal sources of
+  [CONSIDERATIONS §6](../legal/CONSIDERATIONS.md#6-re-verification-tasks-for-a-person-or-session-with-network-access)
+  when network egress allows.
+- T5 additionally: a canary-in-logs test (T-15).
+- T2 additionally: negative cross-scheme tests for the two JWT schemes (T-17).
 
 Phases map: T0 = phase 0; T1,T4 = 1; T2,T5 = 2; T6 = 3; T7 = 4; T8,T9,T10,T11 = 5; T12 = 6.

@@ -75,7 +75,7 @@ be checked.
 | **Data subject rights vs unlinkable records** | **An honest tension.** Access, rectification and erasure (Art. 15-17) presuppose finding the person's data. The design deliberately cannot find a person's records. The mechanism is the **receipt code**: the person proves they hold the code, the system deletes the record. Art. 11 (processing that does not require identification) and Art. 12(2) are commonly read as relevant here: a controller that cannot identify the person need not collect extra data to do so, but must act when the person supplies information that enables identification. Whether a receipt code satisfies that, and whether *access* (as opposed to erasure) can be honoured at all, is **an open question for counsel**; the product cannot offer "list my records" without breaking unlinkability ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)). Account deletion cannot erase records (nothing links them): the UI must say so. | Unverified; **open** |
 | **DPIA** | Several criteria commonly used to decide whether a DPIA is required (sensitive/at-work context, vulnerable data subjects such as employees, innovative technology, large-scale or systematic processing) plausibly apply (Art. 35; EDPB/WP29 criteria). **Assume a DPIA is required** before any real data; a template is a precondition for §4, not a deliverable of T3. | Unverified; **assume required** |
 | **International transfers** | The user's choice of provider and key determines where a transcript goes (Art. 44-49). That choice is the user's, not the operator's, but the product must tell the user which provider receives the transcript before it is sent ([privacy design §7](../privacy/DESIGN.md#7-gdpr-roles-as-considerations-not-conclusions)). Operator-side transfers (hosting) do not exist yet because nothing is deployed. | Unverified |
-| **Retention** | Storage limitation requires a stated period; the proposed values are in [privacy design §6](../privacy/DESIGN.md#6-retention). The records have no automatic expiry in the brief; **a retention limit for records is a decision still to be taken** (Proposal: an operator-configured maximum age). | Proposal |
+| **Retention** | Storage limitation requires a stated period; the proposed values are in [privacy design §6](../privacy/DESIGN.md#6-retention). The records have no automatic expiry in the brief; the brief now requires an operator-configured maximum record age (**Decided**, [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md); default 24 months is an assumption for counsel). | Proposal |
 | **Third parties named in text** | Info duties toward people who are named (Art. 14) are hard to meet when the controller cannot contact them; masking names at ingest is the mitigation, with the exception provisions for disproportionate effort for counsel to assess. | Unverified |
 | **Automated decisions** | The product makes no decision about the interviewee (Art. 22 not engaged on its face); signals are aggregates about employers. | Assessment |
 
@@ -123,10 +123,10 @@ were blocked. Everything below is an **assessment from general knowledge, Unveri
 - **Emotion recognition in the workplace.** The Act is generally described as prohibiting emotion-recognition systems in workplace
   and education settings (Art. 5(1)(f)). The agent must **not infer the interviewee's emotional state**; this also follows the
   repository's own rule that heuristics about human state are report-only and outside scoring
-  ([metric-ethics §4](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md)). **Proposal:** the extractor schema has no sentiment/emotion field.
+  ([metric-ethics §4](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md)). **Decided ([ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md), T1):** the extractor schema has no sentiment/emotion field.
 - **Transparency to the person talking to the AI (Art. 50).** A system that interacts directly with people is generally described as
   needing to tell them they are talking to an AI unless obvious. Our interviewer must say it is an AI at the start of every
-  interview (modes A/B/C copy). **Proposal for T4/T8/T9:** a constraint scenario asserting the disclosure is made.
+  interview (modes A/B/C copy). **Decided (ADR-0019; T4/T8/T9 to implement):** the disclosure is recorded as `aiDisclosed` and a constraint scenario asserts it is made.
 - **AI literacy and dates.** Obligations on providers/deployers and the application dates of the high-risk rules have, per search results
   only (**Reported by secondary source**, nothing opened), been amended by an "AI Omnibus" regulation in 2026; the reported Annex III date
   was 2 December 2027. **Do not rely on this**; check the Official Journal text.
@@ -144,14 +144,16 @@ were blocked. Everything below is an **assessment from general knowledge, Unveri
 3. Re-read the Anthropic rows in this document if more than a few months old; these terms change.
 4. Obtain a lawyer's opinion on §2's open tension and on [ADR-0018](../adr/0018-records-are-treated-as-personal-data.md).
 
-## 7. Proposed changes to the brief and README wording (not applied to the brief)
+## 7. Proposed changes to the brief and README wording (adopted by ADR-0019)
 
-The brief is binding and is not edited here. Proposals for the orchestrator/owner:
+These were proposals when written. The orchestrator, on the owner's delegated authority, adopted (a)-(f) in
+[ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md) and the brief now carries them. They remain
+design decisions, not implemented behaviour and not legal conclusions.
 
 1. **Brief §2, second bullet, wording.** Replace "Anthropic prohibits subscription OAuth tokens (Free/Pro/Max) in third-party tools; Copilot
    terms for use as a backend were not verifiable" with: "Anthropic's own documentation states third parties may not offer Claude.ai
    login or route requests through Free/Pro/Max credentials (read 2026-10-05); the terms for using GitHub Copilot as a backend could not
-   be verified (2026-10-05)". The README in this pull request uses the precise wording.
+   be verified (2026-10-05)". Adopted: brief §2 now uses this wording; so does the README.
 2. **Brief §6, ledger/records.** Add an explicit requirement that record timestamps are coarse (week) and ledger timestamps coarser
    (day or none) so timing is not a join key (T-08 (c)).
 3. **Brief §6, aggregates.** State that K applies per displayed cell, not just per employer, and that publication is batched (T-01).
