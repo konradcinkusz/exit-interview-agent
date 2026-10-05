@@ -1,6 +1,7 @@
 using ExitInterviewAgent.ServiceDefaults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 
 namespace ExitInterviewAgent.InterviewService.Mcp;
@@ -22,9 +23,9 @@ public static class McpServerSetup
             })
             .WithHttpTransport(options => options.Stateless = true)
             .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (context, ct) =>
-                McpToolScopes.Permits(context.User, context.Params?.Name)
-                    ? await next(context, ct)
-                    : McpResults.Refused("INSUFFICIENT_SCOPE")))
+                context.Params?.Name is { } name && McpToolScopes.Required.ContainsKey(name) && !McpToolScopes.Permits(context.User, name)
+                    ? McpResults.Refused("INSUFFICIENT_SCOPE")
+                    : await next(context, ct)))
             .WithTools([typeof(InterviewTools)])
             .WithPrompts([typeof(InterviewPrompts)])
             .WithResources([typeof(InterviewResources)]);
@@ -42,7 +43,7 @@ public static class McpServerSetup
     /// applied after configuration is read and replaces any rule for the category, including provider-specific ones, so a
     /// diagnostic switch like <c>Logging:LogLevel:Default=Trace</c> cannot turn it back on (ContentCanaryTests, McpCanaryTests).
     /// </summary>
-    internal static void ClampSdkLogging(LoggerFilterOptions options)
+    public static void ClampSdkLogging(LoggerFilterOptions options)
     {
         var providers = options.Rules.Select(r => r.ProviderName).Where(p => p is not null).Distinct().ToList();
         foreach (var rule in options.Rules.Where(r => r.CategoryName?.StartsWith(SdkLogCategory, StringComparison.Ordinal) == true).ToList())

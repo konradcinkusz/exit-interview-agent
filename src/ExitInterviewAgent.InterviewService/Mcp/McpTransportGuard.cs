@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ExitInterviewAgent.InterviewService.Endpoints;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.Records;
 using Microsoft.AspNetCore.Http.Features;
@@ -13,6 +14,8 @@ namespace ExitInterviewAgent.InterviewService.Mcp;
 /// that is not on <c>Mcp:AllowedOrigins</c> is refused with 403. Non-browser clients (Claude's connector) send none.</item>
 /// <item><b>Protocol version</b>: an <c>MCP-Protocol-Version</c> header that names a revision this server does not speak is
 /// refused with 400; an absent header is allowed (the specification says to assume 2025-03-26).</item>
+/// <item><b>Closed vocabulary</b>: method, tool, prompt and resource names outside this server's fixed set are replaced before the
+/// SDK reads the body (<see cref="McpBodyScrubber"/>), so client-chosen text never reaches the SDK's logs, spans or metrics.</item>
 /// <item><b>Size</b>: a request body over <see cref="MaxRequestBytes"/> is refused with 413 on its declared length and capped
 /// on the server's own limit while it is read, so an oversized record never reaches the record library.</item>
 /// </list>
@@ -50,12 +53,28 @@ public static class McpTransportGuard
             {
                 feature.MaxRequestBodySize = MaxRequestBytes;
             }
+            if (HttpMethods.IsPost(ctx.Request.Method))
+            {
+                // Bounded read (never more than the limit plus one byte), then the closed vocabulary (McpBodyScrubber).
+                var body = await BoundedBody.ReadAsync(ctx.Request, MaxRequestBytes, ctx.RequestAborted);
+                if (body is null)
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                    ctx.Response.ContentType = "application/problem+json";
+                    await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { type = "urn:exit-interview-agent:problem:payload_too_large", title = "PAYLOAD_TOO_LARGE", status = 413, code = "PAYLOAD_TOO_LARGE" }));
+                    return;
+                }
+                var scrubbed = McpBodyScrubber.Scrub(body);
+                ctx.Request.Body = new MemoryStream(scrubbed, writable: false);
+                ctx.Request.ContentLength = scrubbed.Length;
+            }
             await next();
         }));
         return app;
     }
 
-    internal static (int Status, string Code)? Check(HttpRequest request, IReadOnlySet<string> allowedOrigins)
+    /// <summary>The decision, separated from the middleware so it can be tested on its own.</summary>
+    public static (int Status, string Code)? Check(HttpRequest request, IReadOnlySet<string> allowedOrigins)
     {
         if (request.Headers.TryGetValue("Origin", out var origin) && origin.Count > 0)
         {
