@@ -16,6 +16,22 @@ jobs:
   dotnet:
     name: build, format, test, kernel guards
     runs-on: ubuntu-latest
+    # A real PostgreSQL for the migration, unique-index and concurrency tests (the InMemory provider enforces none of those).
+    # Throwaway credentials for a job-local container; nothing here is a secret.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_POSTGRES_CONNECTION: Host=localhost;Port=5432;Username=postgres;Password=ci-only
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -131,7 +147,11 @@ jobs:
       - name: interview-service
         run: |
           docker build -f src/ExitInterviewAgent.InterviewService/Dockerfile -t interview-service:ci .
-          docker run -d --name interview-service -p 8080:8080 interview-service:ci
+          # The image runs as Production, where the service refuses to start without a ledger key (ADR-0028): give it a throwaway one,
+          # generated here, never stored.
+          docker run -d --name interview-service -p 8080:8080 \
+            -e Ledger__ActiveKeyId=ci -e Ledger__Keys__0__Id=ci -e "Ledger__Keys__0__Secret=$(openssl rand -base64 32)" \
+            interview-service:ci
           for _ in $(seq 1 30); do curl -fsS http://localhost:8080/health && break; sleep 2; done
           curl -fsS http://localhost:8080/health | grep -q '"schema":"Healthy"'
           docker logs interview-service

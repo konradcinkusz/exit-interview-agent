@@ -33,11 +33,20 @@ public static class ServiceCollectionExtensions
     {
         var authApi = app.MapGroup("/api/v1").RequireAuthorization(AuthPolicies.Account).RequireRateLimiting(ApiExtensions.ApiPolicy).WithValidation();
         authApi.MapAccountEndpoints();
+        authApi.MapAccountSubmissionEndpoints();
+
+        // No account, no token: ticketed submission and receipt deletion. Short enough to read aloud; the architecture test pins the list.
+        var publicApi = app.MapGroup("/api/v1").AllowAnonymous().WithValidation();
+        publicApi.MapAnonymousSubmissionEndpoints();
 
         // The MCP resource server: public RFC 9728 metadata, and the mount point guarded by the MCP policy (ADR-0012).
         var mcp = app.Services.GetRequiredService<McpOptions>();
         app.MapProtectedResourceMetadata(mcp);
-        app.MapMcpMount(mcp);
+        var mcpGroup = app.MapMcpMount(mcp);
+        if (mcpGroup is not null && app.Environment.IsDevelopment())
+        {
+            mcpGroup.MapMcpSubmissionProbe();
+        }
         return app;
     }
 }

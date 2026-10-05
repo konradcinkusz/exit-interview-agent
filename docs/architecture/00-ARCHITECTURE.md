@@ -15,8 +15,8 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 |---|---|---|
 | `src/ExitInterviewAgent.AppHost` | P1: composition root, development only | 2 |
 | `src/ExitInterviewAgent.ServiceDefaults` | P2: the shared kernel (plumbing only) | 12 |
-| `src/ExitInterviewAgent.Contracts` | DTOs that cross a boundary | 0 |
-| `src/ExitInterviewAgent.InterviewService` | the one service; owns `interviewdb` | 1 (+ kernel, contracts) |
+| `src/ExitInterviewAgent.Contracts` | DTOs and stable rejection codes that cross a boundary (submission, tickets) | 0 |
+| `src/ExitInterviewAgent.InterviewService` | the one service; owns `interviewdb`; submission, ledger, receipts, tickets, retention ([submission-flow](submission-flow.md)) | 1 (+ kernel, contracts, records, privacy) |
 | `src/ExitInterviewAgent.Records` | the interview record: immutable model, schema validation, canonical form, quote fidelity ([record-schema](record-schema.md)) | 1 (JSON-Schema validator, ADR-0008) |
 | `src/ExitInterviewAgent.Privacy` | deterministic PII detector and masker ([pii-detector](../privacy/pii-detector.md)) | 0 |
 | `src/ExitInterviewAgent.Agent` | the interview agent core: protocol, state machine, roles, PII guard, quote step, tracing seam, scripted mock model ([interview-agent](interview-agent.md)) | 3 (model abstractions, logging abstractions, JSON-Schema validator) |
@@ -38,7 +38,8 @@ them (REPO-BASELINE §4b).
 
 `INIT-GENERIC-TEMPLATE`, `00-REFERENCE-ARCHITECTURE`, `REPO-BASELINE`, `FLY-IO-DEPLOYMENT`, `FRONTEND-BFF`,
 `SERVICE-API-PATTERNS`, `IDENTITY-AND-ACCOUNTS`, `SHARED-SERVICE-REUSE`, `TESTING-STRATEGY`,
-`E2E-ACCEPTANCE-TESTING`, `README-BADGES`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
+`E2E-ACCEPTANCE-TESTING`, `README-BADGES`. The submission task (T5, ADR-0027..0031) loaded the reference architecture (P3, P4, P5, P8, P11, P13),
+`SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY`, `METRIC-ETHICS`, `IDENTITY-AND-ACCOUNTS` and `DEMO-DATA-AND-SEEDING`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
 `DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The providers task (T6, ADR-0032..0036) loaded the reference architecture (P5, P8, P10, P15), `AI-EVALS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and `SERVICE-API-PATTERNS`. (Not loaded here, loaded by the task that needs them:
@@ -50,16 +51,16 @@ architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded
 |---|---|
 | P1 AppHost is the composition root | `src/ExitInterviewAgent.AppHost/Program.cs` (`WithReference`, `WaitFor`, `WithHttpHealthCheck`; no secret literal) |
 | P2 kernel is plumbing | `ExitInterviewAgent.ServiceDefaults`; ceiling in `scripts/check-kernel-size.sh` (CI); boundary in `tests/**/Architecture/KernelBoundaryTests.cs` |
-| P3 database per service | `interviewdb` (this service), `authdb` (authservice); roles per database in `flyio/postgres.fly.toml` |
-| P4 migrate, never ensure | `MigrationExtensions` (hosted service after Kestrel); baseline migration `InitialBaseline`; deviation ADR-006 |
+| P3 database per service | `interviewdb` (this service), `authdb` (authservice); roles per database in `flyio/postgres.fly.toml`. The ledger is a table of `interviewdb`, not a separate database: [OP-13](../OPEN-PROBLEMS.md#op-13-storage-level-correlation-between-the-ledger-and-the-records) |
+| P4 migrate, never ensure | `MigrationExtensions` (hosted service after Kestrel); migrations `InitialBaseline` and `SubmissionStore` (a PostgreSQL test compares the migrated schema with the model and the documented columns); deviation ADR-006 |
 | P5 one signing key, config via environment | authservice holds the only key (ADR-003); the kernel's `AuthenticationExtensions` and the service's `McpAuthenticationExtensions` validate RS256 only (two schemes, ADR-012); scanner in hook and CI |
 | P6 container per service | `src/ExitInterviewAgent.InterviewService/Dockerfile`, `web/app/Dockerfile` |
 | P7 Fly topology | `flyio/*.fly.toml`, `flyio/INFRASTRUCTURE-ANALYSIS.md` (generated, not deployed) |
-| P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, mcp-auth, database, telemetry-export; startup banner prints the same |
-| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012) |
+| P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, mcp-auth, database, telemetry-export, ledger-key and employment-verifier (an unavailable verifier degrades submissions to level `unchecked`, ADR-0031); startup banner prints the same |
+| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012); web, MCP and ticket entry points all call one `SubmissionService` (ADR-0031) |
 | P9 `Program.cs` is a manifest | `InterviewService/Program.cs` calls into `Infrastructure/ServiceCollectionExtensions.cs` |
 | P12 tag-driven CI/CD | `.github/workflows/flyio.yml` (never triggered) |
-| P13 test at the layer with the logic | service tests (InMemory), Vitest for BFF logic, Playwright for the journey |
+| P13 test at the layer with the logic | service tests (InMemory), PostgreSQL tests for what InMemory cannot enforce (unique indexes, atomic delete, migrations; skipped and reported as not run without `TEST_POSTGRES_CONNECTION`), Vitest for BFF logic, Playwright for the journey |
 | P14 docs in the repo | this directory; README claims are checked by `scripts/check-doc-links.py` and review |
 | P15 observability | OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; probes filtered from traces; no scopes exported. The CLI exports only when asked (`OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER`, an OTLP endpoint), only the agent and provider sources, never content (ADR-0035) |
 | P10 extensibility through interface + registration | a model provider is an `IChatClient` plus a `ProviderCatalog` row and one `case` in `ProviderChatClients.Create` ([providers](providers.md#how-to-add-a-provider)) |
@@ -82,8 +83,10 @@ Every row carries a date and a reason. An acknowledged deviation is a decision; 
 ## Known limits of the scaffold (not deviations)
 
 - The BFF rotates refresh tokens (single-flight, per process) and gates on consent (ADR-013); two-factor sign-in is unsupported (501).
-- `interview-service` has one authenticated slice (`GET /api/v1/me`), the MCP mount point (`/mcp`, scope-guarded, no transport until T8)
-  and no domain model by design.
+- `interview-service` has the submission slice since T5 (submit, tickets, receipt deletion, retention; no signals, no read of stored records
+  by any endpoint), `GET /api/v1/me`, and the MCP mount point (`/mcp`, scope-guarded, no transport until T8; a Development-only submit probe
+  stands in for the tool).
+- The in-process limiters and the InMemory write gate are single-instance mechanisms; a second replica needs shared state (threat model T-18).
 - The web CSP allows inline scripts and styles (Next emits inline bootstrap scripts; no per-request nonces yet): a weaker CSP than a
   nonce-based one, same-origin otherwise (`web/app/lib/security-headers.ts`). Trigger: nonce support when the portal gets user-rendered content.
 - The edge gate is Next 16's `proxy.ts` (formerly `middleware.ts`); it is not the BFF catch-all under

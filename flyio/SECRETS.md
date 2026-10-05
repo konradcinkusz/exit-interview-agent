@@ -19,9 +19,10 @@ Rule of thumb: if you would not paste it into a pull request, it is a secret. `[
 | | `AuthorizationServer__EncryptionKey` | token-encryption key, base64 of 32 random bytes (`openssl rand -base64 32`) | durable: a key that changes invalidates every MCP connection (authservice ADR 0005 A4) |
 | | `Jwt__PrivateKeyPem` | **the only signing key in the system**, RSA-2048+, PKCS#8 PEM | never reused from a laptop key; held by this app and nothing else |
 | `exit-interview-agent-interview-service-dev` | `ConnectionStrings__interviewdb` | `Host=exit-interview-agent-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=<INTERVIEW_DB_PASSWORD>` | no credentials for any other database |
+| | `Ledger__ActiveKeyId`, `Ledger__Keys__0__Id`, `Ledger__Keys__0__Secret` | the submission ledger's HMAC key: an id of 1-32 characters and `openssl rand -base64 32` (at least 32 bytes) | **the service refuses to start without it outside Development.** Keep it outside the database's backup domain. Rotation: add `Keys__1`, switch `ActiveKeyId`, remove the old key after the ledger window ([ADR-0028](../docs/adr/0028-submission-ledger-hmac-rotation-and-window.md)) |
 | `exit-interview-agent-web-dev` | none today | the BFF holds no key: it verifies against authservice's JWKS | |
 
-Later work adds secrets (ledger HMAC key, model
+Later work adds secrets (model
 API keys for hosted use). They are added to this table in the same pull request that introduces them.
 
 ## How, when it is ever done
