@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- DTOs that cross a service boundary. No logic, no dependencies. -->
+</Project>

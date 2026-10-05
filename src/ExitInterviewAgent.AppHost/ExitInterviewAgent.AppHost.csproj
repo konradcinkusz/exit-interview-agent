@@ -1,0 +1,18 @@
+<Project Sdk="Aspire.AppHost.Sdk">
+  <!-- P1: the composition root. Development only; production is flyio/*.fly.toml. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>exit-interview-agent-apphost</UserSecretsId>
+    <!-- The AppHost SDK resolves the dashboard and DCP from NuGet unless the Aspire CLI bundle is
+         installed; `dotnet run` is the documented path, so the bundle (a separate CLI install) is not required. -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.JavaScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.InterviewService\ExitInterviewAgent.InterviewService.csproj" />
+  </ItemGroup>
+</Project>
