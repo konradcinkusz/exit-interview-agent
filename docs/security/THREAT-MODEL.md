@@ -4,7 +4,7 @@ STRIDE-style, per data flow and trust boundary, for the design in [`docs/privacy
 **This is a design-time model written before most of the code exists.** It is a static analysis of a specification,
 not a penetration test, and it will be revised by T12 against the real code ([`security-review`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/SECURITY-REVIEW.md) §1: a code review does not replace a pentest).
 Status vocabulary: [ADR-0017](../adr/0017-documentation-layout-and-claim-status.md): **Implemented** (on `main`, linked),
-**Planned (Tn)**, **Proposal**, **Assumption**. Residual risk is stated honestly, including where it is "accepted, not fixed".
+**Planned (Tn)**, **Decided (Tn)** (adopted into the brief by [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md), not yet implemented), **Proposal**, **Assumption**. Residual risk is stated honestly, including where it is "accepted, not fixed".
 
 Method (following `security-review` §1-§3): fixed category list; every "not applicable" is justified (§6 below);
 each threat has an **attack scenario** (the load-bearing field; a threat that cannot state one is a style comment); a
@@ -80,11 +80,11 @@ deliberately kept), `Implemented` (only where noted).
   be undone by subtraction (show the total and one cut at a time); publish in batches/on a schedule rather than per
   submission; coarse bands chosen against the smallest realistic group; uncertainty displayed with every number;
   aggregates withdrawn when deletions take n below K. K ≥ 5 is the brief's number (Planned, T10). *Per-cell K,
-  batching and no-cross-product are Proposals* for T10 ([privacy design §5.5](../privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)).
+  batching and no-cross-product are Decided (ADR-0019, brief §6), not yet implemented* for T10 ([privacy design §5.5](../privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)).
 - **Residual.** K = 5 is a convention, not a guarantee. A group of five where four are known to be the employer's
   disgruntled engineers can still be identified by elimination. Very small employers should show **nothing**; the
   employer-size floor is an open problem ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)). **Likelihood medium, impact high.**
-- **Status.** Open (T10); design uses Proposals.
+- **Status.** Open (T10); mitigations Decided (ADR-0019), none implemented.
 
 ### T-02 Re-identification from content: quote style, distinctive episodes, names
 
@@ -157,7 +157,7 @@ deliberately kept), `Implemented` (only where noted).
   tokens are HttpOnly cookies, not web storage (Implemented: BFF design in [`web/app`](../../web/app), see
   [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)). **Gap found while writing this:** `web/app/next.config.ts`
   sets only `poweredByHeader: false`; no CSP, `X-Frame-Options`, `Referrer-Policy` or `Permissions-Policy` headers are
-  configured (`grep -n -i header web/app/next.config.ts`). The `security-review` §4 rule set requires them. **Planned (T9/T12);
+  configured (`grep -n -i header web/app/next.config.ts`). The `security-review` §4 rule set requires them. **Decided (brief §10, ADR-0019): T12 adds them to `web/app/next.config.ts`;
   recorded as a finding, not yet fixed.**
 - **Residual.** Low once headers and encoding are in place. **Likelihood medium, impact medium.**
 - **Status.** Open (T9/T12).
@@ -185,8 +185,7 @@ deliberately kept), `Implemented` (only where noted).
   which employers. (c) Row timestamps in ledger and record tables align and join entries to records.
 - **Asset.** A1.
 - **Mitigation.** Keyed HMAC, no content/record id; the key is a platform secret **outside** the DB and its backups;
-  rotatable with a retention window; ledger purged after the window; coarse creation buckets in ledger and record
-  (Proposal); ledger in its own schema/DbContext with no foreign key to records (Planned, T5). The brief requires this
+  rotatable with a retention window; ledger purged after the window; coarse timestamps (record: ISO-week at most; ledger: day or none; Decided, ADR-0019, not implemented); ledger in its own schema/DbContext with no foreign key to records (Planned, T5). The brief requires this
   risk to be listed (§6).
 - **Residual.** An operator or attacker with DB + key can confirm "account S submitted about employer E". Even then
   they learn *that* it was submitted, not the record content, unless timing (c) also joins. **Accepted; this is the
@@ -362,21 +361,21 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 | ID | Risk | Likelihood | Impact | Mitigation status | Residual | Status | Owner |
 |---|---|---|---|---|---|---|---|
 | T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | rate limits plumbing implemented; rest Planned | **High**, unsolved | Open | T5, open problem |
-| T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Proposals | Medium-high | Open | T10 |
+| T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Decided (ADR-0019) | Medium-high | Open | T10 |
 | T-02 | Re-identification from quotes/episodes | M | H | Planned (T1/T5) + Proposal (no quote display) | Medium | Open | T1, T10 |
 | T-07 | Exfiltration via MCP host | M | H | Planned (T8) | Accepted, disclosed | Open | T8 |
-| T-15 | Log/trace leakage | M | H | Planned (T5/T6) | Medium (platform logs) | Open | T5, T6 |
+| T-15 | Log/trace leakage | M | H | Planned (T5/T6); canary-in-logs test Decided (T5) | Medium (platform logs) | Open | T5, T6 |
 | T-12 | Account takeover | M | M | authservice features; BFF rotation Planned | Medium | Open | T2, T9 |
 | T-03 | Prompt injection into interviewer | M | M | Planned (T4/T7) | Medium (mode A) | Open | T4, T7 |
 | T-04 | Injection into extractor / fabricated quotes | M | M | Planned | Medium | Open | T1, T4 |
-| T-06 | Stored XSS/markdown; missing web security headers | M | M | **gap found: no CSP/headers configured**; Planned | Low after fix | Open | T9, T12 |
+| T-06 | Stored XSS/markdown; missing web security headers | M | M | **gap found: no CSP/headers configured**; fix Decided (T12) | Low after fix | Open | T9, T12 |
 | T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
-| T-08 | Ledger correlation with DB + key | L | H | Planned (T5) | Accepted | Accepted | T5 |
+| T-08 | Ledger correlation with DB + key | L | H | Planned (T5); coarse timestamps Decided | Accepted | Accepted | T5 |
 | T-09 | Ticket redemption correlation | L | H | Planned (T5/T11) | Accepted | Accepted | T5, T11 |
 | T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
 | T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
 | T-16 | Consent withdrawal mid-interview | M | M | Planned (T4/T7) | Medium | Open | T4, T7 |
-| T-17 | Token confusion (two JWT schemes) | L | H | RS256-only Implemented; scheme 2 Planned | Low | Open | T2 |
+| T-17 | Token confusion (two JWT schemes) | L | H | RS256-only Implemented; scheme 2 Planned; negative cross-scheme tests Decided (T2) | Low | Open | T2 |
 | T-11 | Receipt-code enumeration/abuse | L | L-M | Planned (T5) | Low | Open | T5 |
 | T-05 | Judge manipulation / Goodhart | M | L-M | Planned (T7) | Medium | Open | T7 |
 | T-18 | DoS / cost | M | L-M | plumbing Implemented | Low | Open | T5 |
