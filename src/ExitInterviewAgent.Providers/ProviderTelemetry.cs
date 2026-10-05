@@ -9,7 +9,7 @@ namespace ExitInterviewAgent.Providers;
 /// The providers' trace and metric vocabulary (docs/eval/TRACE-SCHEMA.md, "Provider layer"). Same rule as the agent's
 /// ([ADR-0025](../../docs/adr/0025-trace-schema-metadata-only.md)): counts, flags, enum names and controlled codes only.
 /// <b>There is no way to record prompt or completion text</b>: no switch, no option, no environment variable is read for it
-/// (the standard <c>OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT</c> is deliberately ignored), and the only string a tag can
+/// (the standard GenAI content-capture environment switch is deliberately ignored), and the only string a tag can
 /// take goes through <see cref="Label"/>. Metric labels are low-cardinality: provider (3 values), operation, token type, error kind.
 /// </summary>
 public static class ProviderTelemetry
