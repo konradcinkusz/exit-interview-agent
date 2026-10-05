@@ -30,6 +30,42 @@ public class QuestionGuardTests
     [InlineData("Was your manager supportive?", "closed_question")]
     public void Leading_loaded_and_closed_questions_are_rejected(string q, string reason) => Assert.Equal(reason, Reason(q));
 
+    [Theory]
+    [InlineData("What was onboarding like and how did your manager treat you?")]
+    [InlineData("What was onboarding like, and how did your manager treat you?")]
+    [InlineData("How did you experience onboarding or what would you change about it?")]
+    [InlineData("What happened? Why?")]
+    [InlineData("How would you describe how people worked together there and what was expected of them?")]
+    public void A_double_barrelled_question_is_rejected_for_every_asking_kind(string q)
+    {
+        foreach (var kind in new[] { TurnKind.Topic, TurnKind.Clarification, TurnKind.Redirect })
+            Assert.Equal("double_barrelled", Reason(q, kind));
+        Assert.Equal("double_barrelled", Reason("Could you give me one specific example, and how did it end?", TurnKind.Probe));
+    }
+
+    [Fact]
+    public void A_double_barrelled_invitation_is_rejected() =>
+        Assert.Equal("double_barrelled", Reason("Tell me about how you were managed day to day, and how decisions that affected your work were made."));
+
+    [Theory]
+    [InlineData("Tell me about how you were managed day to day.")]
+    [InlineData("How did decisions that affected your work get made?")]
+    [InlineData("How would you describe how people worked together there?")]
+    [InlineData("Which is closer to how it was for you, or was it both at different times?")]
+    [InlineData("Could you describe what happened, in terms of what was done and by whom")]
+    public void A_single_ask_that_merely_contains_a_conjunction_is_not_double_barrelled(string q) =>
+        Assert.NotEqual("double_barrelled", Reason(q, TurnKind.Clarification));
+
+    [Fact]
+    public void Every_fixed_protocol_question_passes_the_guard()
+    {
+        var p = ExitInterviewAgent.Agent.Protocol.InterviewProtocol.Current;
+        foreach (var t in p.Topics) Assert.Equal("ok", Reason(t.Question, TurnKind.Topic));
+        Assert.Equal("ok", Reason(p.Probe, TurnKind.Probe));
+        Assert.Equal("ok", Reason(p.Clarification, TurnKind.Clarification));
+        Assert.Equal("ok", Reason(p.RedirectNames, TurnKind.Redirect));
+    }
+
     [Fact]
     public void An_empty_or_overlong_or_unquestioning_output_is_rejected()
     {

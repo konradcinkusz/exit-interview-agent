@@ -25,7 +25,7 @@ the project file. The kernel stays plumbing (P2): nothing here goes into `Servic
 
 ## The protocol
 
-Versioned (`protocolVersion` is `1.0`, written into every record's `interview.protocolVersion`) and stored as data in
+Versioned (`protocolVersion` is `1.1`, [ADR-0062](../adr/0062-double-barrelled-questions-protocol-1-1-and-guard.md), written into every record's `interview.protocolVersion`) and stored as data in
 `src/ExitInterviewAgent.Agent/Protocol/interview-protocol.v1.json`, embedded in the assembly and loaded by `InterviewProtocol.Current`. The
 MCP adapter and the CLI read the same object. **Changing any wording or limit in that file is a change of protocol behaviour and bumps the
 version** (minor for wording and limits, major for a change of topics or order).
@@ -109,7 +109,7 @@ The standard roles run on any `Microsoft.Extensions.AI.IChatClient`. **The progr
 | `PiiGuard` | wraps `PiiDetector` with `FailClosed = true` and an allow-list of employer and product names; masks **before** anything else reads the text; any detector exception or timeout is a failure (the run ends, nothing is kept) | |
 | quote step (`RecordAssembler`) | verifies each quote with `QuoteVerifier` against the masked interviewee text **of that topic**; drops, counts and never submits a quote that fails | |
 
-Every model-worded question goes through `QuestionGuard`: not empty, at most 500 characters, not more than two questions, no prompt fragments, no PII finding,
+Every model-worded question goes through `QuestionGuard`: not empty, at most 500 characters, one question only (no second question mark, no coordinated second interrogative: `double_barrelled`), no prompt fragments, no PII finding,
 no leading, loaded or negative-polar pattern, no closed starter, and a probe must ask for an example. A rejected question is replaced by the protocol's own wording
 (and counted), so a careless or compromised model makes the interview blander, not different. The protocol's own wording passes the same guard (a test).
 

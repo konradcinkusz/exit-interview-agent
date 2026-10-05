@@ -107,13 +107,13 @@
     }
   ],
   "resourceTextSha256": {
-    "exit-interview://protocol/v1": "514dffbdb3b5d3dc",
+    "exit-interview://protocol/v1": "36a84c1653f44d47",
     "exit-interview://schema/record/v1": "b58dfaab166bd30a",
-    "exit-interview://topics/v1": "165e8ca95f2b1bd5"
+    "exit-interview://topics/v1": "c2bd16a9a28b32c5"
   },
   "promptTextSha256": {
-    "default": "a4c6e919766aa231",
-    "pl+hint": "eda6aaa9dfa82d81"
+    "default": "d670f15e2510e9fe",
+    "pl+hint": "4d383fe58d43e9e5"
   },
-  "protocolVersion": "1.0"
+  "protocolVersion": "1.1"
 }

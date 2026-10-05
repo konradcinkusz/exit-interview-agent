@@ -39,6 +39,6 @@ Two defects in `ExitInterviewAgent.Privacy`:
 ## Consequences
 
 - The obfuscated-email scan is linear and about 350 ns per character at worst; a 5 MB token takes tens of milliseconds, so the 2 s budget is no longer a limit anyone can reach with an unbroken token. It is still the backstop for everything else.
-- Topic nouns are a finite list. A topic that is not on it ("Autonomy and Mentoring") is still masked in fail-closed mode, which is the intended price of that mode; [OP-29](../OPEN-PROBLEMS.md#op-29-fail-closed-over-masking-of-capitalised-topic-words-is-bounded-only-by-a-list) records it. The `{dot}` form of an obfuscated email is not detected, and was not before ([OP-30](../OPEN-PROBLEMS.md#op-30-obfuscated-email-spellings-beyond-the-bracketed-forms-are-not-detected)).
+- Topic nouns are a finite list. A topic that is not on it ("Autonomy and Mentoring") is still masked in fail-closed mode, which is the intended price of that mode; [OP-30](../OPEN-PROBLEMS.md#op-30-fail-closed-over-masking-of-capitalised-topic-words-is-bounded-only-by-a-list) records it. The `{dot}` form of an obfuscated email is not detected, and was not before ([OP-31](../OPEN-PROBLEMS.md#op-31-obfuscated-email-spellings-beyond-the-bracketed-forms-are-not-detected)).
 - The size ceiling for the kernel is not affected (the change is in the Privacy library, not `ServiceDefaults`). No model, no network, no dependency was added.
 - The evaluation floors gained an over-masking row (recall 1.0, precision 0.95); the dev and held-out floors are unchanged.

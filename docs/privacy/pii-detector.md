@@ -67,7 +67,7 @@ uses it.
 - **Unusual number formats** (a phone number written in words, an id with spaces in unusual places).
 - **Topic words in fail-closed mode.** A capitalised topic noun ("Pay", "Culture", "Benefits" and their Polish forms) is not a name and is left alone, as is the
   first word after a closing transcript tag; a topic that is not on the stop list is still masked in fail-closed mode
-  ([OP-29](../OPEN-PROBLEMS.md#op-29-fail-closed-over-masking-of-capitalised-topic-words-is-bounded-only-by-a-list)).
+  ([OP-30](../OPEN-PROBLEMS.md#op-30-fail-closed-over-masking-of-capitalised-topic-words-is-bounded-only-by-a-list)).
 - **False positives**: capitalised product or project names that are not on the allow-list ("Project Phoenix") can be masked as a
   person; in fail-closed mode every unknown capitalised mid-sentence word can.
 - **Adversarial text.** Patterns have bounded quantifiers and a match timeout (2 s per rule), and pathological inputs are tested, but a
@@ -75,7 +75,7 @@ uses it.
   (`--filter "Category=RuleCost"`): none is superlinear; the obfuscated-email scan, formerly about 7 microseconds per character on a long
   unbroken token, is now found from its marker and costs about 350 nanoseconds per character at worst ([ADR-0063](../adr/0063-pii-detector-rule-cost-and-over-masking.md)).
 - **Obfuscated emails** are recognised in the `[at]`, `(at)` and `{at}` forms with `.`, `[dot]` or `(dot)` before the domain parts; other spellings are not
-  ([OP-30](../OPEN-PROBLEMS.md#op-30-obfuscated-email-spellings-beyond-the-bracketed-forms-are-not-detected)).
+  ([OP-31](../OPEN-PROBLEMS.md#op-31-obfuscated-email-spellings-beyond-the-bracketed-forms-are-not-detected)).
 
 ## Measured numbers
 
