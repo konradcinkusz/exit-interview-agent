@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authConfig, identityConfigured } from "@/lib/runtime-config";
 import { fetchConsentStatus } from "@/lib/identity";
+import { clearTwoFactorChallenge, setTwoFactorChallenge } from "@/lib/session";
 import { establishSession } from "@/lib/session-flow";
 
 export const dynamic = "force-dynamic";
@@ -44,10 +45,15 @@ export async function POST(request: Request) {
   if (!upstream.ok) return NextResponse.json({ error: "identity_error" }, { status: 502 });
 
   const data = (await upstream.json().catch(() => null)) as
-    | { accessToken?: string; refreshToken?: string; expiresIn?: number; requiresTwoFactor?: boolean }
+    | { accessToken?: string; refreshToken?: string; expiresIn?: number; requiresTwoFactor?: boolean; challengeToken?: string }
     | null;
   if (data?.requiresTwoFactor) {
-    return NextResponse.json({ error: "two_factor_not_supported" }, { status: 501 });
+    // First factor passed: keep the challenge server side in a short-lived HttpOnly cookie. The page only learns that a
+    // code is needed, and completes the sign-in at /api/auth/two-factor.
+    if (!data.challengeToken) return NextResponse.json({ error: "identity_error" }, { status: 502 });
+    const challenge = NextResponse.json({ twoFactorRequired: true });
+    setTwoFactorChallenge(challenge, data.challengeToken, data.expiresIn ?? 300, cfg.secureCookies);
+    return challenge;
   }
   if (!data?.accessToken) return NextResponse.json({ error: "identity_error" }, { status: 502 });
 
@@ -61,5 +67,6 @@ export async function POST(request: Request) {
     consent,
     cfg,
   );
+  clearTwoFactorChallenge(response, cfg.secureCookies);
   return response;
 }
