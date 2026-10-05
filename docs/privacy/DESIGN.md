@@ -2,7 +2,7 @@
 
 Status vocabulary used in this document (and in the threat model): **Implemented** = on `main`, with a link;
 **Planned (Tn)** = specified by the [brief](../architecture/PROJECT-BRIEF.md), owned by task *n*, not yet on `main`;
-**Proposal** = this document's recommendation, not yet accepted by the owning task; **Assumption** = stated, not
+**Decided (Tn)** = a former proposal adopted into the brief by [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md), owned by task *n*, still not implemented; **Proposal** = this document's recommendation, not yet accepted by the owning task; **Assumption** = stated, not
 verified. Nothing below is claimed as implemented unless it says so. As of this writing the only domain-relevant
 code on `main` is the scaffold: an account endpoint ([`AccountEndpoints.cs`](../../src/ExitInterviewAgent.InterviewService/Endpoints/AccountEndpoints.cs)),
 JWT validation against a JWKS, and an empty `InterviewDbContext`. See [ADR-0017](../adr/0017-documentation-layout-and-claim-status.md).
@@ -34,8 +34,8 @@ below is built on that assumption. Whether they are legally anonymous is a quest
 | Store | Holds | Never holds | Status |
 |---|---|---|---|
 | **authservice** (own DB, own key) | account (`sub`, email, credentials), consent rows, its own audit events, OAuth grants for MCP clients | any interview content, employer, record, ledger entry | Implemented as a pinned image ([ADR-0003](../adr/0003-identity-authservice-as-pinned-image.md)); authservice's audit/consent/export behaviour is read from [its docs](https://github.com/konradcinkusz/authservice/blob/main/docs/issue-analysis.md) |
-| **Record store** (`interviewdb`) | the versioned record: per-topic rating (1-5 or null), verbatim supporting quotes, confidence, PII-masked flag, pseudonymous interview id, employer id, coarse bands, receipt-code **hash** | user id / `sub`, account email, IP, user agent, receipt code in clear | Planned (T1 schema, T5 store) |
-| **Submission ledger** (separate table, ideally separate schema/DbContext) | keyed HMAC of (`sub`, employer id); key version; coarse creation bucket | content, record id, interview id, receipt hash, IP | Planned (T5) |
+| **Record store** (`interviewdb`) | the versioned record: per-topic rating (1-5 or null), verbatim supporting quotes, confidence, PII-masked flag, `aiDisclosed` flag, pseudonymous interview id, employer id, coarse bands, receipt-code **hash** | user id / `sub`, account email, IP, user agent, receipt code in clear | Planned (T1 schema, T5 store) |
+| **Submission ledger** (separate table, ideally separate schema/DbContext) | keyed HMAC of (`sub`, employer id); key version; day-level (or no) creation timestamp | content, record id, interview id, receipt hash, IP | Planned (T5) |
 | **Ticket table** | hash of a random ticket, `sub` it was minted for, expiry | employer, record, content | Planned (T5, mint UI T9, redemption by CLI T11) |
 | **Signals read model** | aggregates per employer × topic with n and uncertainty, only n ≥ K | individual records, quotes | Planned (T10) |
 | **Logs / traces / metrics** | request metadata: route, status, latency, size class | content, quotes, employer, `sub`, receipt codes, tickets, IP beyond what the platform adds | Planned (T5/T6 enforce; kernel telemetry exists, see [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) P15 row) |
@@ -136,9 +136,9 @@ culture, reason for leaving). Controls on what *is* in the record:
   smallest realistic group (see §5.5 and [OPEN-PROBLEMS](../OPEN-PROBLEMS.md)).
   *Decided in T1:* tenure (6 bands, required), seniority (4) and function (6), the last two optional
   ([ADR-0007](../adr/0007-record-context-bands.md)); the threshold K must be applied to every published cut.
-- **Coarse timestamps.** *Proposal:* the record carries no timestamp finer than a week-sized bucket, and the ledger
-  none finer than a day, so row timing does not become a join key (§6.3).
-  *Decided in T1, stricter than the proposal:* the record carries **no timestamp at all**, and an architecture test
+- **Coarse timestamps.** *Decided (ADR-0019, not implemented):* the record carries no timestamp finer than an ISO-week bucket, and the ledger
+  none finer than a day (or none at all), so row timing does not become a join key (§6.3).
+  *Implemented in T1, stricter:* the schema carries **no timestamp at all**, and an architecture test
   rejects one ([ADR-0011](../adr/0011-no-per-person-identifier-in-the-record.md)). Storage time is the store's concern (§6.3).
 - Every record from a client is untrusted input: schema validation, PII detection, rate and size limits
   (brief §6, T5).
@@ -209,11 +209,11 @@ risk, not as solved.
 
 - Published only when n ≥ K (configurable, default 5; brief §6). The default is the brief's number, not a
   privacy guarantee: K = 5 is a convention, and its adequacy depends on band granularity (open problem).
-- **K applies to every cell that is shown**, not just the employer total. *Proposal:* any cut by band or topic that
+- **K applies to every cell that is shown**, not just the employer total. *Decided (ADR-0019, T10):* any cut by band or topic that
   has fewer than K records is suppressed, and suppression must not be undoable by subtraction (if the total and all
   but one small cell are shown, the hidden cell is exposed). Show total and one cut, not the cross-product.
 - **Differencing.** A live aggregate that moves from n = 5 to n = 6 discloses the sixth record's contribution to
-  anyone who watches. *Proposal:* publish on a schedule or in batches, not per submission.
+  anyone who watches. *Decided (ADR-0019, T10):* publish on a schedule or in batches, not per submission.
 - **Uncertainty on every number**: sample size and an interval travel with each value in the same payload
   ([metric-ethics §3](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md)). With n = 5 on a 1-5 scale the interval is wide; the UI states that plainly.
 - **No composite employer ranking and no per-person view**, enforced architecturally, i.e. by absence: there is no
@@ -257,7 +257,7 @@ determination ([CONSIDERATIONS](../legal/CONSIDERATIONS.md)).
 |---|---|---|---|
 | Transcript (modes A/B) | never held by us. In B: user's machine, until the user deletes it; the CLI keeps no transcript by default (*Proposal*) | n/a | Planned (T4) |
 | Transcript at the AI provider | per the provider's terms for the user's own key/account; **outside our control** | n/a | see [CONSIDERATIONS §1](../legal/CONSIDERATIONS.md) |
-| Record | until deleted by receipt code or the operator purges (e.g. on employer removal); no automatic expiry in the brief | deletion by receipt hash | Planned (T5) |
+| Record | until deleted by receipt code, the operator purges (e.g. on employer removal), or the operator-configured maximum age is reached (default 24 months, an assumption: [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md)) | deletion by receipt hash; age-based purge job | Planned (T5); retention Decided |
 | Receipt-code hash | with its record | same | Planned (T5) |
 | Ledger entry | configurable window (brief §6); *Proposal:* ≥ the period over which one-per-employer must hold, and no longer | scheduled purge job; old HMAC keys retired with it | Planned (T5) |
 | Ticket | minutes (short TTL); deleted at redemption | purge on redemption and a sweep | Planned (T5) |

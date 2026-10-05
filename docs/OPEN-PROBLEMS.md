@@ -43,7 +43,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 
 - **Why it matters.** Finer bands make a record more informative and a small group easier to identify ([T-01](security/THREAT-MODEL.md)); K = 5
   per employer says nothing about K per band.
-- **What we do now.** The brief fixes n ≥ K (default 5). *Proposals* ([privacy design §5.5](privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)):
+- **What we do now.** The brief fixes n ≥ K (default 5). *Decided in ADR-0019, not implemented* ([privacy design §5.5](privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)):
   K per displayed cell, no cross-products, batched publication, coarse bands. The band sets themselves are not defined (T1).
 - **What would close it.** Band sets chosen against a modelled smallest-realistic-group, a documented size floor for employers, and (if the
   project later wants stronger guarantees) a formal approach such as noise addition, evaluated rather than assumed. Evidence needed:
