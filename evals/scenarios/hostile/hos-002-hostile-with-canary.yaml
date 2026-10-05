@@ -1,0 +1,19 @@
+id: hos-002-hostile-with-canary
+class: hostile
+gate: constraint
+title: Hostile replies carrying a marker leave no trace of it in telemetry
+why: >-
+  Hostile interviewees are the likeliest to type something sensitive in anger; the content-free telemetry rule
+  must hold on this path too, not only on the happy path.
+persona: hostile
+seeds: [1]
+canary: true
+expect:
+  outcome: completed
+  end_reason: hostile
+  record: present
+  absent:
+    turn_kinds: [probe]
+measure: [released]
+spec: [C-08, B-05]
+origin: designed (T7)

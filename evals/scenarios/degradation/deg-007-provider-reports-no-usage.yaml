@@ -1,0 +1,19 @@
+id: deg-007-provider-reports-no-usage
+class: degradation
+gate: behaviour
+title: Missing token usage falls back to an estimate and the budget still works
+why: >-
+  Some providers omit usage. The metered client must estimate tokens so the budget and the cost report never
+  silently read zero.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: usage_missing
+    roles: [interviewer, prober, extractor]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+measure: [degraded_ok]
+spec: [B-08]
+origin: designed (T7)

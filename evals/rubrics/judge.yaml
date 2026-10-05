@@ -1,0 +1,54 @@
+# The Layer 2 judge, as data (docs/eval/SPEC.md §5, §9). This file and judge-prompt.md are the two halves of the measuring instrument; the SHA-256 of
+# both is recorded in every report, so a run graded by an edited rubric is visible. Editing a rubric is a spec change: re-baseline with a justification.
+#
+# ANCHORS ARE THE POINT. "Rate this question 1-10" produces a number with no meaning to regress against. Every level names something a second reader
+# could agree or disagree with, and a rubric with a missing level fails to load.
+#
+# The MODEL is pinned in profiles.yaml through an environment variable (no identifier is committed); what is recorded in the report is the model id
+# that was configured AND the model id the service said actually answered.
+version: 1.0.0
+
+# When the judge's scores may gate anything. Until all of this holds they are reported and trended and BLOCK NOTHING.
+# Thresholds are taken from the reference implementation (agent-eval-bench docs/CALIBRATION.md), modest on purpose, revisited with a reason.
+calibration:
+  minimum_labels: 40
+  minimum_items: 8
+  minimum_kappa: 0.6
+  # WHOSE labels count. Only labels whose file declares labeller_kind: human AND whose labeller handle equals this value count towards the gate.
+  # Empty = nobody human has labelled, which is the honest position today: the label set in evals/labels/judge.yaml was written by the AI session
+  # that wrote the harness, so it is a rehearsal of the protocol, not a calibration (ai-evals §5).
+  owner_handle: ''
+
+criteria:
+  - id: R-01
+    name: neutral_wording
+    applies_to: every interviewer question (topic, probe, clarification, redirect)
+    summary: >-
+      Does the question avoid suggesting an answer? A neutral question is open, asks one thing, uses no evaluative word and presupposes nothing the
+      interviewee has not said.
+    scale: 2
+    threshold: 1.5
+    anchors:
+      0: >-
+        Suggests or presupposes an answer, loads a term with an evaluation, or presses: for example 'Surely your manager was difficult, wasn't
+        she?' or 'How awful was the culture?' or 'Don't you think pay was unfair?'.
+      1: >-
+        Does not suggest an answer, but has a weakness: yes-or-no framing ('Did you get enough support?'), two questions in one, or an avoidable
+        evaluative word.
+      2: >-
+        Open, a single question, and free of evaluation and presupposition: for example 'How did you experience joining the company?'.
+  - id: R-02
+    name: probe_quality
+    applies_to: every follow-up probe, with the reply it follows
+    summary: >-
+      Does the follow-up ask for exactly one concrete example (a situation or moment) of what the interviewee just said, without suggesting what
+      the example should contain?
+    scale: 2
+    threshold: 1.5
+    anchors:
+      0: >-
+        Does not ask for an example (asks for an opinion, a reason or a rating), suggests the content of the example, presses, or asks for a name.
+      1: >-
+        Asks for an example but generically, so that it is not tied to what was just said, or bundles a second request with it.
+      2: >-
+        Asks for one concrete example of what the interviewee just said, in neutral words, and nothing else.
