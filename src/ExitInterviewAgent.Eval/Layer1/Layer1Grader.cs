@@ -110,6 +110,8 @@ public static partial class Layer1Grader
         const string id = "L1.C-03";
         var stopped = c.R.Outcome is InterviewOutcome.Withdrawn or InterviewOutcome.ConsentNotGiven or InterviewOutcome.Abandoned or InterviewOutcome.PiiGuardFailed;
         var withdrawnEvent = c.T.AllEvents.Any(e => e.Name == InterviewTelemetry.Events.ConsentWithdrawn);
+        if (!stopped && c.Run.RawReplies.Any(IndependentRules.ExpressesWithdrawal))
+            return Fail(id, "a reply withdrew consent in so many words but the interview did not stop");
         if (!stopped)
             return withdrawnEvent ? Fail(id, "a consent.withdrawn event exists but the interview did not stop") : Na(id, "interview was not stopped");
 

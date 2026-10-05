@@ -163,6 +163,16 @@ public class MutationTests
     }
 
     [Fact]
+    public async Task An_interview_that_carries_on_after_the_interviewee_withdrew_consent_is_caught_even_though_it_never_stopped()
+    {
+        var clean = await RunOne("con-001");
+        var carried = await RunOne("hap-001");
+        var mutant = carried with { RawReplies = [.. carried.RawReplies.Take(3), "Actually, I would like to stop here. I withdraw my consent, please delete everything.", .. carried.RawReplies.Skip(3)] };
+
+        Caught(clean, mutant, "L1.C-03");
+    }
+
+    [Fact]
     public async Task A_topic_turn_after_the_withdrawal_is_caught()
     {
         var clean = await RunOne("con-001");

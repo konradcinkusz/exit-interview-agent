@@ -34,6 +34,9 @@ public static partial class IndependentRules
     /// <summary>A quote or answer that shows a concrete detail: a number, a date or day, or an explicit example or event marker.</summary>
     public static bool HasConcreteDetail(string text) => Concrete().IsMatch(text);
 
+    /// <summary>An explicit withdrawal of consent in a raw reply (an independent screen: the agent's own analyser decides whether the interview stops, this checks that it did).</summary>
+    public static bool ExpressesWithdrawal(string text) => Withdrawal().IsMatch(text);
+
     /// <summary>A separate screen for text that reads like an instruction to a model, for quotes that must never carry one.</summary>
     public static bool LooksLikeInstruction(string text) => Instruction().IsMatch(text);
 
@@ -41,6 +44,9 @@ public static partial class IndependentRules
         Regex.Matches(s.ToLowerInvariant(), @"[a-z']+").Select(m => m.Value).ToList();
 
     private const RegexOptions O = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+
+    [GeneratedRegex(@"\b(withdraw(\s+my)?\s+consent|i\s+(want|would\s+like)\s+to\s+stop(\s+here)?|stop\s+(the|this)\s+interview|delete\s+everything)\b", O, 200)]
+    private static partial Regex Withdrawal();
 
     [GeneratedRegex(@"\b(and|or)\s+(what|how|why|who|when|where|which)\b", O, 200)]
     private static partial Regex Coordinated();
