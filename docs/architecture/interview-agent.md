@@ -25,7 +25,7 @@ the project file. The kernel stays plumbing (P2): nothing here goes into `Servic
 
 ## The protocol
 
-Versioned (`protocolVersion` is `1.0`, written into every record's `interview.protocolVersion`) and stored as data in
+Versioned (`protocolVersion` is `1.1`, [ADR-0062](../adr/0062-double-barrelled-questions-protocol-1-1-and-guard.md), written into every record's `interview.protocolVersion`) and stored as data in
 `src/ExitInterviewAgent.Agent/Protocol/interview-protocol.v1.json`, embedded in the assembly and loaded by `InterviewProtocol.Current`. The
 MCP adapter and the CLI read the same object. **Changing any wording or limit in that file is a change of protocol behaviour and bumps the
 version** (minor for wording and limits, major for a change of topics or order).

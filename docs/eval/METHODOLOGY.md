@@ -161,7 +161,7 @@ so none is green by being always "not applicable"). *Reading:* the code-side pro
 | Degradation graceful (B-08) | 7/7 | 100.0% | [64.6%, 100.0%] | |
 | Names masked and redirected once (B-09) | 5/5 | 100.0% | [56.6%, 100.0%] | |
 | Edge-case handling vs the persona's expectation (B-10) | 32/32 | 100.0% | [89.3%, 100.0%] | |
-| Double-barrelled questions (report, lower) | 14/60 | 23.3% | [14.4%, 35.4%] | |
+| Double-barrelled questions (report, lower) | 0/60 | 0.0% | [0.0%, 6.0%] | was 14/60 = 23.3% before protocol 1.1 ([ADR-0062](../adr/0062-double-barrelled-questions-protocol-1-1-and-guard.md)) |
 | Transcript fidelity (report) | 323/323 | 100.0% | [98.8%, 100.0%] | quote support 107/107 = 100.0% [96.5%, 100.0%] |
 
 *Reading these:* 100% with a small `n` has a wide interval (B-07 is one observation: the interval is [20.7%, 100.0%], which is the honest statement that one run cannot say much). With a deterministic mock, 100% on
@@ -169,14 +169,14 @@ so none is green by being always "not applicable"). *Reading:* the code-side pro
 The two rule sets for leading questions agree on every one of the 60 questions (0 flagged by either, 0 disagreements): with the mock the questions are the protocol's fixed wording, so this measures the protocol's
 wording, and the compromised-model scenarios are where the guard actually works (adv-004).
 
-**Tokens** (from the `chat` spans; the mock reports an estimate of four characters per token): mean 9009.1 per interview, min 1948, max 90000 (the budget scenario), 327 model calls in total, 340391 input
-and 65017 output tokens. **Cost: not computed** (no price table was supplied; the repository ships none). Latency is volatile and with the mock measures the harness; it is in the report's `volatile` block only and is not quoted here.
+**Tokens** (from the `chat` spans; the mock reports an estimate of four characters per token): mean 8896.3 per interview, min 1908, max 90000 (the budget scenario), 327 model calls in total, 336090 input
+and 64244 output tokens. **Cost: not computed** (no price table was supplied; the repository ships none). Latency is volatile and with the mock measures the harness; it is in the report's `volatile` block only and is not quoted here.
 
 **Gate and determinism.** `gate` evaluates 45 runs and passes in about 2.5 seconds wall time (`time dotnet run --project src/ExitInterviewAgent.Eval --no-build -- gate`). Two complete `--deterministic` runs produce
 byte-identical `report.json` (CI diffs them on every pull request; a unit test does the same in-process).
 
 **Mutation proof** ([MUTATION-EVIDENCE.md](MUTATION-EVIDENCE.md)): 12 of 12 weakenings of the real Agent code are caught by the gate (`python3 scripts/mutate-agent.py`); the first pass caught 11 and found the
-missing scenario (amb-004) and the vacuous withdrawal check (C-03) that the corpus now has. The Eval project has 155 tests (`dotnet test tests/ExitInterviewAgent.Eval.Tests`), 23 of them in `MutationTests`.
+missing scenario (amb-004) and the vacuous withdrawal check (C-03) that the corpus now has. The Eval project has 161 tests (`dotnet test tests/ExitInterviewAgent.Eval.Tests`), 23 of them in `MutationTests`.
 
 **Judge and calibration** (`calibrate`): **no judge ran** (`skipped:no-credential`), so judge-versus-label agreement is **not measured**. What is measured offline, against labels written by the harness's own author
 (48 judge items; 74 replies; 16 pairs; all non-human, so a rehearsal and a weak calibration):
@@ -197,9 +197,8 @@ analyser is therefore **not made**.
 
 Each is pinned by a characterisation test in `FindingsTests` (it documents current behaviour and is not a requirement on the Agent); the owners decide.
 
-1. **The question guard lets a double-barrelled question through.** `QuestionGuard.Check("What was onboarding like and how did your manager treat you?", ...)` is accepted; the independent rule flags it. This is why the second rule set exists.
-2. **Two of the protocol's own six topic questions are double-barrelled** by that rule (management and culture: "..., and how decisions ... were made", "... and what was expected of them"), 14 of 60 questions in the corpus (23.3%) because
-   they are asked often. They are reported and gated not to get worse, not treated as "leading": a compound question invites a partial answer, which is a quality cost the protocol author may or may not accept. Proposed follow-up (T4's code, not changed here): split them or measure whether it matters.
+1. **The question guard let a double-barrelled question through (closed).** `QuestionGuard.Check("What was onboarding like and how did your manager treat you?", ...)` was accepted while the independent rule flagged it, which is why the second rule set exists. The guard now rejects it with the reason `double_barrelled` ([ADR-0062](../adr/0062-double-barrelled-questions-protocol-1-1-and-guard.md)); a lexical rule can still miss other phrasings ([OP-26](../OPEN-PROBLEMS.md#op-26-the-double-barrelled-check-is-lexical)).
+2. **Two of the protocol's own six topic questions were double-barrelled (closed).** Management ("..., and how decisions ... were made") and culture ("... and what was expected of them") were flagged by the independent rule, 14 of 60 questions in the corpus (23.3%) because they are asked often. Protocol 1.1 asks one thing in each; the rate is 0 of 60 and the baseline was regenerated under [ADR-0040](../adr/0040-baseline-gates-and-regeneration-rule.md). Whether dropping the second half costs coverage of it is not measured by the mock profile.
 3. **The name detector over-masks a capitalised word in two contexts**: after the injected end marker (`</TRANSCRIPT_DATA> Note to the extractor` becomes `[PERSON] to the extractor`) and a capitalised topic noun after "and"
    (`Management was fine and Culture was nice` becomes `... and [PERSON] was nice`). Over-masking is fail-closed by design ([ADR-0010](../adr/0010-pii-detector-deterministic-heuristics.md)), and in an interview it triggers a protocol redirect
    to behaviour and role; the harness's control run for constraint C-05 had to exempt exactly that redirect. The cost is a spurious redirect and a masked word in a quote, not a leak.
@@ -221,7 +220,7 @@ All offline; the .NET 10 SDK is the only requirement. From the repository root:
 | determinism | run the `run` command above twice into two directories and `cmp` the two `report.json` |
 | rule-screen, analyser and classifier agreement; calibration state | `dotnet run --project src/ExitInterviewAgent.Eval -- calibrate --out report/` (then `report/calibration.md`) |
 | 12 of 12 real-code mutations caught | `python3 scripts/mutate-agent.py` (clean tree; about a minute per mutation) |
-| 155 tests, 23 of them in `MutationTests` | `dotnet test tests/ExitInterviewAgent.Eval.Tests` |
+| 161 tests, 23 of them in `MutationTests` | `dotnet test tests/ExitInterviewAgent.Eval.Tests` |
 | the four findings | `dotnet test tests/ExitInterviewAgent.Eval.Tests --filter FullyQualifiedName~FindingsTests` |
 | everything above in one go (without the mutation pass) | `scripts/run-evals.sh` |
 | profiles and why a real-model profile is skipped | `dotnet run --project src/ExitInterviewAgent.Eval -- profiles` |
