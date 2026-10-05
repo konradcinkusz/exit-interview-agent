@@ -173,10 +173,23 @@ internal sealed class NameRules
             var c = text[i];
             if (c is '\n' or '\r') return true;
             if (char.IsWhiteSpace(c) || c is '"' or '\'' or '“' or '„' or '(' or '[' or '-' or '–' or '—' or '*' or '•' or '«') { i--; continue; }
-            return c is '.' or '!' or '?' or '…' or ':' or ';';
+            return c is '.' or '!' or '?' or '…' or ':' or ';' || (c == '>' && EndsTag(text, i));
         }
 
         return true;
+    }
+
+    /// <summary>The '>' at <paramref name="close"/> ends a tag such as &lt;/TRANSCRIPT_DATA&gt; or &lt;&lt;&lt;END_TRANSCRIPT_DATA x&gt;&gt;&gt;: what follows starts a new text.</summary>
+    private static bool EndsTag(string text, int close)
+    {
+        var lowest = Math.Max(0, close - 80);
+        for (var k = close - 1; k >= lowest; k--)
+        {
+            if (text[k] == '<') return true;
+            if (text[k] is '\n' or '\r') return false;
+        }
+
+        return false;
     }
 
     private void AddRun(List<Tok> tokens, bool[] covered, int start, int end, PiiBasis basis, List<PiiFinding> into, bool isInitials)

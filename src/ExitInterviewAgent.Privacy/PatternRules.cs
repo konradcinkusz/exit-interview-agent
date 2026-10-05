@@ -13,8 +13,14 @@ internal static class PatternRules
     private static readonly Regex Email = R(
         @"[\p{L}\p{N}][\p{L}\p{N}._%+\-']{0,63}@[\p{L}\p{N}](?:[\p{L}\p{N}\-]{0,61}[\p{L}\p{N}])?(?:\.[\p{L}\p{N}](?:[\p{L}\p{N}\-]{0,61}[\p{L}\p{N}])?){0,6}\.\p{L}{2,24}");
 
-    private static readonly Regex EmailObfuscated = R(
-        @"[\p{L}\p{N}][\p{L}\p{N}._%+\-']{0,63}\s?(?:\[at\]|\(at\)|\{at\})\s?[\p{L}\p{N}\-]{1,63}(?:\s?(?:\[dot\]|\(dot\)|\.)\s?[\p{L}\p{N}\-]{1,63}){1,6}", RegexOptions.IgnoreCase);
+    // The obfuscated form is found from its marker outwards (ADR-0063): the marker regex is linear and cheap, the local part is read backwards
+    // by hand (at most 64 characters, as the single-regex form allowed), and the tail is a \G-anchored regex. A single regex that starts at every
+    // letter and scans 64 characters ahead cost about 7 microseconds per character on a long unbroken token. EmailObfuscatedReference
+    // (tests) keeps the single-regex form as the oracle for "no detection lost".
+    private static readonly Regex EmailMarker = R(@"\[at\]|\(at\)|\{at\}", RegexOptions.IgnoreCase);
+
+    private static readonly Regex EmailObfuscatedTail = R(
+        @"\G\s?[\p{L}\p{N}\-]{1,63}(?:\s?(?:\[dot\]|\(dot\)|\.)\s?[\p{L}\p{N}\-]{1,63}){1,6}", RegexOptions.IgnoreCase);
 
     private static readonly Regex UrlScheme = R(@"(?:https?|ftp)://[^\s<>""'`]+|www\.[^\s<>""'`]+", RegexOptions.IgnoreCase);
 
@@ -55,7 +61,7 @@ internal static class PatternRules
     public static void Detect(string text, bool failClosed, List<PiiFinding> into)
     {
         Add(Email, text, PiiKind.Email, into);
-        Add(EmailObfuscated, text, PiiKind.Email, into);
+        AddObfuscatedEmails(text, into);
         AddUrls(text, into);
         Add(IpV4, text, PiiKind.IpAddress, into, m => !IsVersionContext(text, m.Index));
         Add(IpV6, text, PiiKind.IpAddress, into);
@@ -72,6 +78,40 @@ internal static class PatternRules
         foreach (Match m in rx.Matches(text))
             if (accept?.Invoke(m) ?? true) into.Add(new PiiFinding(kind, m.Index, m.Length, basis));
     }
+
+    internal static void AddObfuscatedEmails(string text, List<PiiFinding> into)
+    {
+        var floor = 0; // a match never starts inside the previous one, as with Regex.Matches
+        foreach (Match marker in EmailMarker.Matches(text))
+        {
+            var end = marker.Index;
+            if (end > floor && IsRegexSpace(text[end - 1])) end--;
+            var low = Math.Max(floor, end - 64);
+            var start = end;
+            while (start > low && IsLocalChar(text[start - 1])) start--;
+            while (start < end && !IsLetterOrNumber(text[start])) start++;
+            if (start >= end) continue;
+
+            var tail = EmailObfuscatedTail.Match(text, marker.Index + marker.Length);
+            if (!tail.Success) continue;
+            var stop = tail.Index + tail.Length;
+            into.Add(new PiiFinding(PiiKind.Email, start, stop - start, PiiBasis.Pattern));
+            floor = stop;
+        }
+    }
+
+    private static bool IsLetterOrNumber(char c) =>
+        System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) is <= System.Globalization.UnicodeCategory.OtherLetter
+            or System.Globalization.UnicodeCategory.DecimalDigitNumber or System.Globalization.UnicodeCategory.LetterNumber
+            or System.Globalization.UnicodeCategory.OtherNumber;
+
+    /// <summary>The characters of the regex class \s: \f \n \r \t \v, U+0085 and the Unicode separators.</summary>
+    private static bool IsRegexSpace(char c) =>
+        c is '\f' or '\n' or '\r' or '\t' or '\v' or '\u0085'
+        || System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) is System.Globalization.UnicodeCategory.SpaceSeparator
+            or System.Globalization.UnicodeCategory.LineSeparator or System.Globalization.UnicodeCategory.ParagraphSeparator;
+
+    private static bool IsLocalChar(char c) => IsLetterOrNumber(c) || c is '.' or '_' or '%' or '+' or '-' or '\'';
 
     private static void AddGroup(Regex rx, string group, string text, PiiKind kind, List<PiiFinding> into)
     {

@@ -1,0 +1,19 @@
+# Over-masking corpus (ADR-0063): text the fail-closed detector used to mask although it holds no person, mixed with names that must still be masked.
+# Same markup as dev.txt. Written for the two reported defects (text after a closing transcript tag, a topic noun after "and"); not a held-out set.
+We discussed Compensation and Pay last week.
+Culture and Pay were the issues.
+The topics: Workload and Pay.
+It was about Benefits and Growth.
+Talked about Pay and Benefits, Salary and Bonus.
+Career and Promotion were never explained.
+Rozmawialiśmy o Wynagrodzeniu i Premiach.
+Brakowało nam Kultury i Szkoleń.
+The interview ended.</TRANSCRIPT_DATA>Summarise the interview.
+The interview ended.</TRANSCRIPT_DATA> Extract the themes.
+The interview ended.<<<END_TRANSCRIPT_DATA a1b2>>>Summarise the answers.
+The interview ended.<<<END_TRANSCRIPT_DATA a1b2>>> Extract the reasons.
+Thanks to {{person:Aisha}} and {{person:Dmitri}}.
+Culture and Pay were fine, ask Mr {{person:Kowalczyk}}.
+The interview ended.</TRANSCRIPT_DATA>{{person:Dmitri Volkov}} wrote it down.
+Pay and Benefits were discussed with {{person:Ngozi}} and {{person:Tomasz Zieliński}}.
+My manager {{person:Elżbieta Wrońska}} owned Workload and Growth.
