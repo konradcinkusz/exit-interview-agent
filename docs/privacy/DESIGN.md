@@ -143,12 +143,14 @@ culture, reason for leaving). Controls on what *is* in the record:
 - Every record from a client is untrusted input: schema validation, PII detection, rate and size limits
   (brief §6, T5).
 
-### 5.2 Submission ledger (Planned, T5)
+### 5.2 Submission ledger (Implemented, T5)
 
 Purpose: enforce **one submission per employer per account** without storing "account X submitted record R".
 
 - Row = `HMAC-SHA-256(key_vN, sub ‖ employer_id)` plus key version and a coarse creation bucket. No content, no
-  record id, no interview id, no receipt hash (brief §6).
+  record id, no interview id, no receipt hash (brief §6). *Implemented in T5:* the input is length-prefixed, the bucket is the ISO week
+  ([ADR-0027](../adr/0027-store-time-buckets-and-one-transaction.md), [ADR-0028](../adr/0028-submission-ledger-hmac-rotation-and-window.md)); the table
+  layout and what each table can link are in [submission-flow](../architecture/submission-flow.md).
 - The key is **rotatable**: the active key is used for new entries and every key still inside the retention window
   is tried on lookup. Rotation therefore does not reset deduplication as long as old keys are kept for the window.
 - Entries are **purged after a configurable window** (brief §6). After the purge the same account can submit again
@@ -158,16 +160,18 @@ Purpose: enforce **one submission per employer per account** without storing "ac
   "did account S submit about employer E?" for every E. The HMAC protects the ledger from someone who has the
   database but **not** the key; it does not protect against an operator who has both (brief §6 says so; the threat
   model lists it as a residual risk). Keep the key outside the database's backup domain (platform secret, not a DB
-  column) so a database leak alone does not hand over both.
+  column) so a database leak alone does not hand over both. *Implemented in T5:* keys come from configuration (`Ledger:Keys`), the service does not start
+  without one outside Development, and a Development key is ephemeral and announced. Default window: 365 days (an assumption, ADR-0028).
 - Deleting a record by receipt code does **not** remove the ledger entry (the link does not exist, by design). A
   user who deletes cannot resubmit for that employer until the entry is purged. This is documented user-facing
   behaviour, not a defect.
 
-### 5.3 Deletion by receipt code (Planned, T5 server, T9 web)
+### 5.3 Deletion by receipt code (Implemented in T5 server; T9 web Planned)
 
 On submission the server returns a random receipt code once and stores only its hash.
 
-- The code is a bearer secret. *Proposal:* ≥128 bits from a CSPRNG, URL-safe encoding; a fast hash is then
+- The code is a bearer secret. *Implemented in T5 ([ADR-0029](../adr/0029-receipt-deletion-semantics.md)):* 256 random bits plus a checksum, URL-safe, sent in a header (never the URL);
+  every well-formed code gets the same `204` whether or not it matched. *Original proposal:* ≥128 bits from a CSPRNG, URL-safe encoding; a fast hash is then
   adequate because the input is high-entropy, and lookup by hash must be constant-time with identical responses and
   comparable timing for "unknown code" and "already deleted" (enumeration, see threat model). Follows the
   recurring rule in [`security-review`](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/SECURITY-REVIEW.md) §5
@@ -180,7 +184,7 @@ On submission the server returns a random receipt code once and stores only its 
 - Deleting a record can drop a group below K. Aggregates must be recomputed from the remaining records and
   withdrawn when n < K (Planned, T10); backups age out on the platform's schedule (state it in the retention table).
 
-### 5.4 Submission tickets for the CLI (Planned, T5/T9/T11)
+### 5.4 Submission tickets for the CLI (Server Implemented in T5; T9 and T11 Planned)
 
 The CLI cannot hold an OAuth client secret, and authservice registers only confidential clients (brief §4), so:
 
@@ -194,9 +198,10 @@ Residual risk (brief §4): the **redemption instant is a correlation point**. At
 ticket (resolvable to `sub`) and a record. The mitigations below narrow, but do not close, that window:
 
 - no ticket, `sub`, record or employer in logs/traces (the telemetry rule, §5.7);
-- ledger entry and record written in **separate transactions** from non-adjacent commit points, with coarse
-  timestamps (*Proposal:* queue records and commit in batches, or add jittered delay, so insertion time is not the
-  ticket's redemption time to the second);
+- coarse timestamps: the record and ledger rows carry a week bucket only, and the ticket's expiry is rounded up to 5 minutes (*Implemented, T5*). The
+  earlier proposal (separate transactions, batching or jitter) was **declined**: ledger entry, record, receipt and the ticket delete commit in **one transaction**,
+  because it does not hide the instant from a live observer and leaves orphan states otherwise ([ADR-0027](../adr/0027-store-time-buckets-and-one-transaction.md),
+  [ADR-0030](../adr/0030-submission-tickets-for-the-cli.md)); rows of one transaction still share a hidden transaction id (see submission-flow);
 - ticket rows deleted at redemption and expired rows swept on a short schedule, so a database snapshot taken later
   contains few `sub`↔time pairs;
 - tickets are not employer-bound, so the ticket table never says *which* employer.
@@ -239,7 +244,7 @@ deletion goes through authservice and removes the login only; the table of what 
 unfindable, ledger purged by its window, issued tokens valid until expiry) is in [ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md),
 and the portal says so before and after deletion.
 
-### 5.7 Telemetry and audit without content (Planned, T5/T6; scaffold and T2 email scrubbing Implemented)
+### 5.7 Telemetry and audit without content (T5 canary test Implemented; T6 Planned; scaffold and T2 email scrubbing Implemented)
 
 Brief §6: no PII or interview content in logs, traces or authservice audit events. The scaffold already exports
 traces by OTLP only when configured and filters probes ([`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md), P15 row);
@@ -250,7 +255,9 @@ The enforceable form for content (T5/T6):
 - spans and logs carry route, status, latency, size class, model name, token counts: never prompt text, quotes,
   employer, `sub`, receipt code or ticket;
 - a test that submits a record containing a unique canary string and asserts the canary appears in no log line, span
-  attribute or audit event (a test that cannot fail is worse than none: it must fail when logging is added);
+  attribute or audit event (a test that cannot fail is worse than none: it must fail when logging is added). *Implemented in T5*
+  (`ContentCanaryTests`, see the threat model T-15): logs, activity tags and events, event-source payloads and metric tags are captured over the
+  whole submission, ticket and receipt flow, and body- and header-logging regressions are shown to be caught;
 - the eval harness's traces for **simulated** interviews may carry content (they contain no real data); the same
   span schema in production does not. The two must be separated by configuration, not by hope.
 - authservice audit events record account actions (role changes, etc.); the interview-service must not call
@@ -265,10 +272,10 @@ determination ([CONSIDERATIONS](../legal/CONSIDERATIONS.md)).
 |---|---|---|---|
 | Transcript (modes A/B) | never held by us. In B: user's machine, until the user deletes it; the CLI keeps no transcript by default (*Proposal*) | n/a | Planned (T4) |
 | Transcript at the AI provider | per the provider's terms for the user's own key/account; **outside our control** | n/a | see [CONSIDERATIONS §1](../legal/CONSIDERATIONS.md) |
-| Record | until deleted by receipt code, the operator purges (e.g. on employer removal), or the operator-configured maximum age is reached (default 24 months, an assumption: [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md)) | deletion by receipt hash; age-based purge job | Planned (T5); retention Decided |
-| Receipt-code hash | with its record | same | Planned (T5) |
-| Ledger entry | configurable window (brief §6); *Proposal:* ≥ the period over which one-per-employer must hold, and no longer | scheduled purge job; old HMAC keys retired with it | Planned (T5) |
-| Ticket | minutes (short TTL); deleted at redemption | purge on redemption and a sweep | Planned (T5) |
+| Record | until deleted by receipt code, the operator purges (e.g. on employer removal), or the operator-configured maximum age is reached (default 24 months, an assumption: [ADR-0019](../adr/0019-brief-amendments-from-the-t3-legal-privacy-review.md)) | deletion by receipt hash; age-based purge job (week bucket, [ADR-0027](../adr/0027-store-time-buckets-and-one-transaction.md)) | Implemented (T5); operator purge by employer is not built |
+| Receipt-code hash | with its record | same | Implemented (T5) |
+| Ledger entry | configurable window, default 365 days ([ADR-0028](../adr/0028-submission-ledger-hmac-rotation-and-window.md)), shorter than the record age on purpose | scheduled purge job; old HMAC keys are removed from configuration by the operator after the window | Implemented (T5) |
+| Ticket | 15-20 minutes (TTL, expiry rounded up to 5); deleted at redemption | delete at redemption and a 5-minute sweep | Implemented (T5) |
 | Account, consents, authservice audit | per authservice: soft delete with a retention window then a reaper | authservice | Implemented in authservice ([guide §8](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/IDENTITY-AND-ACCOUNTS.md)); window values are authservice configuration |
 | Aggregates | recomputed from remaining records; withdrawn when n < K | Signals job | Planned (T10) |
 | Logs and traces | platform-set; contain no content (§5.7) | n/a | Planned |

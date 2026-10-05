@@ -5,6 +5,10 @@ namespace ExitInterviewAgent.InterviewService.Endpoints;
 public static class EndpointNames
 {
     public const string GetMe = "GetMe";
+    public const string SubmitRecord = "SubmitRecord";
+    public const string MintTicket = "MintTicket";
+    public const string SubmitTicketed = "SubmitTicketed";
+    public const string DeleteReceipt = "DeleteReceipt";
 }
 
 public static class AccountEndpoints

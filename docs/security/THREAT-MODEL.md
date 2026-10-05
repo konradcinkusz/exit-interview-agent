@@ -189,10 +189,18 @@ deliberately kept), `Implemented` (only where noted).
 - **Mitigation.** Keyed HMAC, no content/record id; the key is a platform secret **outside** the DB and its backups;
   rotatable with a retention window; ledger purged after the window; coarse timestamps (record: ISO-week at most; ledger: day or none; Decided, ADR-0019, not implemented); ledger in its own schema/DbContext with no foreign key to records (Planned, T5). The brief requires this
   risk to be listed (§6).
+  **Implemented (T5, [ADR-0027](../adr/0027-store-time-buckets-and-one-transaction.md), [ADR-0028](../adr/0028-submission-ledger-hmac-rotation-and-window.md), [submission-flow](../architecture/submission-flow.md)):**
+  HMAC-SHA-256 over a length-prefixed (`sub`, employer) under a rotatable key set read from configuration (the service refuses to start without a key outside Development;
+  Development generates an ephemeral key and says so without logging it); the table has no record, interview or receipt column and no foreign key, random uuid keys, and a
+  week bucket as its only time; a unique index decides races (24 parallel duplicates on PostgreSQL yield one success); purge after the window (default 365 days, an assumption);
+  `SchemaInvariantTests` pin the columns. **Not built:** a separate schema, DbContext or database role for the ledger (it is a table in the service's one database, without a key link to records).
 - **Residual.** An operator or attacker with DB + key can confirm "account S submitted about employer E". Even then
   they learn *that* it was submitted, not the record content, unless timing (c) also joins. **Accepted; this is the
-  design's honest limit.** **Likelihood low, impact high.**
-- **Status.** Accepted for (b); Open for (c).
+  design's honest limit.** **Likelihood low, impact high.** Added by T5: rows written in one transaction share a PostgreSQL transaction id and sit adjacent in the heap, so
+  direct file or system-column access, or a physical backup, can pair a ledger entry with a record although no column links them (ADR-0027); random keys remove only the key-order channel.
+  **The ledger window is a trade-off, not a free parameter:** after it (default 365 days) the same account may submit again for the same employer, and a record deleted by
+  receipt keeps its ledger entry until then.
+- **Status.** Accepted for (b); (c) Mitigated to a week bucket (Implemented, T5), with the storage-artefact residual above Open.
 
 ### T-09 Ticket redemption correlation
 
@@ -204,9 +212,15 @@ deliberately kept), `Implemented` (only where noted).
   ticket is carried in a header or request body, never a URL (so it is not in access logs); no ticket/`sub`/record in logs
   or traces; separate transactions for ledger and record with batching or jitter before the record commits (Proposal);
   expired tickets swept. (Planned, T5/T11.)
+  **Implemented (T5, [ADR-0030](../adr/0030-submission-tickets-for-the-cli.md)):** random 256-bit ticket, only its hash and the `sub` stored, expiry rounded up to 5 minutes (the row does not
+  hold the mint instant to the second), TTL 15 minutes, at most 3 live tickets and 10 mints an hour per account, header only (the query string is not read), single use decided by one atomic delete
+  (24 parallel redemptions on PostgreSQL: one success), row deleted in the same transaction as the ledger entry and record, expired rows swept every 5 minutes, ticket not employer-bound, no
+  ticket in any log, span, event or metric (canary test). **Declined on purpose:** separate transactions, batching and commit jitter: they do not hide the instant from an observer of live traffic
+  and, on a quiet system, not from the database either (ADR-0027, ADR-0030).
 - **Residual.** **Redemption instant is a correlation point**; named in the brief as accepted residual risk. Batching
-  reduces but cannot remove it against an adversary who sees live traffic. **Likelihood low, impact high; accepted.**
-- **Status.** Accepted (brief §4); mitigations Open.
+  reduces but cannot remove it against an adversary who sees live traffic. **Likelihood low, impact high; accepted.** Standard HTTP-server spans also record method, route, status,
+  User-Agent and timing (none is content, all of it is timing), and the dead ticket tuple (which holds the `sub`) carries the transaction id of the record written with it until vacuumed.
+- **Status.** Accepted (brief §4); the narrowing listed above is Implemented (T5); batching and jitter are not built.
 
 ### T-10 Forged, replayed and bulk-fabricated records (a client we do not control)
 
@@ -220,10 +234,14 @@ deliberately kept), `Implemented` (only where noted).
   not yet attached to any domain endpoint); schema validation and PII detection at ingest; tickets and receipt codes are
   single-purpose and unguessable; idempotency key per submission to defeat replay (Proposal, T5); signals are
   statistical and shown with uncertainty, never as a verdict (T10); real employment verification is an **open problem**.
+  **Implemented (T5, [ADR-0031](../adr/0031-submission-pipeline-and-employment-verifier-seam.md)):** one submission per (account, employer) inside the ledger window (database-enforced); the domain endpoints have their own
+  limits (ticketed submission and receipt deletion per client and globally, ticket minting per account; 160 KiB hard cap on the body while it is read); schema validation, a server-side PII re-scan of every quote and free-text
+  field that fails closed, and the AI-disclosure check; a replayed interview id is refused (`INTERVIEW_ID_TAKEN`), which covers replay of the same record but is **not** a general idempotency key; the verifier is a mock
+  and records are stored with a coarse verification level (`Verified`/`Unverified`/`Unchecked`) that nothing yet reads. The one-per-employer rule is **time-limited** by the ledger window (T-08).
 - **Residual.** **High.** Until real verification exists, the system cannot distinguish a real ex-employee from a script;
   every aggregate is "claimed by accounts", not "verified". Output must be labelled accordingly. Account creation cost
   (email verification, authservice rate limits) is the only brake on Sybil attacks. **Likelihood high, impact medium.**
-- **Status.** Open; documented as unsolved ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)).
+- **Status.** Open; documented as unsolved ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)); the T5 mitigations above are Implemented.
 
 ### T-11 Enumeration, timing and abuse of receipt codes
 
@@ -236,9 +254,13 @@ deliberately kept), `Implemented` (only where noted).
   to an account) (Planned, T5; rate limiter plumbing Implemented); the code is shown once and the UI says it is a bearer
   secret and cannot be recovered. A deleted-by-attacker record can be resubmitted only after the ledger window
   (documented).
+  **Implemented (T5, [ADR-0029](../adr/0029-receipt-deletion-semantics.md)):** 256-bit random codes with a checksum, only `SHA-256(code)` stored, constant-time comparison, the code in a header (`X-Receipt-Code`; the path and
+  query string are not read, which **deviates from the `/receipts/{code}` form in the task**), `204` for every well-formed code whether or not it matched (a malformed code is a public `400`), a 150 ms response floor,
+  a per-client window (6/min) and a global budget (60/min) with no queue. The limiter key is never stored or logged; a forwarded client header is trusted only when configured.
 - **Residual.** Anyone with the code can delete; a lost code cannot be recovered. Accepted: this is inherent to unlinkability.
-  **Likelihood low, impact low-medium.**
-- **Status.** Open (T5).
+  **Likelihood low, impact low-medium.** Added by T5: a `204` does not confirm a record existed, so a user holding a wrong but well-formed code gets no signal; the latency floor is not a proof of
+  constant time (a stall above it shows); the global budget lets a flood block legitimate deletions for a minute.
+- **Status.** Mitigated (T5; ADR-0029); residuals above accepted.
 
 ### T-12 Account takeover
 
@@ -294,16 +316,22 @@ deliberately kept), `Implemented` (only where noted).
 - **Mitigation.** No PII/content in logs, traces, audit events (brief §6); fixed vocabulary for span attributes; error
   responses use ProblemDetails without echoing input; **canary test**: a unique string submitted in a record must appear in
   no log line, span attribute or audit event, and the test must be shown to fail when logging of bodies is turned on
-  (Planned, T5/T6); tickets and receipt codes never in URLs; the telemetry exporter is only active when configured and
+  (T5 part **Implemented**, below; T6 covers the model-call side); tickets and receipt codes never in URLs; the telemetry exporter is only active when configured and
   probe traffic is filtered (Implemented as plumbing, see [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) P15).
   **Implemented (T2, [ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)) for email:** the validated principal keeps only
   `sub`, `client_id`, `scope` and protocol claims (the email authservice puts in every token never reaches a handler), and an `ILoggerFactory`
   wrapper replaces email addresses in every message, argument and exception before any provider sees them; tests cover both and were shown to
-  fail without them. This is a net for addresses, not the content guarantee. **Not covered:** authservice's own audit rows include the actor's
+  fail without them. This is a net for addresses, not the content guarantee.
+  **Implemented (T5, `ContentCanaryTests`):** one scenario (accepted, duplicate, schema-invalid, PII-rejected, malformed, oversized, ticket mint and redemption including a bad and a reused ticket, the MCP path, receipt
+  deletion known, repeated, unknown and malformed, a retention sweep, a verifier that throws with the canary in its message) runs with every channel captured: all log lines (message, arguments, exception text, at
+  Trace level, including EF Core's command logs on PostgreSQL), all activity tags, events, status and baggage, the payloads of the application's and libraries' event sources, and all metric tags. Canaries for quote text,
+  employer, account subject, a custom header, a malformed code and ticket, an exception message, and the real receipt code and ticket issued during the run must appear nowhere. The capture is itself tested to see each
+  channel, and a regression that logs request bodies, and one that logs request headers, are shown to be caught. The only outcome metric is labelled `accepted` or a rejection code. **Not covered:**
+  `User-Agent`, method, route, status and timing are in the standard HTTP-server span by design; the PII detector's own limits (T-02); model prompts (T6). **Not covered:** authservice's own audit rows include the actor's
   email (for example on account deletion): outside this repository, see OPEN-PROBLEMS.
 - **Residual.** Platform-level logs (proxy, load balancer, database slow-query logs) are outside application control.
   **Likelihood medium, impact high.**
-- **Status.** Open (T5/T6).
+- **Status.** Mitigated for the submission, ticket and receipt paths (T5); Open for the model-call side (T6) and platform logs.
 
 ### T-16 Consent withdrawal mid-interview
 
@@ -341,8 +369,10 @@ deliberately kept), `Implemented` (only where noted).
 - **Mitigation.** Size limits and rate limits per `sub`/IP (rate-limiter plumbing **Implemented**; domain limits Planned, T5);
   list endpoints clamped with `ApiExtensions.ClampPage` (Implemented); per-interview turn and token budgets in the CLI
   (Planned, T4/T6).
+  **Implemented (T5):** the 160 KiB cap is enforced while the body is read (a chunked body without a length is refused too), the anonymous endpoints have per-client and global limits with no queue, ticket
+  minting is limited per account, a PII scan has a time budget, and the verifier a timeout.
 - **Residual.** An in-memory limiter does not share state across replicas; acceptable for single-instance local use,
-  re-examined before any deployment. **Status.** Open.
+  re-examined before any deployment. **Status.** Mitigated for a single instance (T5); Open for replicas.
 
 ### T-19 Legal compulsion and employer litigation
 
@@ -371,25 +401,25 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 
 | ID | Risk | Likelihood | Impact | Mitigation status | Residual | Status | Owner |
 |---|---|---|---|---|---|---|---|
-| T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | rate limits plumbing implemented; rest Planned | **High**, unsolved | Open | T5, open problem |
+| T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | ledger, domain rate and size limits, validation, PII re-scan Implemented (T5); verification is a mock | **High**, unsolved | Open | open problem |
 | T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Decided (ADR-0019) | Medium-high | Open | T10 |
 | T-02 | Re-identification from quotes/episodes | M | H | Planned (T1/T5) + Proposal (no quote display) | Medium | Open | T1, T10 |
 | T-07 | Exfiltration via MCP host | M | H | Planned (T8) | Accepted, disclosed | Open | T8 |
-| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary Planned (T5/T6) | Medium (platform logs) | Open | T5, T6 |
+| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5); model-call side Planned (T6) | Medium (platform logs) | Mitigated (T5), Open (T6) | T6 |
 | T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
 | T-03 | Prompt injection into interviewer | M | M | Implemented in code, mock only (T4); real models unmeasured (T7) | Medium (mode A) | Open | T6, T7, T8 |
 | T-04 | Injection into extractor / fabricated quotes | M | M | Implemented in code (T1, T4); client-side only | Medium | Open | T5, T7 |
 | T-06 | Stored XSS/markdown; missing web security headers | M | M | headers Implemented (T2; CSP allows inline); encoding rules apply at T9 | Low | Open | T9 |
 | T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
-| T-08 | Ledger correlation with DB + key | L | H | Planned (T5); coarse timestamps Decided | Accepted | Accepted | T5 |
-| T-09 | Ticket redemption correlation | L | H | Planned (T5/T11) | Accepted | Accepted | T5, T11 |
+| T-08 | Ledger correlation with DB + key | L | H | Implemented (T5): keyed rotatable HMAC, no record link, week bucket; storage-artefact residual | Accepted | Accepted | T5 |
+| T-09 | Ticket redemption correlation | L | H | narrowing Implemented (T5); batching/jitter declined (ADR-0030) | Accepted | Accepted | T11 |
 | T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
 | T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
 | T-16 | Consent withdrawal mid-interview | M | M | Implemented in code (T4, mode B); harness assertion planned (T7) | Medium | Open | T7, T8 |
 | T-17 | Token confusion (two JWT schemes) | L | H | both schemes + cross-scheme matrix Implemented (T2) | Low | Mitigated | T2 |
-| T-11 | Receipt-code enumeration/abuse | L | L-M | Planned (T5) | Low | Open | T5 |
+| T-11 | Receipt-code enumeration/abuse | L | L-M | Implemented (T5, ADR-0029) | Low | Mitigated | T9 |
 | T-05 | Judge manipulation / Goodhart | M | L-M | Planned (T7) | Medium | Open | T7 |
-| T-18 | DoS / cost | M | L-M | plumbing Implemented | Low | Open | T5 |
+| T-18 | DoS / cost | M | L-M | domain limits Implemented (T5), single instance | Low | Mitigated (single instance) | T4, T6 |
 | T-20 | Transcript at AI provider | M | M | out of our control | Accepted, disclosed | Accepted | owner |
 
 ## 5. Residual risks, stated plainly
@@ -404,6 +434,9 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 5. **Free-text quotes carry identity** (T-02); detection will miss some of it.
 6. **The web app currently ships without security headers** (T-06), and refresh rotation is missing (T-12): both known, both
    scheduled, neither fixed.
+7. **The one-per-employer rule is time-limited, and ledger entries and records are not unlinkable at the storage layer** (T-08, T-10;
+   [OP-13](../OPEN-PROBLEMS.md#op-13-storage-level-correlation-between-the-ledger-and-the-records),
+   [OP-14](../OPEN-PROBLEMS.md#op-14-one-submission-per-employer-is-time-limited-by-the-ledger-window)).
 
 ## 6. Categories reviewed as not applicable (with evidence)
 
