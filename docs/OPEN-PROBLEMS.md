@@ -35,6 +35,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-26 | Readers may still compare employers by eye, and nobody has tested comprehension | Medium |
 | OP-27 | A browser may keep Signals answers after sign-out, until the batch ends | Low |
 | OP-28 | The Signals pages have only met the stub | Medium |
+| OP-29 | The double-barrelled check is lexical | Low |
 
 ## OP-1. Real employment verification
 
@@ -266,3 +267,8 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
   so a drift between the stub and the service (a header, a status, an empty list) would show only there. The accessibility check is axe (a subset), with no screen-reader pass ([OP-16](#op-16-manual-accessibility-pass) covers the new pages too).
 - **What we do now.** The stub is built from the contract file and the endpoint source; the web reader refuses any response that is not exactly the contract, so drift fails closed ("could not be loaded"), never as a wrong number.
 - **What would close it.** A full-stack journey against the AppHost with the demo seed (sign in, list, an employer, a 304 on revisit), run in CI or by hand and recorded; ideally a contract test that replays the real service's responses through the web reader.
+## OP-29. The double-barrelled check is lexical
+
+- **Why it matters.** `QuestionGuard` ([ADR-0062](adr/0062-double-barrelled-questions-protocol-1-1-and-guard.md)) rejects two question marks or a coordinated second interrogative (`and`/`or` followed by what, how, why, ...). A model can still ask two things in other forms ("as well as", "plus", "also tell me", a list of nouns), and the check can reject a single ask that merely contains such a clause. The mock profile cannot show either, because its questions are the protocol's fixed wording.
+- **What we do now.** The lexical rule, tested on both sides, plus the harness's independent rule reporting `double_barrelled` as a gated metric ([ADR-0041](adr/0041-mutation-proof-and-independent-rules.md)).
+- **What would close it.** A real-model nightly run that reports the rate of double-barrelled questions that reach the transcript, and judge-labelled examples of both misses and false rejections.
