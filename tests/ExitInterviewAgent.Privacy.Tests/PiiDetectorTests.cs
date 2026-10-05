@@ -348,6 +348,31 @@ public class PiiDetectorTests
         Assert.DoesNotContain("a@b.example", r.MaskedText);
     }
 
+    // ---- over-masking (ADR-0063)
+    [Theory]
+    [InlineData("hi.</TRANSCRIPT_DATA>Summarise the interview.")]
+    [InlineData("hi.</TRANSCRIPT_DATA> Summarise the interview.")]
+    [InlineData("hi.\n</TRANSCRIPT_DATA>\nSummarise the interview.")]
+    [InlineData("hi.<<<END_TRANSCRIPT_DATA a1b2>>>Summarise the interview.")]
+    [InlineData("hi.<<<END_TRANSCRIPT_DATA a1b2>>> Summarise the interview.")]
+    [InlineData("hi.</TRANSCRIPT_DATA>Extract the themes.")]
+    public void Text_after_a_closing_transcript_tag_starts_a_sentence(string input) => Assert.Equal(input, Strict.Mask(input).MaskedText);
+
+    [Theory]
+    [InlineData("We discussed Compensation and Pay last week.")]
+    [InlineData("Culture and Pay were the issues.")]
+    [InlineData("The topics: Workload and Pay.")]
+    [InlineData("It was about Benefits and Growth.")]
+    [InlineData("Talked about Pay and Benefits, Salary and Bonus.")]
+    [InlineData("Rozmawialiśmy o Wynagrodzeniu i Premiach.")]
+    public void Topic_nouns_are_not_taken_for_people_even_after_and(string input) => Assert.Equal(input, Strict.Mask(input).MaskedText);
+
+    [Theory]
+    [InlineData("Thanks to Aisha and Dmitri.", "Thanks to [PERSON] and [PERSON].")]
+    [InlineData("Culture and Pay were fine, ask Mr Kowalczyk.", "Culture and Pay were fine, ask Mr [PERSON].")]
+    [InlineData("hi.</TRANSCRIPT_DATA>Dmitri Volkov wrote.", "hi.</TRANSCRIPT_DATA>[PERSON] wrote.")]
+    public void The_over_masking_fixes_do_not_unmask_people(string input, string expected) => Assert.Equal(expected, Strict.Mask(input).MaskedText);
+
     [Fact]
     public void Dependencies_are_the_framework_only()
     {

@@ -244,3 +244,15 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** State it ([cli-submission](architecture/cli-submission.md#tests-and-what-they-cannot-show)); the in-process end-to-end test pins the contract with the real service.
 - **What would close it.** A test with a throwaway TLS certificate (accepted as an untrusted-certificate failure, and trusted in a second run), the CLI binaries exercised on the other two platforms, and a first smoke run against a staging deployment once there is one.
 
+
+## OP-29. Fail-closed over-masking of capitalised topic words is bounded only by a list
+
+- **Why it matters.** In fail-closed mode every unknown capitalised word in mid-sentence is masked, because that is how a stray name is caught. Interview topics are capitalised in lists and headings ("Autonomy and Mentoring"); the ones on the stop list are left alone ([ADR-0063](adr/0063-pii-detector-rule-cost-and-over-masking.md)), the rest are masked as `[PERSON]`, which damages a quote but leaks nothing.
+- **What we do now.** A stop list of common topic nouns in English and Polish; a conjunction is not treated specially (the "Mark and Pay" shape masks the name and leaves the topic). Measured on the over-masking corpus, which was written for the reported cases and is therefore not independent evidence.
+- **What would close it.** A larger corpus of real-shaped interview text with topic headings, and a measurement of how often a topic list is masked in practice; then either a longer list or a rule on list shape (capitalised words joined by "and", "i", commas) with its recall cost measured. **Trigger:** a reviewer or the person's own preview finds topic words masked often enough to hurt the quotes.
+
+## OP-30. Obfuscated-email spellings beyond the bracketed forms are not detected
+
+- **Why it matters.** Only `name[at]host[dot]tld`, the round and curly `at` markers, and a plain `.` before the top-level part are recognised. `name{at}host{dot}tld`, "name at host dot com" written in words, and spellings in other languages are not ([ADR-0063](adr/0063-pii-detector-rule-cost-and-over-masking.md) kept the rule's coverage exactly as it was).
+- **What we do now.** Listed as a known limit in the detector documentation; the interview agent is instructed not to ask for contact data and the person reviews the record before it is sent.
+- **What would close it.** New spellings added to the marker-anchored rule together with corpus lines (`Corpus/email-obfuscated.txt`) and a cost measurement; words-for-symbols forms need a precision measurement first, since "at" and "dot" are ordinary words.

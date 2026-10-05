@@ -2,7 +2,7 @@
 
 `src/ExitInterviewAgent.Privacy` finds and masks personal data in interview text before it is turned into a record. It is
 deterministic (rules, checksums and language heuristics), uses no model and no network, and depends only on the framework.
-Decision record: [ADR-0010](../adr/0010-pii-detector-deterministic-heuristics.md).
+Decision records: [ADR-0010](../adr/0010-pii-detector-deterministic-heuristics.md), [ADR-0063](../adr/0063-pii-detector-rule-cost-and-over-masking.md) (rule cost, over-masking).
 
 **Read this first: it is a heuristic with measured limits, not a guarantee.** It reduces how often a name or a phone number
 reaches a record; it does not make leaking one impossible. It is one layer (the interview agent is instructed never to ask
@@ -65,10 +65,17 @@ uses it.
 - **Ambiguous words**: "Will", "Mark" and employer names that look like people. The allow-list helps only for names you list.
 - **Locations and organisations** are not detected (a street address is not masked; a company name is deliberately not).
 - **Unusual number formats** (a phone number written in words, an id with spaces in unusual places).
+- **Topic words in fail-closed mode.** A capitalised topic noun ("Pay", "Culture", "Benefits" and their Polish forms) is not a name and is left alone, as is the
+  first word after a closing transcript tag; a topic that is not on the stop list is still masked in fail-closed mode
+  ([OP-29](../OPEN-PROBLEMS.md#op-29-fail-closed-over-masking-of-capitalised-topic-words-is-bounded-only-by-a-list)).
 - **False positives**: capitalised product or project names that are not on the allow-list ("Project Phoenix") can be masked as a
   person; in fail-closed mode every unknown capitalised mid-sentence word can.
 - **Adversarial text.** Patterns have bounded quantifiers and a match timeout (2 s per rule), and pathological inputs are tested, but a
-  caller must treat an exception as "do not submit".
+  caller must treat an exception as "do not submit". Cost per rule was measured on 200 000-character adversarial inputs
+  (`--filter "Category=RuleCost"`): none is superlinear; the obfuscated-email scan, formerly about 7 microseconds per character on a long
+  unbroken token, is now found from its marker and costs about 350 nanoseconds per character at worst ([ADR-0063](../adr/0063-pii-detector-rule-cost-and-over-masking.md)).
+- **Obfuscated emails** are recognised in the `[at]`, `(at)` and `{at}` forms with `.`, `[dot]` or `(dot)` before the domain parts; other spellings are not
+  ([OP-30](../OPEN-PROBLEMS.md#op-30-obfuscated-email-spellings-beyond-the-bracketed-forms-are-not-detected)).
 
 ## Measured numbers
 
@@ -107,6 +114,10 @@ dev file they are capitalised tool names and inflected Polish city names.
 ```bash
 dotnet test tests/ExitInterviewAgent.Privacy.Tests --filter "Category=PiiEvaluation" --logger "console;verbosity=detailed"
 ```
+
+A third corpus, `overmask.txt` (17 lines, 7 gold names), was written for the over-masking fixes of ADR-0063 and is **not** independent evidence; it is scored in fail-closed mode:
+before the fix 30 findings, 23 of them false positives (precision 23.3 %, CI 12-41 %), after 7 findings and none (100 %, CI 65-100 %), recall 7/7 both times.
+The dev and held-out rows above are identical before and after the fix.
 
 The floors (`EvaluationTests.Floors`) sit a few points under these numbers. Raise them when the detector improves; do not lower
 them to make a change pass. The numbers above were taken on 2026-10-05 from this command at the commit that introduced the
