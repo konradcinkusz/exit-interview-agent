@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
         var authApi = app.MapGroup("/api/v1").RequireAuthorization(AuthPolicies.Account).RequireRateLimiting(ApiExtensions.ApiPolicy).WithValidation();
         authApi.MapAccountEndpoints();
         authApi.MapAccountSubmissionEndpoints();
+        authApi.MapSignalsEndpoints();
 
         // No account, no token: ticketed submission and receipt deletion. Short enough to read aloud; the architecture test pins the list.
         var publicApi = app.MapGroup("/api/v1").AllowAnonymous().WithValidation();

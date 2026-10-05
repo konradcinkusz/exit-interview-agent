@@ -37,7 +37,7 @@ below is built on that assumption. Whether they are legally anonymous is a quest
 | **Record store** (`interviewdb`) | the versioned record: per-topic rating (1-5 or null), verbatim supporting quotes, confidence, PII-masked flag, `aiDisclosed` flag, pseudonymous interview id, employer id, coarse bands, receipt-code **hash** | user id / `sub`, account email, IP, user agent, receipt code in clear | Planned (T1 schema, T5 store) |
 | **Submission ledger** (separate table, ideally separate schema/DbContext) | keyed HMAC of (`sub`, employer id); key version; day-level (or no) creation timestamp | content, record id, interview id, receipt hash, IP | Planned (T5) |
 | **Ticket table** | hash of a random ticket, `sub` it was minted for, expiry | employer, record, content | Implemented (T5 server, T9 mint UI, T11 redemption by the CLI) |
-| **Signals read model** | aggregates per employer × topic with n and uncertainty, only n ≥ K | individual records, quotes | Planned (T10) |
+| **Signals read model** (`signals` schema) | the published snapshot: per employer × topic, n, mean with interval, reliability, coverage band, and clean single-band cuts, each from at least K ratings | individual records, quotes, interview ids, any cell below K; it keeps no record-level state at all | **Implemented** (T10, [AGGREGATION](AGGREGATION.md), [ADR-0052](../adr/0052-signals-module-boundary-input-port-and-store.md)) |
 | **Logs / traces / metrics** | request metadata: route, status, latency, size class | content, quotes, employer, `sub`, receipt codes, tickets, IP beyond what the platform adds | Planned (T5/T6 enforce; kernel telemetry exists, see [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) P15 row) |
 
 Model access is behind `IChatClient` (brief §4); the project hosts no model, so the AI provider is *outside* this
@@ -181,8 +181,8 @@ On submission the server returns a random receipt code once and stores only its 
 - Deleting an *account* (authservice soft-delete + reaper, [identity guide](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/IDENTITY-AND-ACCOUNTS.md) §8) cannot delete
   the person's records, because nothing links them. The UI must say so before the user deletes the account and
   tell them to use their receipt codes first. (Tension with GDPR erasure: [CONSIDERATIONS §2](../legal/CONSIDERATIONS.md).)
-- Deleting a record can drop a group below K. Aggregates must be recomputed from the remaining records and
-  withdrawn when n < K (Planned, T10); backups age out on the platform's schedule (state it in the retention table).
+- Deleting a record can drop a group below K. Aggregates are recomputed from the remaining records and
+  withdrawn when n < K at the next batch (Implemented, T10: until then the deleted record is still counted, and the API says so); backups age out on the platform's schedule (state it in the retention table).
 
 ### 5.4 Submission tickets for the CLI (Implemented: server T5, web T9, CLI T11 ([cli-submission](../architecture/cli-submission.md)))
 
@@ -210,20 +210,22 @@ An operator who records live request timing at the edge (reverse proxy, platform
 redemption to record insertion. That is listed in the [threat model](../security/THREAT-MODEL.md) as a residual
 risk, not as solved.
 
-### 5.5 Aggregates: k-threshold, uncertainty, no ranking (Planned, T10)
+### 5.5 Aggregates: k-threshold, uncertainty, no ranking (Implemented, T10)
 
-- Published only when n ≥ K (configurable, default 5; brief §6). The default is the brief's number, not a
-  privacy guarantee: K = 5 is a convention, and its adequacy depends on band granularity (open problem).
-- **K applies to every cell that is shown**, not just the employer total. *Decided (ADR-0019, T10):* any cut by band or topic that
-  has fewer than K records is suppressed, and suppression must not be undoable by subtraction (if the total and all
-  but one small cell are shown, the hidden cell is exposed). Show total and one cut, not the cross-product.
-- **Differencing.** A live aggregate that moves from n = 5 to n = 6 discloses the sixth record's contribution to
-  anyone who watches. *Decided (ADR-0019, T10):* publish on a schedule or in batches, not per submission.
-- **Uncertainty on every number**: sample size and an interval travel with each value in the same payload
-  ([metric-ethics §3](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md)). With n = 5 on a 1-5 scale the interval is wide; the UI states that plainly.
-- **No composite employer ranking and no per-person view**, enforced architecturally, i.e. by absence: there is no
-  query, endpoint or table that sorts employers on a single score or lists records for a person. The Signals module
-  has its own project, schema and DbContext with no shared domain types (brief §4, [ADR-0002](../adr/0002-service-layout.md)).
+The rules, their tests and their limits are in [AGGREGATION.md](AGGREGATION.md); decisions in [ADR-0052](../adr/0052-signals-module-boundary-input-port-and-store.md) to
+[0056](../adr/0056-signals-api-caching-rate-limits-and-demo-data.md). In short:
+
+- Published only when n ≥ K **per displayed cell** (default 5, configurable, at least 3). The default is the brief's number, not a privacy guarantee: K = 5 is a convention
+  and its adequacy depends on band granularity ([OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups), [AGGREGATION §7](AGGREGATION.md#7-what-k-does-not-protect-against)).
+- **Single-band cuts only, each a clean partition or withheld whole**: a cut is published only when every band is empty or has at least K ratings and so is the group that left the band out. This replaces the
+  textbook "hide the smallest shown cell too", which is safe for one snapshot and not for two one record apart ([ADR-0053](../adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md)).
+- **Differencing.** The snapshot is rebuilt **once per batch** (default a day), never on a submission; it carries the start of its period, not the moment a run ended. Within one snapshot no group below K is
+  recoverable by subtraction; for an adversary whose own record moves between two snapshots, no group of *other* people below K - 1 is (exhaustive and property tests, with mutants).
+- **Uncertainty on every number**: n, a 95% interval that is not falsely precise at small n, a reliability label that moves with n, and the coverage of the cell next to the rating
+  ([metric-ethics §3](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md)). With n = 5 the interval is wide and the UI states that plainly.
+- **No composite employer ranking and no per-person view**, enforced by absence: no field, column, query or route for a score, an average across topics, a rank or a percentile; employers are listed alphabetically;
+  there is no endpoint that returns a record or a quote. The module has its own project, schema and `DbContext` with no shared domain types (brief §4, [ADR-0002](../adr/0002-service-layout.md)).
+- Deletions (receipt code, retention purge) reach the aggregates **at the next batch** and the API says so.
 - Individual reviews are never published (brief §2). See [CONSIDERATIONS §3](../legal/CONSIDERATIONS.md).
 
 ### 5.6 Consents and accounts (T2 Implemented: consent gate, account deletion semantics; T9 Planned: the rest of the portal)
@@ -277,7 +279,7 @@ determination ([CONSIDERATIONS](../legal/CONSIDERATIONS.md)).
 | Ledger entry | configurable window, default 365 days ([ADR-0028](../adr/0028-submission-ledger-hmac-rotation-and-window.md)), shorter than the record age on purpose | scheduled purge job; old HMAC keys are removed from configuration by the operator after the window | Implemented (T5) |
 | Ticket | 15-20 minutes (TTL, expiry rounded up to 5); deleted at redemption | delete at redemption and a 5-minute sweep | Implemented (T5) |
 | Account, consents, authservice audit | per authservice: soft delete with a retention window then a reaper | authservice | Implemented in authservice ([guide §8](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/IDENTITY-AND-ACCOUNTS.md)); window values are authservice configuration |
-| Aggregates | recomputed from remaining records; withdrawn when n < K | Signals job | Planned (T10) |
+| Aggregates | the snapshot is rebuilt from the remaining records once per batch; a cell is withdrawn when n < K, and a deleted record stays in the published numbers until then | Signals publisher | **Implemented** (T10, [ADR-0055](../adr/0055-publication-batches-snapshot-and-deletion-semantics.md)) |
 | Logs and traces | platform-set; contain no content (§5.7) | n/a | Planned |
 | Database backups | the platform's backup schedule; deletions reach backups only as they age out | n/a | **Assumption**: no backup policy exists yet (nothing is deployed) |
 

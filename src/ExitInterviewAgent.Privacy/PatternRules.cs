@@ -5,7 +5,7 @@ namespace ExitInterviewAgent.Privacy;
 /// <summary>Structural rules: formats that identify a person or an account regardless of the language around them.</summary>
 internal static class PatternRules
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan Timeout = RegexBudget.Timeout;
     private const RegexOptions Opts = RegexOptions.CultureInvariant;
 
     private static Regex R(string pattern, RegexOptions extra = RegexOptions.None) => new(pattern, Opts | extra, Timeout);

@@ -9,7 +9,7 @@ namespace ExitInterviewAgent.Privacy;
 /// </summary>
 internal sealed class NameRules
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan Timeout = RegexBudget.Timeout;
     private const RegexOptions Opts = RegexOptions.CultureInvariant;
 
     private const string Name = @"\p{Lu}[\p{L}\p{M}'’]{0,40}(?:-\p{Lu}[\p{L}\p{M}'’]{0,40}){0,2}";

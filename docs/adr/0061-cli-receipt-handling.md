@@ -17,4 +17,4 @@ The receipt code is a bearer secret with no account link: the only way to delete
 ## Consequences
 
 - A person who does nothing keeps nothing: no file, no history, only what the terminal's scrollback holds. That is the trade-off between "no secret on disk unless asked" and "a lost code cannot be recovered"; the message makes the choice visible.
-- Windows: `UnixCreateMode` does not apply; the file inherits the folder's ACL. The CLI says "readable only by you *where the system supports it*" (OP-19).
+- Windows: `UnixCreateMode` does not apply; the file inherits the folder's ACL. The CLI says "readable only by you *where the system supports it*" (OP-23).
