@@ -95,12 +95,12 @@ public class Layer1Tests
     }
 
     [Fact]
-    public void The_protocols_own_wording_is_graded_and_two_of_its_six_topic_questions_are_double_barrelled()
+    public void The_protocols_own_wording_is_graded_and_none_of_its_six_topic_questions_is_double_barrelled_or_leading()
     {
-        // A recorded finding (docs/eval/METHODOLOGY.md): the independent rule set flags the management and culture questions as two questions in one.
+        // Was a recorded finding (docs/eval/METHODOLOGY.md): management and culture were two questions in one; protocol 1.1 asks one thing each (ADR-0062).
         var flagged = ExitInterviewAgent.Agent.Protocol.InterviewProtocol.Current.Topics.Where(t => IndependentRules.IsDoubleBarrelled(t.Question)).Select(t => t.Id).ToList();
 
-        Assert.Equal(["management", "culture"], flagged);
+        Assert.Empty(flagged);
         Assert.All(ExitInterviewAgent.Agent.Protocol.InterviewProtocol.Current.Topics, t => Assert.False(IndependentRules.IsLeading(t.Question)));
     }
 

@@ -201,7 +201,7 @@ public sealed class InterviewRunner
     /// <summary>Index into <see cref="Reasons"/>, so the trace carries a number and never a string built from content.</summary>
     private static int RejectionCode(string reason) => Array.IndexOf(Reasons, reason) + 1;
 
-    private static readonly string[] Reasons = ["empty", "too_long", "multi_paragraph", "prompt_leak", "no_question", "multiple_questions", "leading", "loaded", "closed_question", "probe_without_example", "pii", "model_error"];
+    private static readonly string[] Reasons = ["empty", "too_long", "multi_paragraph", "prompt_leak", "no_question", "multiple_questions", "leading", "loaded", "closed_question", "probe_without_example", "pii", "model_error", "double_barrelled"];
 
     // ---- replies -----------------------------------------------------------------------------------------------
 

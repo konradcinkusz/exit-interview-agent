@@ -120,6 +120,16 @@ internal static class Lexicon
         "programme", "human", "resources", "team", "department", "division", "company", "corp", "inc", "ltd", "llc", "sp", "zoo",
         "group", "office", "hr", "management", "sales", "marketing", "engineering", "finance", "operations", "support", "legal",
         "ceo", "cto", "cfo", "coo", "cio", "vp", "qa", "it", "pm", "po", "owner", "master", "scrum", "agile", "kanban",
+        // interview topics: capitalised in lists and headings ("Culture and Pay"), never a person (ADR-0063)
+        "pay", "compensation", "salary", "salaries", "wage", "wages", "bonus", "bonuses", "benefits", "benefit", "perks", "equity", "growth",
+        "workload", "culture", "promotion", "promotions", "training", "development", "communication", "leadership", "flexibility", "balance",
+        "onboarding", "recognition", "feedback", "career", "careers", "morale", "stress", "burnout", "hours", "vacation", "pension",
+        "insurance", "appraisal", "appraisals", "reviews", "strategy", "processes", "tools", "politics", "trust", "respect", "safety",
+        "transparency", "reasons", "themes", "answers", "interview", "summarise", "summarize", "extract", "summary", "topics",
+        "wynagrodzenie", "wynagrodzenia", "wynagrodzeniu", "wynagrodzeniem", "premia", "premie", "premii", "premiach", "premią", "pensja",
+        "pensji", "pensję", "podwyżka", "podwyżki", "podwyżek", "podwyżce", "awans", "awansu", "awanse", "rozwój", "rozwoju", "kultura",
+        "kultury", "kulturze", "benefity", "benefitów", "benefitach", "szkolenia", "szkoleń", "komunikacja", "komunikacji", "obciążenie",
+        "atmosfera", "atmosfery", "stres", "stresu", "wypalenie", "urlop", "urlopu", "godziny", "godzin",
         // common capitalised sentence-style words in transcripts
         "yes", "no", "ok", "okay", "thanks", "thank", "please", "hello", "hi", "well", "so", "but", "and", "also", "however",
         "overall", "honestly", "basically", "actually", "maybe", "sure", "right", "good", "great", "bad", "first", "second", "third",

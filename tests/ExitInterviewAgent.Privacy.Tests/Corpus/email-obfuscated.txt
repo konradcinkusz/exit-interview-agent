@@ -1,0 +1,36 @@
+# Obfuscated e-mail regression corpus (ADR-0063). Every line was detected by the single-regex rule that preceded the marker-anchored rule
+# and must stay detected. Synthetic only (example/test domains, invented names). One sample per line; '#' lines and blank lines are ignored.
+pisz: t.wisniewski[at]mailbox.example
+anna.kowalska[at]example[dot]com
+anna.kowalska [at] example [dot] com
+anna.kowalska (at) example (dot) com
+ANNA.KOWALSKA[AT]EXAMPLE[DOT]COM
+anna[At]example.com
+jan_nowak91[at]poczta.example.pl
+o'brien[at]corp.example
+x+tag[at]sub.domain.example.co.uk
+a[at]b.cc
+a[at]b[dot]c[dot]d[dot]e[dot]f[dot]g[dot]h
+zażółć[at]gęślą.example
+иван.петров[at]почта.example
+user 42[at]example.com
+my mail is kasia-m[at]firma-xyz.example, thanks
+write to (kasia.m(at)firma.example) or call
+first.last[at]example.com and second.person[at]example.org
+j[at]e.example
+x.y.z.1.2.3[at]example.example
+mail:a-b_c%d+e[at]ex-ample.example.
+tab	separated[at]example.example
+reach me at me[at]my-domain[dot]example today
+contact: biuro[at]firma[dot]com[dot]pl
+1234567890[at]numbers.example
+..leading.dots[at]example.example
+trailing[at]example.example.
+adam[at]example.example/path
+Mail: A.B[at]C.D!
+see joe[at]example.com;jane[at]example.com
+the address is name [at] host.example
+name[at] host.example
+name [at]host.example
+name[at]host [dot]example
+name[at]host[dot] example

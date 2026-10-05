@@ -1,5 +1,5 @@
 {
-  "protocolVersion": "1.0",
+  "protocolVersion": "1.1",
   "language": "en",
   "opening": "Hello, and thank you for taking the time. Before we begin, three things. First, I am an AI interviewer, not a person. Second, here is what is stored: only a short structured record with a rating and a few of your own sentences for each of six topics, a random identifier, and broad bands such as how long you worked there. It contains no names and is not linked to your account. Anything you say that looks like a name or contact detail is masked before it is kept, and the full conversation is not stored. Third, you can stop at any moment by telling me, and if you do, nothing from this conversation is kept. Do you agree to continue? Please answer yes or no.",
   "consentReask": "I need a clear answer before we continue. Do you agree to take part, on the terms I described? Please answer yes or no, or tell me if you would like to stop.",
@@ -19,10 +19,10 @@
   },
   "topics": [
     { "id": "onboarding", "title": "Onboarding", "question": "Let us start with your first weeks. How did you experience joining the company and getting started in your role?" },
-    { "id": "management", "title": "Management", "question": "Tell me about how you were managed day to day, and how decisions that affected your work were made." },
+    { "id": "management", "title": "Management", "question": "Tell me about how you were managed day to day." },
     { "id": "growth", "title": "Growth", "question": "What opportunities, if any, did you have to learn new things or to move forward in your career there?" },
     { "id": "pay_vs_promises", "title": "Pay versus promises", "question": "How did your pay and benefits compare with what you understood they would be when you joined or were promoted?" },
-    { "id": "culture", "title": "Culture", "question": "How would you describe how people worked together there and what was expected of them?" },
+    { "id": "culture", "title": "Culture", "question": "How would you describe how people worked together there?" },
     { "id": "reason_for_leaving", "title": "Reason for leaving", "question": "What led to your decision to leave?" }
   ],
   "limits": {

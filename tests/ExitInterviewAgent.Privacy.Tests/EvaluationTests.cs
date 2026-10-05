@@ -55,9 +55,17 @@ public class EvaluationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Overmask_corpus_fail_closed_mode()
+    {
+        var s = Run("over-masking / fail-closed", "overmask.txt", Strict);
+        Assert.True(s.Recall >= Floors.OvermaskRecall, $"recall {s.Recall:P1}");
+        Assert.True(s.Precision >= Floors.OvermaskPrecision, $"precision {s.Precision:P1}");
+    }
+
+    [Fact]
     public void Fail_closed_never_masks_less_than_default()
     {
-        foreach (var corpus in new[] { "dev.txt", "heldout.txt" })
+        foreach (var corpus in new[] { "dev.txt", "heldout.txt", "overmask.txt" })
             foreach (var sample in Corpus.Load(corpus))
             {
                 var open = Default.Detect(sample.Text);
@@ -96,5 +104,6 @@ public class EvaluationTests(ITestOutputHelper output)
     {
         public const double DevRecall = 0.95, DevPrecision = 0.95, DevStrictRecall = 0.95, DevStrictPrecision = 0.85;
         public const double HeldoutRecall = 0.90, HeldoutPrecision = 0.90, HeldoutStrictRecall = 0.95, HeldoutStrictPrecision = 0.85;
+        public const double OvermaskRecall = 1.0, OvermaskPrecision = 0.95;
     }
 }
