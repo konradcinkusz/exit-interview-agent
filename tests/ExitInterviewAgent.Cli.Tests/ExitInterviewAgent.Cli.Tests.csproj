@@ -11,6 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExitInterviewAgent.Cli\ExitInterviewAgent.Cli.csproj" />
     <ProjectReference Include="..\..\src\ExitInterviewAgent.Providers\ExitInterviewAgent.Providers.csproj" />
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Contracts\ExitInterviewAgent.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

@@ -82,6 +82,11 @@ public static class CliApp
         {
             return await Fail(stderr, e.Message);
         }
+        catch (OperationCanceledException) when (host.Cancellation.IsCancellationRequested)
+        {
+            await stderr.WriteLineAsync("Cancelled.");
+            return 130;
+        }
         catch (ExitInterviewAgent.Providers.ProviderConfigurationException e)
         {
             return await Fail(stderr, e.Message);

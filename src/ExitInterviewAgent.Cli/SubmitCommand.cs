@@ -28,7 +28,7 @@ internal static class SubmitCommand
         {
             if (!File.Exists(recordArg)) throw new ArgumentException("The file given with --record does not exist.");
             if (new FileInfo(recordArg).Length > ExitInterviewAgent.Records.RecordLimits.Default.MaxPayloadBytes) throw new ArgumentException("The file given with --record is larger than any record can be.");
-            record = await File.ReadAllBytesAsync(recordArg, host.Cancellation).ConfigureAwait(false);
+            record = File.ReadAllBytes(recordArg);
         }
 
         return await SubmitFlow.RunAsync(record, host, server, yes, flags["--save-receipt"]).ConfigureAwait(false);
