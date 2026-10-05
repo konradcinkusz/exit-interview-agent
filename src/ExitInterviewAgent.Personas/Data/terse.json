@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1",
+  "id": "terse",
+  "title": "Terse",
+  "description": "Answers in one to three words. After three terse answers in a row the interviewer closes gracefully and nothing substantive is recorded.",
+  "language": "en",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "terse"
+  ],
+  "typing": {
+    "wordsPerMinute": 20,
+    "thinkSeconds": 8
+  },
+  "responses": {
+    "consent": [
+      "Yes."
+    ],
+    "topics": {
+      "onboarding": [
+        "Fine.",
+        "It was ok.",
+        "No.",
+        "Nothing much.",
+        "I guess."
+      ],
+      "management": [
+        "Fine.",
+        "It was ok.",
+        "No.",
+        "Nothing much.",
+        "I guess."
+      ],
+      "growth": [
+        "Fine.",
+        "It was ok.",
+        "No.",
+        "Nothing much.",
+        "I guess."
+      ],
+      "pay_vs_promises": [
+        "Fine.",
+        "It was ok.",
+        "No.",
+        "Nothing much.",
+        "I guess."
+      ],
+      "culture": [
+        "Fine.",
+        "It was ok.",
+        "No.",
+        "Nothing much.",
+        "I guess."
+      ],
+      "reason_for_leaving": [
+        "Fine.",
+        "It was ok.",
+        "No.",
+        "Nothing much.",
+        "I guess."
+      ]
+    },
+    "fallback": [
+      "No."
+    ]
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "unresponsive",
+    "submittable": false
+  }
+}

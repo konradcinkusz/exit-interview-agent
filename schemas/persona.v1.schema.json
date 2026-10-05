@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exit-interview-agent:schema:persona:v1",
+  "title": "Interviewee persona, version 1",
+  "description": "A seeded, data-driven simulator of an interviewee. Synthetic content only: no real person, no real employer. Responses are slots with alternatives; a seed picks among them deterministically. See docs/architecture/interview-agent.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "title", "description", "language", "employer", "context", "behaviors", "typing", "responses", "expected"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "id": { "type": "string", "pattern": "^[a-z]+(-[a-z]+)*$", "maxLength": 40 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "language": { "type": "string", "pattern": "^[a-z]{2,3}$" },
+    "employer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "names"],
+      "properties": {
+        "ref": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "minLength": 3, "maxLength": 64 },
+        "names": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 60 }, "maxItems": 5, "description": "Obviously fictional employer and product names; the PII guard's allow-list." }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenureBand"],
+      "properties": {
+        "tenureBand": { "enum": ["lt_6m", "6m_1y", "1y_3y", "3y_5y", "5y_10y", "gt_10y"] },
+        "seniorityBand": { "enum": ["junior", "mid", "senior", "management"] },
+        "functionBand": { "enum": ["engineering", "product_design", "sales_marketing", "operations_support", "corporate_functions", "other"] }
+      }
+    },
+    "behaviors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["talkative", "terse", "hostile", "vague", "names_person", "prompt_injection", "withdraws_consent", "contradictory"] }
+    },
+    "injectionTargets": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["interviewer", "extractor", "judge"] },
+      "description": "Which component the persona's injected text is aimed at (informational, for the eval harness)."
+    },
+    "plantedLiterals": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 3, "maxLength": 80 },
+      "description": "Fictional names and addresses the persona says. They must not survive in the transcript or the record."
+    },
+    "typing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wordsPerMinute", "thinkSeconds"],
+      "properties": {
+        "wordsPerMinute": { "type": "integer", "minimum": 5, "maximum": 200 },
+        "thinkSeconds": { "type": "integer", "minimum": 0, "maximum": 300 }
+      }
+    },
+    "responses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consent", "topics", "fallback"],
+      "properties": {
+        "consent": { "$ref": "#/$defs/alternatives" },
+        "consentReask": { "$ref": "#/$defs/alternatives" },
+        "topics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["onboarding", "management", "growth", "pay_vs_promises", "culture", "reason_for_leaving"],
+          "properties": {
+            "onboarding": { "$ref": "#/$defs/alternatives" },
+            "management": { "$ref": "#/$defs/alternatives" },
+            "growth": { "$ref": "#/$defs/alternatives" },
+            "pay_vs_promises": { "$ref": "#/$defs/alternatives" },
+            "culture": { "$ref": "#/$defs/alternatives" },
+            "reason_for_leaving": { "$ref": "#/$defs/alternatives" }
+          }
+        },
+        "probes": { "$ref": "#/$defs/byTopic" },
+        "clarifications": { "$ref": "#/$defs/byTopic" },
+        "redirects": { "$ref": "#/$defs/byTopic" },
+        "fallback": { "$ref": "#/$defs/alternatives" }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "endReason", "submittable"],
+      "properties": {
+        "outcome": { "enum": ["completed", "withdrawn", "consent_not_given", "abandoned"] },
+        "endReason": { "type": "string", "pattern": "^[a-z_]+$" },
+        "submittable": { "type": "boolean" },
+        "minProbes": { "type": "integer", "minimum": 0 },
+        "minRedirects": { "type": "integer", "minimum": 0 },
+        "minClarifications": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "alternatives": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1200 }
+    },
+    "byTopic": {
+      "type": "object",
+      "propertyNames": { "enum": ["*", "onboarding", "management", "growth", "pay_vs_promises", "culture", "reason_for_leaving"] },
+      "additionalProperties": { "$ref": "#/$defs/alternatives" }
+    }
+  }
+}

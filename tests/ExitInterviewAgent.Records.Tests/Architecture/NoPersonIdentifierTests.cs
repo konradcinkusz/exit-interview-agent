@@ -2,6 +2,8 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
+using ExitInterviewAgent.TestSupport;
+
 namespace ExitInterviewAgent.Records.Tests.Architecture;
 
 /// <summary>
@@ -12,23 +14,10 @@ namespace ExitInterviewAgent.Records.Tests.Architecture;
 /// </summary>
 public class NoPersonIdentifierTests
 {
-    private static readonly HashSet<string> ForbiddenWords = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "user", "username", "account", "acct", "email", "mail", "ip", "ipv4", "ipv6", "address", "phone", "mobile", "msisdn",
-        "login", "subject", "sub", "device", "fingerprint", "cookie", "session", "token", "jwt", "name", "firstname", "lastname",
-        "surname", "person", "employee", "staff", "worker", "pesel", "nip", "ssn", "passport", "timestamp", "created", "updated",
-        "emotion", "emotional", "sentiment", "mood", "affect", "feeling", "tone", "anger", "angry", "stress", "satisfaction", "happiness",
-        "submitted", "submission", "ticket", "receipt", "hmac", "hash", "geo", "lat", "lon", "latitude", "longitude",
-    };
-
     /// <summary>The only identifier-shaped member allowed: the random, pseudonymous interview id.</summary>
     private static readonly HashSet<string> Allowed = new(StringComparer.Ordinal) { "interviewId", "InterviewId" };
 
-    internal static IEnumerable<string> Violations(IEnumerable<string> names) =>
-        names.Where(n => !Allowed.Contains(n) && Words(n).Any(w => ForbiddenWords.Contains(w) || w.Equals("id", StringComparison.OrdinalIgnoreCase)));
-
-    private static IEnumerable<string> Words(string name) =>
-        Regex.Matches(name, "[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[0-9]+").Select(m => m.Value);
+    internal static IEnumerable<string> Violations(IEnumerable<string> names) => ForbiddenFieldNames.Violations(names, Allowed);
 
     [Fact]
     public void The_guard_can_fail_it_flags_identifier_shaped_names()

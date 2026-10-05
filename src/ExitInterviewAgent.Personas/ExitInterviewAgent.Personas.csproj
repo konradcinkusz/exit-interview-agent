@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Seeded, data-driven interviewee simulators. Synthetic content only (ADR-0024). Depends on Agent only for the IInterviewee seam. -->
+  <ItemGroup>
+    <PackageReference Include="LateApexEarlySpeed.Json.Schema" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.Agent\ExitInterviewAgent.Agent.csproj" />
+    <ProjectReference Include="..\ExitInterviewAgent.Records\ExitInterviewAgent.Records.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Data\*.json" LogicalName="personas/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\schemas\persona.v1.schema.json" LogicalName="persona.v1.schema.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Personas.Tests" />
+  </ItemGroup>
+</Project>

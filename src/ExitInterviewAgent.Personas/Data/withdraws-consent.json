@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1",
+  "id": "withdraws-consent",
+  "title": "Withdraws consent",
+  "description": "Answers two topics, then withdraws consent. The interview stops at once, the transcript is discarded and no record is produced.",
+  "language": "en",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "withdraws_consent"
+  ],
+  "typing": {
+    "wordsPerMinute": 40,
+    "thinkSeconds": 20
+  },
+  "responses": {
+    "consent": [
+      "Yes, I agree."
+    ],
+    "topics": {
+      "onboarding": [
+        "My first 2 weeks were chaotic because my laptop arrived on day 5 and nobody had told my team that I was starting. After that a colleague spent a whole afternoon walking me through the codebase, which was really helpful. Overall the onboarding was uneven but the team was welcoming.",
+        "On my first day there was no desk ready for me and it took 4 days to get access to the systems I needed. Once I had access, a colleague gave me a clear list of what to read first, and that worked well."
+      ],
+      "management": [
+        "My manager was supportive when it came to day to day work, and she always made time for a weekly one to one. But decisions about priorities changed every 2 weeks without much explanation, which made planning hard. I felt trusted to make my own technical decisions.",
+        "In my team the weekly one to one was kept even when things were busy, and I could raise problems openly. What I did not like was that priorities were reset every 2 weeks and nobody explained why."
+      ],
+      "growth": [
+        "Actually, I would like to stop here. I withdraw my consent, please delete everything."
+      ],
+      "pay_vs_promises": [
+        "When I joined, the offer letter mentioned a review after 6 months, and in the end it took 14 months to get a raise of only 3 percent. The benefits were fair, with decent health cover, but the bonus described during hiring never materialised.",
+        "The salary matched the offer on day one, and the health cover was decent. However, I was promised a review after 6 months and it only happened after a year, and the raise was much smaller than I was told to expect."
+      ],
+      "culture": [
+        "People were friendly and helpful, and we often helped each other out after hours when a release was late. However, there was an unspoken expectation to answer messages in the evening, which wore me down over time.",
+        "Most colleagues were respectful and shared what they knew. What I found difficult was that working late was treated as normal, and when I left at 5 pm a few times it was commented on."
+      ],
+      "reason_for_leaving": [
+        "I left because the promised raise never came and I could not see a path to a senior role. A recruiter offered me a position with a clearer career ladder and better pay, so after 3 years I decided to move on.",
+        "Mainly because I could not get a straight answer about promotion and the pay review kept slipping. When an offer with a defined career ladder came along after 3 years, I took it."
+      ]
+    },
+    "fallback": [
+      "I would like to stop."
+    ]
+  },
+  "expected": {
+    "outcome": "withdrawn",
+    "endReason": "consent_withdrawn",
+    "submittable": false
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1",
+  "id": "vague",
+  "title": "Vague",
+  "description": "Answers with generalities. Each topic gets exactly one concrete-example probe, which the persona then answers specifically.",
+  "language": "en",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "vague"
+  ],
+  "typing": {
+    "wordsPerMinute": 30,
+    "thinkSeconds": 12
+  },
+  "responses": {
+    "consent": [
+      "Yes, sure."
+    ],
+    "topics": {
+      "onboarding": [
+        "It was okay, you know, generally fine."
+      ],
+      "management": [
+        "Management was fine, kind of, nothing special."
+      ],
+      "growth": [
+        "Growth was okay, sort of, you know."
+      ],
+      "pay_vs_promises": [
+        "Pay was fine, generally okay, I guess."
+      ],
+      "culture": [
+        "The culture was normal, nothing special, kind of fine."
+      ],
+      "reason_for_leaving": [
+        "It was just time, you know, things were okay."
+      ]
+    },
+    "fallback": [
+      "I do not really have more to say about that."
+    ],
+    "probes": {
+      "onboarding": [
+        "For example, in my first week I had no desk for 3 days and had to borrow a laptop from another team."
+      ],
+      "management": [
+        "One time my team asked for a decision on a release and it took 3 weeks to get an answer, which delayed everything."
+      ],
+      "growth": [
+        "For instance, I asked for a course in my second year and the request was left unanswered for 4 months."
+      ],
+      "pay_vs_promises": [
+        "For example, the offer letter said a review after 6 months and I only got one after 13 months."
+      ],
+      "culture": [
+        "Once, after a late release, the whole team was expected to be online until 11 pm for 2 days in a row."
+      ],
+      "reason_for_leaving": [
+        "The main moment was when I found out that a colleague with the same role was paid 12 percent more than me."
+      ]
+    }
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "all_topics_covered",
+    "submittable": true,
+    "minProbes": 6
+  }
+}
