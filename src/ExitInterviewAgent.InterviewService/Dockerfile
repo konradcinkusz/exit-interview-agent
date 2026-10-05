@@ -7,11 +7,17 @@ WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY src/ExitInterviewAgent.ServiceDefaults/ExitInterviewAgent.ServiceDefaults.csproj src/ExitInterviewAgent.ServiceDefaults/
 COPY src/ExitInterviewAgent.Contracts/ExitInterviewAgent.Contracts.csproj src/ExitInterviewAgent.Contracts/
+COPY src/ExitInterviewAgent.Records/ExitInterviewAgent.Records.csproj src/ExitInterviewAgent.Records/
+COPY src/ExitInterviewAgent.Privacy/ExitInterviewAgent.Privacy.csproj src/ExitInterviewAgent.Privacy/
 COPY src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj src/ExitInterviewAgent.InterviewService/
 RUN dotnet restore src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj
 
 COPY src/ExitInterviewAgent.ServiceDefaults/ src/ExitInterviewAgent.ServiceDefaults/
 COPY src/ExitInterviewAgent.Contracts/ src/ExitInterviewAgent.Contracts/
+COPY src/ExitInterviewAgent.Records/ src/ExitInterviewAgent.Records/
+COPY src/ExitInterviewAgent.Privacy/ src/ExitInterviewAgent.Privacy/
+# The Records project embeds the published schema.
+COPY schemas/ schemas/
 COPY src/ExitInterviewAgent.InterviewService/ src/ExitInterviewAgent.InterviewService/
 RUN dotnet publish src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj \
     -c Release -o /app/publish --no-restore /p:UseAppHost=false

@@ -17,6 +17,9 @@ public sealed class EndpointAuthorizationMatrixTests(ServiceFactory factory) : I
         "/health", "/alive",
         "/.well-known/oauth-protected-resource",
         "/.well-known/oauth-protected-resource/mcp",
+        // T5: no account by design. Both are rate limited per client and globally (ADR-0029, ADR-0030) and read their secret from a header.
+        "/api/v1/receipts",
+        "/api/v1/submissions/ticketed",
     ];
 
     private static readonly string[] DevelopmentOnlyAnonymous = ["/openapi/{documentName}.json"];
@@ -36,6 +39,20 @@ public sealed class EndpointAuthorizationMatrixTests(ServiceFactory factory) : I
             .ToArray();
 
         Assert.Equal(Anonymous.Concat(DevelopmentOnlyAnonymous).Order().ToArray(), anonymous);
+    }
+
+    [Fact]
+    public void Every_anonymous_domain_endpoint_has_its_own_rate_limit_policy()
+    {
+        var anonymousApi = Endpoints().Where(e => Route(e).StartsWith("/api/", StringComparison.Ordinal) && e.Metadata.GetMetadata<IAllowAnonymous>() is not null).ToList();
+
+        Assert.NotEmpty(anonymousApi);
+        foreach (var endpoint in anonymousApi)
+        {
+            var policy = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName;
+            Assert.False(string.IsNullOrEmpty(policy), $"{Route(endpoint)} is anonymous and has no rate-limit policy");
+            Assert.NotEqual(ExitInterviewAgent.ServiceDefaults.ApiExtensions.ApiPolicy, policy);
+        }
     }
 
     [Fact]

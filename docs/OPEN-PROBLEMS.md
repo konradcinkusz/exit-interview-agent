@@ -19,12 +19,15 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-10 | Per-host client registration | Low |
 | OP-11 | Judge calibration labels | Medium |
 | OP-12 | Receipt codes: access without a list of records | Medium |
+| OP-13 | Storage-level correlation between the ledger and the records | Medium |
+| OP-14 | One submission per employer is time-limited by the ledger window | Medium |
 
 ## OP-1. Real employment verification
 
 - **Why it matters.** Without proof that the author worked at the employer, the system cannot tell a real ex-employee from a script,
   a competitor or the employer itself ([threat model T-10](security/THREAT-MODEL.md)). Every aggregate is "claimed by accounts".
-- **What we do now.** `EmploymentVerifier` is an interface with a mock (brief §2, T5); one submission per (account, employer) via the
+- **What we do now.** `IEmploymentVerifier` is an interface with a mock that answers what configuration says (brief §2; implemented in T5, [ADR-0031](adr/0031-submission-pipeline-and-employment-verifier-seam.md));
+  records are stored with a coarse `Verified`/`Unverified`/`Unchecked` level that nothing reads yet; an unavailable verifier degrades to `Unchecked`; one submission per (account, employer) via the
   ledger; rate and size limits; uncertainty on every number; outputs must say "claimed", not "verified".
 - **What would close it.** A verification method that does not reintroduce a person↔employer link in our database: for example,
   a third-party attestation that issues an unlinkable, employer-scoped credential (blind-signature style) or a work-email challenge whose
@@ -119,6 +122,24 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 
 - **Why it matters.** A person cannot list their own records (there is no link), so "access" rights depend on a code the person must have kept
   ([legal §2](legal/CONSIDERATIONS.md)). A lost code means the record cannot be deleted by its author.
-- **What we do now.** Show the code once with a clear warning; nothing else (Planned, T5/T9).
+- **What we do now.** The server returns the code once (Implemented, T5); the warning and any receipt file are the client's job (Planned, T9/T11). A `204` from the
+  deletion endpoint does not confirm a record existed ([ADR-0029](adr/0029-receipt-deletion-semantics.md)), so a person who kept the wrong code is not told.
 - **What would close it.** An *optional*, client-side-only receipt store (the CLI writes encrypted receipts to local disk; the web app offers a
   downloadable receipt file) so the server never learns the link, and a lawyer's view on whether that satisfies the rights it is meant to serve.
+
+## OP-13. Storage-level correlation between the ledger and the records
+
+- **Why it matters.** No column links a ledger entry to a record, every key is random and the only stored time is a week bucket, but rows written in one transaction share a
+  PostgreSQL transaction id and sit next to each other in the heap. Anyone with direct file or system-column access, or a physical backup, can pair them
+  ([ADR-0027](adr/0027-store-time-buckets-and-one-transaction.md); [threat model T-08](security/THREAT-MODEL.md)).
+- **What we do now.** Nothing beyond random keys and coarse buckets; it is documented as a residual risk. Separate transactions would not help on a quiet system.
+- **What would close it.** The ledger in its own database with its own role, written through a queue with batching and delay, so that its commits are not adjacent to any record's;
+  at the cost of the atomic guarantee that currently prevents orphan states. Not chosen; needs an ADR and an operations story.
+
+## OP-14. One submission per employer is time-limited by the ledger window
+
+- **Why it matters.** The ledger is purged after a window (default 365 days) to limit the "this account wrote about that employer" surface, which also ends duplicate suppression: after it
+  the same account can add a second record about the same employer while the first (kept up to 24 months) is still in the aggregates
+  ([ADR-0028](adr/0028-submission-ledger-hmac-rotation-and-window.md); [threat model T-10](security/THREAT-MODEL.md)).
+- **What we do now.** A configurable window and an honest statement. The default is an assumption, not a measurement.
+- **What would close it.** Either a window at least as long as the record age (more exposure), or an aggregate that counts accounts rather than records (needs a link the design refuses).
