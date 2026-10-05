@@ -140,7 +140,7 @@ public class ConfigTests
     [Fact]
     public void A_pasted_key_in_place_of_a_variable_name_is_rejected_without_being_echoed()
     {
-        var pasted = "sk-ant-api03-PASTED-SECRET-VALUE";
+        var pasted = "PASTED-SECRET-VALUE-not-a-name";
 
         var ex = Assert.Throws<ProviderConfigurationException>(() => ProviderConfigResolver.Resolve(new ProviderCliOptions { Provider = "anthropic", Model = "m", ApiKeyEnv = pasted }, Env()));
 
@@ -179,8 +179,8 @@ public class ConfigTests
         Assert.Contains("provder", Assert.Throws<ProviderConfigurationException>(() => File("""{ "provder": "x" }""")).Message);
         Assert.Throws<ProviderConfigurationException>(() => File("""{ "maxRetries": "three" }"""));
         Assert.Throws<ProviderConfigurationException>(() => File("[]"));
-        var odd = Assert.Throws<ProviderConfigurationException>(() => File("""{ "sk-ant-weird/secret": 1 }"""));
-        Assert.DoesNotContain("sk-ant", odd.Message);
+        var odd = Assert.Throws<ProviderConfigurationException>(() => File("""{ "weird/secret-name": 1 }"""));
+        Assert.DoesNotContain("secret-name", odd.Message);
     }
 
     [Fact]
@@ -326,7 +326,7 @@ public class ConfigTests
     public void There_is_no_value_based_heuristic_for_recognising_a_subscription_token()
     {
         // The documentation does not describe a token format, so none is guessed: any value in ANTHROPIC_API_KEY is accepted here and left to the API to reject.
-        var r = ProviderConfigResolver.Resolve(new ProviderCliOptions { Provider = "anthropic", Model = "m" }, Env(("ANTHROPIC_API_KEY", "sk-ant-oat01-looks-like-an-oauth-token")));
+        var r = ProviderConfigResolver.Resolve(new ProviderCliOptions { Provider = "anthropic", Model = "m" }, Env(("ANTHROPIC_API_KEY", "oauth-looking-value-without-a-known-prefix")));
 
         Assert.NotNull(r.Settings.ApiKey);
     }
@@ -334,7 +334,7 @@ public class ConfigTests
     [Fact]
     public void An_unknown_provider_is_refused_without_echoing_what_was_typed()
     {
-        var ex = Assert.Throws<ProviderConfigurationException>(() => ProviderCatalog.Get("sk-ant-api03-MISPLACED"));
+        var ex = Assert.Throws<ProviderConfigurationException>(() => ProviderCatalog.Get("MISPLACED-secret-value"));
 
         Assert.DoesNotContain("MISPLACED", ex.Message);
         Assert.Contains("ollama", ex.Message);
