@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The interview record: immutable model, schema validation, canonical form, quote fidelity. BCL + one JSON-Schema package (ADR-0008). -->
+  <ItemGroup>
+    <PackageReference Include="LateApexEarlySpeed.Json.Schema" />
+    <EmbeddedResource Include="..\..\schemas\exit-interview-record.v1.schema.json" LogicalName="exit-interview-record.v1.schema.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Records.Tests" />
+  </ItemGroup>
+</Project>

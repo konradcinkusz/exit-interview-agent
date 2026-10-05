@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Deterministic PII detector/masker: BCL only, no model, no network. -->
+</Project>
