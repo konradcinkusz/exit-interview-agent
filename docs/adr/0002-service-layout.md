@@ -22,7 +22,7 @@ projects for them.
 | `authservice` | pinned image in the AppHost and `flyio/authservice.fly.toml` | separate instance, own database and signing key, never copied (ADR-003) |
 | `web` | `web/app` | Next.js with the BFF; the only thing the browser talks to |
 | `cli` | **not created yet** | a .NET self-contained project `src/ExitInterviewAgent.Cli` added by T4/T11, referencing `Contracts` only |
-| `eval` | **not created yet** | a project `src/ExitInterviewAgent.Eval` added by T7, with its own test project |
+| `eval` | **created (T7)** | `src/ExitInterviewAgent.Eval`, with its own test project ([ADR-0037](0037-eval-harness-architecture.md)) |
 
 No placeholder projects are reserved: an empty project is a promise nobody has checked. Test projects
 mirror source projects as `tests/<Project>.Tests`. The shared kernel (`ExitInterviewAgent.ServiceDefaults`)

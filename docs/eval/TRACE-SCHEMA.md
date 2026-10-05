@@ -1,6 +1,6 @@
 # Interview trace schema
 
-Status: **Implemented** on this branch (T4); consumed by T6 (providers) and T7 (eval harness). Companion documents:
+Status: **Implemented** (T4); consumed by T6 (providers) and by the T7 eval harness (`src/ExitInterviewAgent.Eval`, [ADR-0037](../adr/0037-eval-harness-architecture.md)): `TraceRecorder` captures one trace per run and the Layer 1 graders read only the names and attributes in this file. The operation table the harness derives constraint C-10 from is [SPEC §2](SPEC.md#2-the-operation-table-normative). Companion documents:
 [interview agent](../architecture/interview-agent.md), [eval methodology](METHODOLOGY.md),
 [privacy design](../privacy/DESIGN.md) (no PII or interview content in logs or traces, brief §6).
 

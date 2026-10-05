@@ -1,0 +1,273 @@
+# Hand labels for the Layer 2 judge (docs/eval/SPEC.md §5, §9). Synthetic questions and replies only.
+#
+# WHO LABELLED: the AI session that wrote the harness, by reading each item against the anchors in evals/rubrics/judge.yaml, before any judge ran.
+# That makes this an AUTHOR-LABELLED, NON-HUMAN set: a rehearsal of the calibration protocol, not a calibration (ai-evals §5). It exercises the protocol
+# end to end and can find rubric defects cheaply; it cannot discharge the rule, which says 'against humans'. The same author wrote the rubric and the
+# labels, so agreement with them is partly agreement with the author's own reading. The judge gate stays shut until labels with labeller_kind: human
+# exist under the owner's handle (evals/rubrics/judge.yaml, calibration.owner_handle).
+#
+# Level 0, 1 and 2 are the anchors of the criterion. Questions marked 'the protocol's own wording' are the questions the agent actually asks.
+version: 1.0.0
+labeller: author-ai
+labeller_kind: ai-author
+provenance: >-
+  Written by the author of the harness (an AI session) from the anchors; no judge output and no rule output was consulted while labelling.
+items:
+  - id: j-001
+    rubric: R-01
+    question: "Surely your manager made things difficult for you, didn't they?"
+    label: 0
+    rationale: "'Surely' plus a tag question presupposes the answer."
+  - id: j-002
+    rubric: R-01
+    question: "How awful was the way management treated the team there?"
+    label: 0
+    rationale: "'How awful' loads the evaluation into the question."
+  - id: j-003
+    rubric: R-01
+    question: "Don't you think the pay was unfair given how hard you worked?"
+    label: 0
+    rationale: "Negative polar 'don't you think' plus 'unfair' suggests the answer."
+  - id: j-004
+    rubric: R-01
+    question: "You must have been frustrated with the lack of promotion, weren't you?"
+    label: 0
+    rationale: "'You must have been' presupposes an emotion and ends in a tag question."
+  - id: j-005
+    rubric: R-01
+    question: "Obviously the culture was toxic, so what made it worst?"
+    label: 0
+    rationale: "'Obviously' and 'toxic' assert the conclusion and 'worst' presupposes it."
+  - id: j-006
+    rubric: R-01
+    question: "Why was your manager so unsupportive?"
+    label: 0
+    rationale: "'Why was' with 'so unsupportive' presupposes the fact."
+  - id: j-007
+    rubric: R-01
+    question: "Wouldn't you say onboarding was a mess?"
+    label: 0
+    rationale: "Negative polar form with a loaded noun."
+  - id: j-008
+    rubric: R-01
+    question: "Tell me honestly, was it as bad as everyone says?"
+    label: 0
+    rationale: "Suggests the answer and invokes other people's opinion."
+  - id: j-009
+    rubric: R-01
+    question: "Of course you left because of the money, right?"
+    label: 0
+    rationale: "'Of course' and a tag 'right?' suggest the answer."
+  - id: j-010
+    rubric: R-01
+    question: "How stressful was the workload?"
+    label: 0
+    rationale: "'How stressful' presupposes that it was stressful."
+  - id: j-011
+    rubric: R-01
+    question: "Did you get enough support from your manager?"
+    label: 1
+    rationale: "Closed yes-or-no question; does not suggest which answer, but invites a one-word reply."
+  - id: j-012
+    rubric: R-01
+    question: "Were you happy with your pay?"
+    label: 1
+    rationale: "Closed question about an emotion; neutral in intent."
+  - id: j-013
+    rubric: R-01
+    question: "What was onboarding like and how did your manager treat you?"
+    label: 1
+    rationale: "Two questions in one."
+  - id: j-014
+    rubric: R-01
+    question: "Tell me about how you were managed day to day, and how decisions that affected your work were made."
+    label: 1
+    rationale: "Two facets in one request (management and decision making); the protocol's own wording for the management topic."
+  - id: j-015
+    rubric: R-01
+    question: "How would you describe how people worked together there and what was expected of them?"
+    label: 1
+    rationale: "Two questions in one (collaboration and expectations); the protocol's own wording for the culture topic."
+  - id: j-016
+    rubric: R-01
+    question: "Was the promotion process clear?"
+    label: 1
+    rationale: "Closed question; 'clear' is the only option offered, which leans slightly."
+  - id: j-017
+    rubric: R-01
+    question: "Did you feel valued?"
+    label: 1
+    rationale: "Closed question about an emotion."
+  - id: j-018
+    rubric: R-01
+    question: "Did your manager give you regular feedback?"
+    label: 1
+    rationale: "Closed question; neutral in intent."
+  - id: j-019
+    rubric: R-01
+    question: "How were disagreements with your manager handled?"
+    label: 1
+    rationale: "Presupposes that there were disagreements, mildly."
+  - id: j-020
+    rubric: R-01
+    question: "I have heard this described in two different ways. Which is closer to how it was for you, or was it both at different times?"
+    label: 1
+    rationale: "Offers two framings, which can steer the answer, but allows 'both'; the protocol's own clarification wording."
+  - id: j-021
+    rubric: R-01
+    question: "Let us start with your first weeks. How did you experience joining the company and getting started in your role?"
+    label: 2
+    rationale: "Open and single-themed; the protocol's onboarding question."
+  - id: j-022
+    rubric: R-01
+    question: "What opportunities, if any, did you have to learn new things or to move forward in your career there?"
+    label: 2
+    rationale: "'If any' keeps it open; the protocol's growth question."
+  - id: j-023
+    rubric: R-01
+    question: "How did your pay and benefits compare with what you understood they would be when you joined or were promoted?"
+    label: 2
+    rationale: "Open comparison; the protocol's pay question. Frames 'what you understood' without evaluating."
+  - id: j-024
+    rubric: R-01
+    question: "What led to your decision to leave?"
+    label: 2
+    rationale: "Open; the protocol's reason-for-leaving question."
+  - id: j-025
+    rubric: R-01
+    question: "How would you describe your relationship with your team?"
+    label: 2
+    rationale: "Open and neutral."
+  - id: j-026
+    rubric: R-01
+    question: "What was the process for deciding your priorities?"
+    label: 2
+    rationale: "Open and neutral."
+  - id: j-027
+    rubric: R-01
+    question: "Could you tell me more about how reviews worked?"
+    label: 2
+    rationale: "Open and neutral."
+  - id: j-028
+    rubric: R-01
+    question: "What, if anything, would you have changed about how you were onboarded?"
+    label: 2
+    rationale: "'If anything' keeps it open."
+  - id: j-029
+    rubric: R-01
+    question: "To protect people's privacy I do not record names. Could you describe what happened in terms of what was done, or in terms of a role such as your manager or a colleague?"
+    label: 2
+    rationale: "Neutral redirect; asks for the same content in another form; the protocol's redirect wording."
+  - id: j-030
+    rubric: R-01
+    question: "What was a typical week like?"
+    label: 2
+    rationale: "Open and neutral."
+  - id: j-031
+    rubric: R-02
+    question: "Could you give me one specific example of that, a particular situation or moment?"
+    preceded_by: "It was okay, you know, generally fine."
+    label: 2
+    rationale: "One concrete example, anchored by 'of that', neutral; the protocol's probe."
+  - id: j-032
+    rubric: R-02
+    question: "Could you give me one specific example of that, a particular situation or moment?"
+    preceded_by: "My manager was great, really good, you know, generally fine."
+    label: 2
+    rationale: "Same probe, same verdict."
+  - id: j-033
+    rubric: R-02
+    question: "Can you think of one particular moment when that happened, and what took place?"
+    preceded_by: "Management was fine, kind of, nothing special."
+    label: 2
+    rationale: "One moment, anchored, neutral."
+  - id: j-034
+    rubric: R-02
+    question: "What is one specific situation you remember that shows what you mean?"
+    preceded_by: "Growth was okay, sort of, you know."
+    label: 2
+    rationale: "One situation, anchored, neutral."
+  - id: j-035
+    rubric: R-02
+    question: "Could you describe a single instance where that came up?"
+    preceded_by: "The culture was normal, nothing special, kind of fine."
+    label: 2
+    rationale: "One instance, anchored."
+  - id: j-036
+    rubric: R-02
+    question: "For one concrete case, what happened the last time that came up?"
+    preceded_by: "Pay was fine, generally okay, I guess."
+    label: 2
+    rationale: "One case, anchored."
+  - id: j-037
+    rubric: R-02
+    question: "Could you give an example of when the support was missing?"
+    preceded_by: "Honestly there was no support at all, and decisions were chaotic and unfair, and nobody explained anything."
+    label: 2
+    rationale: "One example, anchored to the claim."
+  - id: j-038
+    rubric: R-02
+    question: "Could you give an example?"
+    preceded_by: "Growth was okay, sort of, you know."
+    label: 1
+    rationale: "Asks for an example but generic: of what?"
+  - id: j-039
+    rubric: R-02
+    question: "Could you give me an example of something from a different team?"
+    preceded_by: "Pay was fine, generally okay, I guess."
+    label: 1
+    rationale: "Asks for an example but not of what was just said."
+  - id: j-040
+    rubric: R-02
+    question: "Can you give an example and also tell me how that made you feel?"
+    preceded_by: "It was just time, you know, things were okay."
+    label: 1
+    rationale: "A second request (feelings) is bundled in, and it asks about an emotion."
+  - id: j-041
+    rubric: R-02
+    question: "Could you give me an example, and was that typical of the whole team?"
+    preceded_by: "Management was fine, kind of, nothing special."
+    label: 1
+    rationale: "Bundles a second question."
+  - id: j-042
+    rubric: R-02
+    question: "Could you say more about that?"
+    preceded_by: "Management was fine, kind of, nothing special."
+    label: 0
+    rationale: "Asks for elaboration, not for an example."
+  - id: j-043
+    rubric: R-02
+    question: "Why do you think it was only okay?"
+    preceded_by: "It was okay, you know, generally fine."
+    label: 0
+    rationale: "Asks for a reason, not an example."
+  - id: j-044
+    rubric: R-02
+    question: "What rating would you give it?"
+    preceded_by: "Pay was fine, generally okay, I guess."
+    label: 0
+    rationale: "Asks for a rating."
+  - id: j-045
+    rubric: R-02
+    question: "Was there a time when your manager was clearly in the wrong?"
+    preceded_by: "Management was fine, kind of, nothing special."
+    label: 0
+    rationale: "Suggests the content of the example and is closed."
+  - id: j-046
+    rubric: R-02
+    question: "Tell me about the worst thing that happened."
+    preceded_by: "The culture was normal, nothing special, kind of fine."
+    label: 0
+    rationale: "Suggests that the example should be negative."
+  - id: j-047
+    rubric: R-02
+    question: "Give me an example and name the people involved."
+    preceded_by: "It was okay, you know, generally fine."
+    label: 0
+    rationale: "Asks for names."
+  - id: j-048
+    rubric: R-02
+    question: "Could you give an example of when the pay was clearly unfair?"
+    preceded_by: "Pay was fine, generally okay, I guess."
+    label: 0
+    rationale: "Suggests the content ('unfair') that the interviewee did not say."

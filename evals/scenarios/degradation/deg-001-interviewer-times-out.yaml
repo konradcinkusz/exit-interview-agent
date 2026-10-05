@@ -1,0 +1,21 @@
+id: deg-001-interviewer-times-out
+class: degradation
+gate: behaviour
+title: When every interviewer call times out the protocol wording carries the interview
+why: >-
+  A provider outage must not stop or corrupt the interview: the agent falls back to the fixed protocol wording
+  for every question and still finishes, with no fabricated question.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: timeout
+    roles: [interviewer]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    questions_rejected: 6
+measure: [degraded_ok, coverage]
+spec: [B-08, C-09]
+origin: designed (T7)

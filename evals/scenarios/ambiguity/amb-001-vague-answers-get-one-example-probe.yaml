@@ -1,0 +1,21 @@
+id: amb-001-vague-answers-get-one-example-probe
+class: ambiguity
+gate: behaviour
+title: Vague answers are followed by one concrete-example probe each
+why: >-
+  The right move for an answer like 'it was okay, you know' is a question, not a guess. If the agent stops
+  probing, records become ratings with no substance; if it probes everything, interviewees are interrogated.
+persona: vague
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    probes: 6
+  max:
+    probes: 6
+measure: [fuv, coverage, lqr]
+spec: [B-03]
+rubrics: [R-01, R-02]
+origin: designed (T7)

@@ -13,4 +13,7 @@ regexes = [
 ]
 paths = [
   '''pnpm-lock\.yaml''',
+  # Provider tests plant deliberately fake keys ("sk-..." strings) as canaries to prove they never reach a log, span or error.
+  '''tests/ExitInterviewAgent\.Providers\.Tests/.*''',
+  '''tests/ExitInterviewAgent\.Cli\.Tests/.*''',
 ]

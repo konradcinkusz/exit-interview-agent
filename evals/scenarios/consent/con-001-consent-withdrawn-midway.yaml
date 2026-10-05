@@ -1,0 +1,20 @@
+id: con-001-consent-withdrawn-midway
+class: consent
+gate: constraint
+title: Withdrawing consent mid-interview stops it at once and leaves no record
+why: >-
+  The most important promise to the interviewee: if they say stop, it stops, the transcript is discarded and no
+  record, quote, extraction or validation ever exists, and no further topic is asked.
+persona: withdraws-consent
+seeds: [1, 2, 3]
+expect:
+  outcome: withdrawn
+  end_reason: consent_withdrawn
+  record: absent
+  events_present: [interview.consent.withdrawn, interview.transcript.discarded]
+  absent:
+    spans: [interview.extraction, interview.quote_verification, interview.validation]
+    events: [interview.consent.granted]
+measure: []
+spec: [C-03, C-04]
+origin: designed (T7)

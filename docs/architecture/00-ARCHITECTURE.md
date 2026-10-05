@@ -22,10 +22,12 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `src/ExitInterviewAgent.Agent` | the interview agent core: protocol, state machine, roles, PII guard, quote step, tracing seam, scripted mock model ([interview-agent](interview-agent.md)) | 3 (model abstractions, logging abstractions, JSON-Schema validator) |
 | `src/ExitInterviewAgent.Personas` | seeded, data-driven interviewee simulators (ADR-0024) | 1 (JSON-Schema validator) |
 | `src/ExitInterviewAgent.Cli` | `exit-interview`, the offline demo (ADR-0026) | 0 |
+| `src/ExitInterviewAgent.Eval` | the evaluation harness, library and `exit-interview-eval` tool: scenarios as data, runner, Layer 1 and Layer 2, gate, baseline, report (ADR-0037..0041, [eval README](../eval/README.md)) | 2 (YAML reader, JSON-Schema validator) |
 | `schemas/` | published, versioned schemas: the record (v1 immutable once released, ADR-0009), the extractor output, the persona | n/a |
 | `tests/ExitInterviewAgent.Records.Tests`, `tests/ExitInterviewAgent.Privacy.Tests` | xUnit; golden fixtures; architecture tests; PII evaluation corpus | 3 each |
 | `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; architecture tests | 4 |
 | `tests/ExitInterviewAgent.Agent.Tests`, `tests/ExitInterviewAgent.Personas.Tests`, `tests/ExitInterviewAgent.Cli.Tests` | xUnit; state machine, per-rule and per-persona end-to-end tests, the canary trace test, architecture tests | 3 each |
+| `tests/ExitInterviewAgent.Eval.Tests` | xUnit; corpus validation, statistics, fault injection, Layer 1, the broken-variant mutation tests, judge, calibration, gate, report, architecture (anti-goals) | 3 |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
 | `tests/e2e` | Playwright journeys against the production artifact; axe-core accessibility gate | 1 runtime, 3 dev |
 
@@ -41,8 +43,10 @@ them (REPO-BASELINE §4b).
 `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY`, `METRIC-ETHICS`, `IDENTITY-AND-ACCOUNTS` and `DEMO-DATA-AND-SEEDING`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
-`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The web-panel task (T9, ADR-0047..0051) loaded `FRONTEND-BFF`, `IDENTITY-AND-ACCOUNTS`, `E2E-ACCEPTANCE-TESTING`, `TESTING-STRATEGY`, `SECURITY-REVIEW`, `METRIC-ETHICS` and the reference architecture (P5, P9, P11). (Not loaded here, loaded by the task that needs them:
-`open-source-release`, `research-documentation`.)
+`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The eval-harness task (T7, ADR-0037..0041) loaded `AI-EVALS`,
+`METRIC-ETHICS`, `TESTING-STRATEGY`, `DEMO-DATA-AND-SEEDING`, `research-documentation` and P13 and P15 of the reference architecture. The web-panel task (T9, ADR-0047..0051) loaded
+`FRONTEND-BFF`, `IDENTITY-AND-ACCOUNTS`, `E2E-ACCEPTANCE-TESTING`, `TESTING-STRATEGY`, `SECURITY-REVIEW`, `METRIC-ETHICS` and the reference architecture (P5, P9, P11). (Not loaded here, loaded by the task that needs them:
+`open-source-release`.)
 
 ## Where each principle lives
 
