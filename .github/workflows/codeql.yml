@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: read   # the analyze action reads the workflow run; required on private repositories
     strategy:
       fail-fast: false
       matrix:
