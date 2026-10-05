@@ -44,9 +44,9 @@ them (REPO-BASELINE §4b).
 `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY`, `METRIC-ETHICS`, `IDENTITY-AND-ACCOUNTS` and `DEMO-DATA-AND-SEEDING`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
-`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The eval-harness task (T7, ADR-0037..0041) loaded `AI-EVALS`, The providers task (T6, ADR-0032..0036) loaded the reference architecture (P5, P8, P10, P15), `AI-EVALS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and `SERVICE-API-PATTERNS`.
+`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The eval-harness task (T7, ADR-0037..0041) loaded `AI-EVALS`,
 `METRIC-ETHICS`, `TESTING-STRATEGY`, `DEMO-DATA-AND-SEEDING`, `research-documentation` and P13 and P15 of the reference architecture. The web-panel task (T9, ADR-0047..0051) loaded
-`FRONTEND-BFF`, `IDENTITY-AND-ACCOUNTS`, `E2E-ACCEPTANCE-TESTING`, `TESTING-STRATEGY`, `SECURITY-REVIEW`, `METRIC-ETHICS` and the reference architecture (P5, P9, P11). (Not loaded here, loaded by the task that needs them:
+`FRONTEND-BFF`, `IDENTITY-AND-ACCOUNTS`, `E2E-ACCEPTANCE-TESTING`, `TESTING-STRATEGY`, `SECURITY-REVIEW`, `METRIC-ETHICS` and the reference architecture (P5, P9, P11). The providers task (T6, ADR-0032..0036) loaded the reference architecture (P5, P8, P10, P15), `AI-EVALS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and `SERVICE-API-PATTERNS`. (Not loaded here, loaded by the task that needs them:
 `open-source-release`.)
 
 ## Where each principle lives
