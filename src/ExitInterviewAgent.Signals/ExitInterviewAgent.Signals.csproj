@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Signals module (ADR-0002, ADR-0052): its own context, schema and migrations. It references the kernel and nothing
+       else of this solution: no Records, no Privacy, no Contracts, no InterviewService. An architecture test pins that. -->
+  <PropertyGroup>
+    <RootNamespace>ExitInterviewAgent.Signals</RootNamespace>
+    <AssemblyName>ExitInterviewAgent.Signals</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExitInterviewAgent.ServiceDefaults\ExitInterviewAgent.ServiceDefaults.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExitInterviewAgent.Signals.Tests" />
+  </ItemGroup>
+</Project>
