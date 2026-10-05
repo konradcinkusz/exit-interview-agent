@@ -157,6 +157,13 @@ This directory holds all architecture decisions made during the project, indexed
 | [0070](0070-linking-the-connect-runbook-from-the-connect-page.md) | Linking the connect runbook from the connect page | accepted | "Connect your AI client" page links to the MCP connection guide; guide covers two URLs, OAuth, secrets and troubleshooting |
 | [0071](0071-signals-browser-suite-absence-tests-and-mutation-proof.md) | Signals browser suite: absence tests and mutation proof | accepted | Playwright tests assert no ranking, sorting, comparison or analytics; injected XSS canary proves sanitization; mutations caught by assertions |
 
+## 14. Hardening (0062–0063)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0062](0062-double-barrelled-questions-protocol-1-1-and-guard.md) | Double-barrelled questions: protocol 1.1 and a guard rule | accepted | Protocol 1.1 splits the management and culture questions; `QuestionGuard` rejects double-barrelled questions |
+| [0063](0063-pii-detector-rule-cost-and-over-masking.md) | PII detector: rule cost and over-masking | accepted | The obfuscated-email rule is anchored on its marker (linear cost); over-masking after a closing tag and on topic nouns is fixed |
+
 ---
 
 ## Legend
@@ -181,5 +188,6 @@ Start with the **Foundation** (0001–0005), then pick your domain:
 - **Web security & BFF:** 0047–0051
 - **Signals aggregation:** 0052–0056
 - **Signals web UI:** 0067–0071
+- **Hardening:** 0062–0063
 
 Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related standards guides, and related ADRs. ADRs are immutable once accepted; amendments are noted in later ADRs or in the brief.
