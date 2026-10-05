@@ -42,8 +42,11 @@ public sealed record RecordLimits
 {
     public static RecordLimits Default { get; } = new();
 
-    /// <summary>Largest accepted payload in bytes. The schema's own caps bound a valid record far below this.</summary>
-    public int MaxPayloadBytes { get; init; } = 32 * 1024;
+    /// <summary>
+    /// Largest accepted payload in bytes. Sized for the worst valid record: 30 quotes of 400 code points, each code point
+    /// escaped as a surrogate pair (12 bytes), is 144,000 bytes before structure.
+    /// </summary>
+    public int MaxPayloadBytes { get; init; } = 160 * 1024;
 
     /// <summary>Deepest accepted JSON nesting. A valid record nests 5 levels.</summary>
     public int MaxDepth { get; init; } = 8;

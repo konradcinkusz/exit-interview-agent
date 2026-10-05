@@ -68,6 +68,15 @@ public class ContractDriftTests
     }
 
     [Fact]
+    public void The_schema_documentation_lists_every_error_code_and_every_topic()
+    {
+        var doc = File.ReadAllText(Path.Combine(Fixtures.RepoRoot(), "docs", "architecture", "record-schema.md"));
+
+        Assert.All(RecordErrorCodes.All, code => Assert.Contains($"`{code}`", doc));
+        Assert.All(Wire.Names<Topic>(), topic => Assert.Contains($"`{topic}`", doc));
+    }
+
+    [Fact]
     public void Records_depends_on_nothing_but_the_framework_and_the_schema_validator()
     {
         var refs = typeof(InterviewRecord).Assembly.GetReferencedAssemblies().Select(a => a.Name!).ToArray();

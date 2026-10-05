@@ -18,6 +18,7 @@ public sealed record InterviewMetadata(string ProtocolVersion, string Language, 
 public sealed record TopicEntry
 {
     public const int MaxQuotes = 5;
+    /// <summary>Counted in Unicode code points, as JSON Schema's <c>maxLength</c> counts them.</summary>
     public const int MaxQuoteLength = 400;
 
     public TopicStatus Status { get; }
@@ -41,9 +42,16 @@ public sealed record TopicEntry
         if (rating is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(rating), "Rating is 1-5 or null.");
         var list = quotes.ToArray();
         if (list.Length is 0 or > MaxQuotes) throw new ArgumentException($"A covered topic carries 1-{MaxQuotes} quotes.", nameof(quotes));
-        if (list.Any(q => string.IsNullOrWhiteSpace(q) || q.Length > MaxQuoteLength))
+        if (list.Any(q => string.IsNullOrWhiteSpace(q) || CodePointCount(q) > MaxQuoteLength))
             throw new ArgumentException($"Quotes are non-blank and at most {MaxQuoteLength} characters.", nameof(quotes));
         return new TopicEntry(TopicStatus.Covered, rating, confidence, Array.AsReadOnly(list));
+    }
+
+    private static int CodePointCount(string s)
+    {
+        var n = 0;
+        foreach (var _ in s.EnumerateRunes()) n++;
+        return n;
     }
 
     public bool Equals(TopicEntry? other) =>

@@ -94,19 +94,34 @@ public class ValidationTests
     }
 
     [Fact]
-    public void A_maximal_valid_record_fits_comfortably_inside_the_default_size_limit()
+    public void The_worst_case_valid_record_fits_the_default_size_limit_in_every_encoding()
     {
-        var record = Fixtures.Sample(r => r with
-        {
-            Topics = r.Topics with
-            {
-                Culture = TopicEntry.Covered(3, Confidence.High, Enumerable.Repeat(new string('ż', TopicEntry.MaxQuoteLength), TopicEntry.MaxQuotes)),
-            },
-        });
-        var bytes = RecordSerializer.SerializeCanonical(record);
+        var emoji = string.Concat(Enumerable.Repeat("\U0001F600", TopicEntry.MaxQuoteLength)); // 400 code points, 800 UTF-16 units
+        TopicEntry Max() => TopicEntry.Covered(5, Confidence.High, Enumerable.Repeat(emoji, TopicEntry.MaxQuotes));
+        var record = Fixtures.Sample(r => r with { Topics = new TopicSet(Max(), Max(), Max(), Max(), Max(), Max()) });
 
-        Assert.True(new RecordValidator().Validate(bytes).IsValid);
-        Assert.True(bytes.Length < RecordLimits.Default.MaxPayloadBytes);
+        var escaped = RecordSerializer.SerializeCanonical(record); // surrogate pairs escaped: 12 bytes per code point
+        var raw = Encoding.UTF8.GetBytes(
+            System.Text.RegularExpressions.Regex.Replace(Encoding.UTF8.GetString(escaped), @"\\u[dD]83[dD]\\u[dD][eE]00", "\U0001F600")); // 4 bytes per code point
+
+        Assert.True(escaped.Length > 140_000, $"worst case should be near 144 kB, was {escaped.Length}");
+        Assert.True(escaped.Length < RecordLimits.Default.MaxPayloadBytes);
+        Assert.True(raw.Length < escaped.Length);
+        Assert.True(Validator.Validate(escaped).IsValid);
+        Assert.True(Validator.Validate(raw).IsValid);
+        Assert.Equal(record, Validator.Validate(escaped).Record);
+    }
+
+    [Fact]
+    public void Quote_length_is_counted_in_code_points_by_the_schema_and_the_model_alike()
+    {
+        string Quote(int codePoints) => string.Concat(Enumerable.Repeat("\U0001F600", codePoints));
+        string Json(string quote) => Fixtures.Read("valid/full.json").Replace("\"Feedback only came at the yearly review.\"", JsonSerializer.Serialize(quote));
+
+        Assert.True(Validator.Validate(Json(Quote(400))).IsValid);
+        Assert.Equal(RecordErrorCodes.LengthLimit, Validator.Validate(Json(Quote(401))).Errors.Single().Code);
+        Assert.NotNull(TopicEntry.Covered(3, Confidence.Low, [Quote(400)]));
+        Assert.Throws<ArgumentException>(() => TopicEntry.Covered(3, Confidence.Low, [Quote(401)]));
     }
 
     [Fact]
