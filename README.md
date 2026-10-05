@@ -30,7 +30,7 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
 | MCP adapter | Planned (T8) |
 | Web panel features: own submissions, receipt-code deletion, tickets (consent step and account deletion exist since T2) | Planned (T9) |
-| Signals (aggregates with uncertainty) | Planned (T10) |
+| Signals: employer aggregates with uncertainty. Per displayed cell k (default 5), single-band cuts that are published whole or not at all, batched snapshots (a day by default), deletions at the next batch, an interval that is not falsely precise at small n, coverage next to every rating, no score, no ranking. Two read endpoints (account policy), removable synthetic demo data. [How, and what k does not protect against](docs/privacy/AGGREGATION.md); [module](docs/architecture/signals.md) | **Implemented** (T10, [ADR-0052](docs/adr/0052-signals-module-boundary-input-port-and-store.md)..[0056](docs/adr/0056-signals-api-caching-rate-limits-and-demo-data.md)). The web view that shows it is not built; the PostgreSQL tests need `TEST_POSTGRES_CONNECTION` (CI sets it) |
 | CLI submission with a ticket | Planned (T11) |
 | Security review, release gate, results write-up | Planned (T12) |
 
@@ -64,7 +64,7 @@ Design intent ([full design](docs/privacy/DESIGN.md)); each item is **Planned** 
 
 - The **record has no user id**. A separate **ledger** (keyed HMAC of account and employer, no content, purged after a window) enforces one submission per employer per account.
 - You get a **receipt code** once; presenting it deletes the record without linking it to your account. A lost code cannot be recovered; deleting your account cannot reach your records.
-- Aggregates are shown only with **at least K records** (default 5), **always with uncertainty**, and never as a composite ranking or per-person view. Single reviews are never published.
+- Aggregates are shown only with **at least K ratings in every displayed cell** (default 5), published in **batches** (deletions appear at the next one), **always with uncertainty**, and never as a composite ranking or per-person view. Single reviews are never published. K is a convention, not a guarantee: [what it does not protect against](docs/privacy/AGGREGATION.md#7-what-k-does-not-protect-against).
 - No interview content or personal data in logs, traces or audit events.
 - **Records are treated as personal data, not as anonymous** ([ADR-0018](docs/adr/0018-records-are-treated-as-personal-data.md)).
 - **Who sees your interview:** with the CLI, your AI provider (or nobody, with a local model); with MCP, your AI host and its provider. Our servers receive only the record, never the transcript.

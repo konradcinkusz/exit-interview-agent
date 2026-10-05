@@ -15,8 +15,9 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 |---|---|---|
 | `src/ExitInterviewAgent.AppHost` | P1: composition root, development only | 2 |
 | `src/ExitInterviewAgent.ServiceDefaults` | P2: the shared kernel (plumbing only) | 12 |
-| `src/ExitInterviewAgent.Contracts` | DTOs and stable rejection codes that cross a boundary (submission, tickets) | 0 |
-| `src/ExitInterviewAgent.InterviewService` | the one service; owns `interviewdb`; submission, ledger, receipts, tickets, retention ([submission-flow](submission-flow.md)) | 1 (+ kernel, contracts, records, privacy) |
+| `src/ExitInterviewAgent.Contracts` | DTOs and stable rejection codes that cross a boundary (submission, tickets, signals) | 0 |
+| `src/ExitInterviewAgent.InterviewService` | the one service; owns `interviewdb`; submission, ledger, receipts, tickets, retention ([submission-flow](submission-flow.md)); hosts the Signals module through one adapter, one registration and two read endpoints | 1 (+ kernel, contracts, records, privacy, signals) |
+| `src/ExitInterviewAgent.Signals` | the Signals module: input port, disclosure rules, statistics, batched publisher, snapshot store in its own schema; references the kernel and nothing else ([signals](signals.md), [AGGREGATION](../privacy/AGGREGATION.md), ADR-0052..0056) | 1 (EF Core design tooling; + kernel) |
 | `src/ExitInterviewAgent.Records` | the interview record: immutable model, schema validation, canonical form, quote fidelity ([record-schema](record-schema.md)) | 1 (JSON-Schema validator, ADR-0008) |
 | `src/ExitInterviewAgent.Privacy` | deterministic PII detector and masker ([pii-detector](../privacy/pii-detector.md)) | 0 |
 | `src/ExitInterviewAgent.Agent` | the interview agent core: protocol, state machine, roles, PII guard, quote step, tracing seam, scripted mock model ([interview-agent](interview-agent.md)) | 3 (model abstractions, logging abstractions, JSON-Schema validator) |
@@ -24,7 +25,8 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `src/ExitInterviewAgent.Cli` | `exit-interview`, the offline demo (ADR-0026) | 0 |
 | `schemas/` | published, versioned schemas: the record (v1 immutable once released, ADR-0009), the extractor output, the persona | n/a |
 | `tests/ExitInterviewAgent.Records.Tests`, `tests/ExitInterviewAgent.Privacy.Tests` | xUnit; golden fixtures; architecture tests; PII evaluation corpus | 3 each |
-| `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; architecture tests | 4 |
+| `tests/ExitInterviewAgent.InterviewService.Tests` | xUnit; InMemory; PostgreSQL where `TEST_POSTGRES_CONNECTION` is set; architecture tests | 4 |
+| `tests/ExitInterviewAgent.Signals.Tests` | xUnit; the rules, statistics, attack suite with mutants, publisher with a fake clock, module boundary | 3 |
 | `tests/ExitInterviewAgent.Agent.Tests`, `tests/ExitInterviewAgent.Personas.Tests`, `tests/ExitInterviewAgent.Cli.Tests` | xUnit; state machine, per-rule and per-persona end-to-end tests, the canary trace test, architecture tests | 3 each |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
 | `tests/e2e` | Playwright journeys against the production artifact | 1 runtime, 2 dev |
@@ -41,7 +43,7 @@ them (REPO-BASELINE §4b).
 `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY`, `METRIC-ETHICS`, `IDENTITY-AND-ACCOUNTS` and `DEMO-DATA-AND-SEEDING`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
 `SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
 architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded `AI-EVALS`, `METRIC-ETHICS`, `TESTING-STRATEGY`,
-`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. (Not loaded here, loaded by the task that needs them:
+`DEMO-DATA-AND-SEEDING`, `SERVICE-API-PATTERNS` and `SECURITY-REVIEW`. The signals task (T10, ADR-0052..0056) loaded the reference architecture (P2, P3, P4, P10, P11), `METRIC-ETHICS` (in full), `SERVICE-API-PATTERNS`, `TESTING-STRATEGY`, `SECURITY-REVIEW`, `METRICS-EXPOSITION` and `DEMO-DATA-AND-SEEDING`. (Not loaded here, loaded by the task that needs them:
 `open-source-release`, `research-documentation`.)
 
 ## Where each principle lives
@@ -50,13 +52,13 @@ architecture (P5, P8, P11). The interview-agent task (T4, ADR-0022..0026) loaded
 |---|---|
 | P1 AppHost is the composition root | `src/ExitInterviewAgent.AppHost/Program.cs` (`WithReference`, `WaitFor`, `WithHttpHealthCheck`; no secret literal) |
 | P2 kernel is plumbing | `ExitInterviewAgent.ServiceDefaults`; ceiling in `scripts/check-kernel-size.sh` (CI); boundary in `tests/**/Architecture/KernelBoundaryTests.cs` |
-| P3 database per service | `interviewdb` (this service), `authdb` (authservice); roles per database in `flyio/postgres.fly.toml`. The ledger is a table of `interviewdb`, not a separate database: [OP-13](../OPEN-PROBLEMS.md#op-13-storage-level-correlation-between-the-ledger-and-the-records) |
+| P3 database per service | `interviewdb` (this service), `authdb` (authservice); roles per database in `flyio/postgres.fly.toml`. The ledger is a table of `interviewdb`, not a separate database: [OP-13](../OPEN-PROBLEMS.md#op-13-storage-level-correlation-between-the-ledger-and-the-records). The Signals module has its own `SignalsDbContext`, schema (`signals`), migration history and no shared domain types; it holds published aggregates only ([ADR-0052](../adr/0052-signals-module-boundary-input-port-and-store.md)) |
 | P4 migrate, never ensure | `MigrationExtensions` (hosted service after Kestrel); migrations `InitialBaseline` and `SubmissionStore` (a PostgreSQL test compares the migrated schema with the model and the documented columns); deviation ADR-006 |
 | P5 one signing key, config via environment | authservice holds the only key (ADR-003); the kernel's `AuthenticationExtensions` and the service's `McpAuthenticationExtensions` validate RS256 only (two schemes, ADR-012); scanner in hook and CI |
 | P6 container per service | `src/ExitInterviewAgent.InterviewService/Dockerfile`, `web/app/Dockerfile` |
 | P7 Fly topology | `flyio/*.fly.toml`, `flyio/INFRASTRUCTURE-ANALYSIS.md` (generated, not deployed) |
-| P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, mcp-auth, database, telemetry-export, ledger-key and employment-verifier (an unavailable verifier degrades submissions to level `unchecked`, ADR-0031); startup banner prints the same |
-| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012); web, MCP and ticket entry points all call one `SubmissionService` (ADR-0031) |
+| P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, mcp-auth, database, telemetry-export, ledger-key, employment-verifier and signals (plus `signals-demo-data` while demo data is active) (an unavailable verifier degrades submissions to level `unchecked`, ADR-0031); startup banner prints the same |
+| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012); web, MCP and ticket entry points all call one `SubmissionService` (ADR-0031); the one adapter that turns a stored record into the Signals module's `Observation` and drops everything else (ADR-0052) |
 | P9 `Program.cs` is a manifest | `InterviewService/Program.cs` calls into `Infrastructure/ServiceCollectionExtensions.cs` |
 | P12 tag-driven CI/CD | `.github/workflows/flyio.yml` (never triggered) |
 | P13 test at the layer with the logic | service tests (InMemory), PostgreSQL tests for what InMemory cannot enforce (unique indexes, atomic delete, migrations; skipped and reported as not run without `TEST_POSTGRES_CONNECTION`), Vitest for BFF logic, Playwright for the journey |
@@ -79,8 +81,7 @@ Every row carries a date and a reason. An acknowledged deviation is a decision; 
 ## Known limits of the scaffold (not deviations)
 
 - The BFF rotates refresh tokens (single-flight, per process) and gates on consent (ADR-013); two-factor sign-in is unsupported (501).
-- `interview-service` has the submission slice since T5 (submit, tickets, receipt deletion, retention; no signals, no read of stored records
-  by any endpoint), `GET /api/v1/me`, and the MCP mount point (`/mcp`, scope-guarded, no transport until T8; a Development-only submit probe
+- `interview-service` has the submission slice since T5 (submit, tickets, receipt deletion, retention; no endpoint reads a stored record) and, since T10, two read endpoints over the published signals snapshot (no endpoint returns a record or a quote), `GET /api/v1/me`, and the MCP mount point (`/mcp`, scope-guarded, no transport until T8; a Development-only submit probe
   stands in for the tool).
 - The in-process limiters and the InMemory write gate are single-instance mechanisms; a second replica needs shared state (threat model T-18).
 - The web CSP allows inline scripts and styles (Next emits inline bootstrap scripts; no per-request nonces yet): a weaker CSP than a
