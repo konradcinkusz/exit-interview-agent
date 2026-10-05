@@ -180,3 +180,52 @@ describe("edge gate: CSRF on state-changing API routes", () => {
     expect(verify).not.toHaveBeenCalled();
   });
 });
+
+describe("caching of the Signals reads (ADR-0068)", () => {
+  const signed = { eia_access: "t", eia_consent: "t1|p1" };
+
+  it("leaves the caching of a signals read to the BFF route", async () => {
+    verify.mockResolvedValue({ sub: "s" });
+    for (const path of ["/api/proxy/v1/signals/employers?page=2", "/api/proxy/v1/signals/employers/demo-acme"]) {
+      const res = await proxy(request(path, signed));
+      expect(res.headers.get("x-middleware-next")).toBe("1");
+      expect(res.headers.get("cache-control"), path).toBeNull();
+    }
+  });
+
+  it.each([
+    ["a POST to the same path", "/api/proxy/v1/signals/employers", "POST"],
+    ["another API path", "/api/proxy/v1/me", "GET"],
+    ["another signals path", "/api/proxy/v1/signals/other", "GET"],
+    ["a page", "/signals", "GET"],
+    ["the employer page", "/signals/demo-acme", "GET"],
+  ])("stays no-store for %s", async (_name, path, method) => {
+    verify.mockResolvedValue({ sub: "s" });
+    const headers: Record<string, string> = method === "POST" ? { origin: "http://localhost:3000" } : {};
+    const res = await proxy(request(path, signed, { method, headers }));
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("answers the edge gate's own refusals no-store, even for a signals read", async () => {
+    verify.mockResolvedValue(null);
+    const res = await proxy(request("/api/proxy/v1/signals/employers"));
+    expect(res.status).toBe(401);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("answers a signals read without the consent marker 403 and no-store", async () => {
+    verify.mockResolvedValue({ sub: "s" });
+    const res = await proxy(request("/api/proxy/v1/signals/employers", { eia_access: "t" }));
+    expect(res.status).toBe(403);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("gates the pages: signed out, /signals and an employer page go to sign-in and back", async () => {
+    verify.mockResolvedValue(null);
+    for (const path of ["/signals", "/signals/demo-acme"]) {
+      const res = await proxy(request(path));
+      expect(res.status).toBe(307);
+      expect(location(res)).toBe(`/login?redirect=${encodeURIComponent(path)}`);
+    }
+  });
+});
