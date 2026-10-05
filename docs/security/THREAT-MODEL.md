@@ -161,8 +161,12 @@ deliberately kept), `Implemented` (only where noted).
   [`security-headers.ts`](../../web/app/lib/security-headers.ts), covered by a unit test and a Playwright spec against the production
   artifact. The CSP allows inline scripts and styles (Next emits inline bootstrap scripts; no nonces yet), a known weaker form recorded in
   [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) "Known limits".
-- **Residual.** Low once headers and encoding are in place. **Likelihood medium, impact medium.**
-- **Status.** Open (T9: encoding and markdown rules apply when stored content is first rendered; headers Implemented, T2).
+  **Implemented (T9, [ADR-0047](../adr/0047-nonce-csp-and-style-policy.md)):** the CSP is per request with a nonce, `script-src 'self' 'nonce-…'` with no `unsafe-inline`, no `unsafe-eval` and no `strict-dynamic` in production, and
+  `style-src 'self'` with no `unsafe-inline`. Tested against the production artifact: every page loads with zero CSP violations and no third-party request, an injected inline `<script>` and an inline event
+  handler are refused, the nonce differs per response and is the one on Next's own scripts. Two cross-origin headers were added (`Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`). **Still true:** the portal renders no stored record content
+  (there is no "my records" view and no aggregates yet), so the "encode at render" rule has nothing to apply to; it applies when T10 first renders stored content.
+- **Residual.** Low. `'self'` trusts every script file the origin serves; the CSP is defence in depth behind React's escaping. **Likelihood medium, impact medium.**
+- **Status.** Mitigated for the portal as built (headers and CSP Implemented and tested, T2/T9); the render-time encoding rule is Open until stored content is first rendered (T10).
 
 ### T-07 Tool exfiltration and data leakage via the MCP host
 
@@ -215,7 +219,8 @@ deliberately kept), `Implemented` (only where noted).
   **Implemented (T5, [ADR-0030](../adr/0030-submission-tickets-for-the-cli.md)):** random 256-bit ticket, only its hash and the `sub` stored, expiry rounded up to 5 minutes (the row does not
   hold the mint instant to the second), TTL 15 minutes, at most 3 live tickets and 10 mints an hour per account, header only (the query string is not read), single use decided by one atomic delete
   (24 parallel redemptions on PostgreSQL: one success), row deleted in the same transaction as the ledger entry and record, expired rows swept every 5 minutes, ticket not employer-bound, no
-  ticket in any log, span, event or metric (canary test). **Declined on purpose:** separate transactions, batching and commit jitter: they do not hide the instant from an observer of live traffic
+  ticket in any log, span, event or metric (canary test). **Implemented (T9, [ADR-0048](../adr/0048-one-time-secrets-no-store-and-csrf.md)):** the web page shows a ticket once, holds it in page memory only (not in storage, a cookie or a URL; cleared on expiry, on a
+  button, on leaving, on `pagehide` and on a back/forward restore), and the mint answer is `no-store`; all asserted in the browser suite. **Declined on purpose:** separate transactions, batching and commit jitter: they do not hide the instant from an observer of live traffic
   and, on a quiet system, not from the database either (ADR-0027, ADR-0030).
 - **Residual.** **Redemption instant is a correlation point**; named in the brief as accepted residual risk. Batching
   reduces but cannot remove it against an adversary who sees live traffic. **Likelihood low, impact high; accepted.** Standard HTTP-server spans also record method, route, status,
@@ -272,11 +277,13 @@ deliberately kept), `Implemented` (only where noted).
   (Implemented per [`UI-UX.md`](../ux/UI-UX.md) and [`AuthenticationExtensions`](../../src/ExitInterviewAgent.ServiceDefaults/AuthenticationExtensions.cs): RS256 only); MCP access tokens last 15 minutes by default and logout /
   password change / deletion end MCP connections (authservice [`DEPLOYMENT.md`](https://github.com/konradcinkusz/authservice/blob/main/docs/DEPLOYMENT.md), "Revocation and rotation"); tickets are short-lived and
   require a live session to mint. **Implemented (T2, [ADR-0013](../adr/0013-bff-session-refresh-rotation-and-consent-gate.md)):** the BFF rotates the refresh token single-flight (a
-  replayed token revokes the family at authservice, observed), and logout revokes the account's refresh tokens at authservice. The BFF does not
-  support two-factor sign-in yet (501). MFA is optional in authservice; whether the portal requires it is Open.
+  replayed token revokes the family at authservice, observed), and logout revokes the account's refresh tokens at authservice. **Implemented (T9, [ADR-0050](../adr/0050-two-factor-sign-in-and-account-flows-through-the-bff.md)):**
+  two-factor sign-in (authenticator code or one recovery code; the challenge in an HttpOnly cookie, never in page JavaScript), registration and email verification through the BFF, a same-origin check on every
+  state-changing route on top of `SameSite=Strict` cookies ([ADR-0048](../adr/0048-one-time-secrets-no-store-and-csrf.md)), and a ticket mint that needs a live session. Tested against a stub of authservice only
+  ([OP-17](../OPEN-PROBLEMS.md)). MFA is optional in authservice; whether the portal requires it is Open.
 - **Residual.** A takeover of an account that has *already* submitted cannot reach its records (unlinked), which limits
   harm to future submissions and tickets. **Likelihood medium, impact medium.**
-- **Status.** Open (T9: tickets; MFA decision).
+- **Status.** Mitigated in the portal as built (T9); open: the MFA decision (optional vs required) and a run against the real authservice image.
 
 ### T-13 Insider operator with database and key
 

@@ -104,6 +104,8 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
         interviewService
             .WithEnvironment("Mcp__Issuer", mcpIssuer)
             .WithEnvironment("Mcp__Resource", mcpResource);
+        // The web "Connect your AI client" page shows this address (public value, not a secret), via /api/config.
+        web.WithEnvironment("MCP_RESOURCE_URL", mcpResource);
     }
 
     var authority = $"http://localhost:{AuthservicePort}";
