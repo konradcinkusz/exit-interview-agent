@@ -140,7 +140,11 @@ jobs:
       - name: interview-service
         run: |
           docker build -f src/ExitInterviewAgent.InterviewService/Dockerfile -t interview-service:ci .
-          docker run -d --name interview-service -p 8080:8080 interview-service:ci
+          # The image runs as Production, where the service refuses to start without a ledger key (ADR-0028): give it a throwaway one,
+          # generated here, never stored.
+          docker run -d --name interview-service -p 8080:8080 \
+            -e Ledger__ActiveKeyId=ci -e Ledger__Keys__0__Id=ci -e "Ledger__Keys__0__Secret=$(openssl rand -base64 32)" \
+            interview-service:ci
           for _ in $(seq 1 30); do curl -fsS http://localhost:8080/health && break; sleep 2; done
           curl -fsS http://localhost:8080/health | grep -q '"schema":"Healthy"'
           docker logs interview-service
