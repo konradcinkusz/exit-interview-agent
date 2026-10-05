@@ -17,6 +17,9 @@ primary_region = "fra"
   Jwt__Authority = "https://exit-interview-agent-authservice-dev.fly.dev"
   Jwt__Issuer = "ExitInterviewAgent"
   Jwt__Audience = "ExitInterviewAgent"
+  # MCP resource server (ADR-0012): the issuer is authservice's Jwt__PublicBaseUrl, the resource is this app's MCP URL.
+  Mcp__Issuer = "https://exit-interview-agent-authservice-dev.fly.dev"
+  Mcp__Resource = "https://exit-interview-agent-interview-service-dev.fly.dev/mcp"
 
 [http_service]
   internal_port = 8080

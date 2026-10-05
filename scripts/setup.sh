@@ -56,6 +56,19 @@ else
   echo "  openssl not found: skipping. The AppHost will generate an ephemeral dev key on each run."
 fi
 
+# MCP connector secrets (ADR-0012): used only when Mcp:AuthPublicBaseUrl and Mcp:ResourceUrl are configured.
+secrets_list="$(dotnet user-secrets list --project "$apphost" 2>/dev/null || true)"
+if have openssl; then
+  if ! grep -q '^Parameters:authservice-mcp-client-secret' <<<"$secrets_list"; then
+    dotnet user-secrets set "Parameters:authservice-mcp-client-secret" "$(openssl rand -hex 32)" --project "$apphost" >/dev/null \
+      && echo "  generated a DEV-ONLY MCP client secret (256 random bits)"
+  fi
+  if ! grep -q '^Parameters:authservice-encryption-key' <<<"$secrets_list"; then
+    dotnet user-secrets set "Parameters:authservice-encryption-key" "$(openssl rand -base64 32)" --project "$apphost" >/dev/null \
+      && echo "  generated a DEV-ONLY authservice token-encryption key (256 random bits)"
+  fi
+fi
+
 echo "4/4 optional integrations"
 echo "  (optional - needed for a real model) none are wired yet: model providers arrive with the interview agent."
 echo

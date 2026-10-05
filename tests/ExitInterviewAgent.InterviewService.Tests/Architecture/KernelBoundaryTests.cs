@@ -38,4 +38,35 @@ public sealed class KernelBoundaryTests
 
         Assert.Empty(offenders);
     }
+
+    /// <summary>
+    /// The identity wiring (schemes, scopes, policies, MCP options) and the log scrubber live in the service that
+    /// owns them. The kernel's public surface is an allowlist: a new type needs a deliberate edit here, in review.
+    /// </summary>
+    [Fact]
+    public void Kernel_public_surface_is_the_known_plumbing_and_nothing_else()
+    {
+        string[] plumbing =
+        [
+            "ApiExtensions", "AuthenticationExtensions", "CorsPolicies", "CorsExtensions", "DatabaseProviderExtensions",
+            "DatabaseMode", "Extensions", "IntegrationStatus", "IntegrationExtensions", "MigrationCompletionSignal",
+            "MigrationExtensions",
+        ];
+
+        var unexpected = Kernel.GetExportedTypes().Select(t => t.Name).Except(plumbing).ToArray();
+
+        Assert.Empty(unexpected);
+    }
+
+    [Fact]
+    public void Kernel_knows_nothing_about_mcp_consent_or_accounts()
+    {
+        var offenders = Kernel.GetTypes().SelectMany(t => t.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Select(m => $"{t.Name}.{m.Name}").Append(t.Name))
+            .Where(n => new[] { "Mcp", "Consent", "Account", "Interview", "Employer", "Receipt", "Ledger" }
+                .Any(word => n.Contains(word, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
 }

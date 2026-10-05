@@ -15,11 +15,13 @@ Rule of thumb: if you would not paste it into a pull request, it is a secret. `[
 | | `INTERVIEW_DB_PASSWORD` | password of role `interview` (owns `interviewdb`) | read by the first-boot init script |
 | | `AUTH_DB_PASSWORD` | password of role `authservice` (owns `authdb`) | read by the first-boot init script |
 | `exit-interview-agent-authservice-dev` | `ConnectionStrings__DefaultConnection` | `Host=exit-interview-agent-postgres.internal;Port=5432;Database=authdb;Username=authservice;Password=<AUTH_DB_PASSWORD>` | assembled by the pipeline from the password plus a known host |
+| | `AuthorizationServer__Clients__0__ClientSecret` | MCP client secret for Claude, 32 random bytes as hex (`openssl rand -hex 32`) | entered once in Claude's connector "Advanced settings"; never the dev value |
+| | `AuthorizationServer__EncryptionKey` | token-encryption key, base64 of 32 random bytes (`openssl rand -base64 32`) | durable: a key that changes invalidates every MCP connection (authservice ADR 0005 A4) |
 | | `Jwt__PrivateKeyPem` | **the only signing key in the system**, RSA-2048+, PKCS#8 PEM | never reused from a laptop key; held by this app and nothing else |
 | `exit-interview-agent-interview-service-dev` | `ConnectionStrings__interviewdb` | `Host=exit-interview-agent-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=<INTERVIEW_DB_PASSWORD>` | no credentials for any other database |
 | `exit-interview-agent-web-dev` | none today | the BFF holds no key: it verifies against authservice's JWKS | |
 
-Later work adds secrets (ledger HMAC key, authservice MCP client secret and encryption key, model
+Later work adds secrets (ledger HMAC key, model
 API keys for hosted use). They are added to this table in the same pull request that introduces them.
 
 ## How, when it is ever done

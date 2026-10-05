@@ -23,13 +23,13 @@ Kept honest: **Implemented** means on `main`; everything else is a plan owned by
 | Identity: `authservice` as a pinned image, RS256-only JWT validation against its JWKS, `GET /api/v1/me` | **Implemented** (T0, [ADR-0003](docs/adr/0003-identity-authservice-as-pinned-image.md)) |
 | Documentation foundation: [privacy design](docs/privacy/DESIGN.md), [threat model](docs/security/THREAT-MODEL.md), [legal considerations](docs/legal/CONSIDERATIONS.md), [open problems](docs/OPEN-PROBLEMS.md), [evaluation methodology](docs/eval/METHODOLOGY.md) | **Implemented** (T3, documents only: they describe a design) |
 | Record schema, PII detector | Planned (T1) |
-| Second JWT scheme for MCP, consents, account deletion hooks | Planned (T2) |
+| Second JWT scheme for MCP (scope-enforced, RFC 9728 metadata, authservice client wired in the AppHost), BFF refresh rotation and consent step, account-deletion semantics, security headers | **Implemented** (T2, [ADR-0012](docs/adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)..[0014](docs/adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)). Not run here: Claude completing the flow, the `v0.3.4` image |
 | Interview agent core, persona simulator, mock model, offline CLI demo | Planned (T4) |
 | Ingest, ledger, receipt-code deletion, submission tickets, `EmploymentVerifier` mock | Planned (T5) |
 | Model providers behind `IChatClient` and PII-free tracing | Planned (T6) |
 | Evaluation harness (the methodology's numbers are all "not yet measured") | Planned (T7) |
 | MCP adapter | Planned (T8) |
-| Web panel features: consents, submissions, deletion, tickets | Planned (T9) |
+| Web panel features: own submissions, receipt-code deletion, tickets (consent step and account deletion exist since T2) | Planned (T9) |
 | Signals (aggregates with uncertainty) | Planned (T10) |
 | CLI submission with a ticket | Planned (T11) |
 | Security review, release gate, results write-up | Planned (T12) |
@@ -84,6 +84,8 @@ dotnet run --project src/ExitInterviewAgent.AppHost
 ```
 
 The AppHost prints the Aspire dashboard URL; `web` and `interview-service` get their ports from it. With no credentials at all the stack still starts with reduced features: `GET <interview-service>/health` lists what is degraded, and the startup banner prints the same list.
+
+The MCP path (connecting Claude) is off until you give the AppHost two public https URLs; see [`scripts/README.md`](scripts/README.md#the-mcp-path-claude-connector-locally) and [ADR-012](docs/adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md).
 
 If `ghcr.io/konradcinkusz/authservice` cannot be pulled where you are, run without identity: `Identity__Enabled=false dotnet run --project src/ExitInterviewAgent.AppHost` (protected endpoints then answer 401 and say so). Details: [ADR-003](docs/adr/0003-identity-authservice-as-pinned-image.md).
 

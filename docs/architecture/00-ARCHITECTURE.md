@@ -33,8 +33,10 @@ them (REPO-BASELINE §4b).
 
 `INIT-GENERIC-TEMPLATE`, `00-REFERENCE-ARCHITECTURE`, `REPO-BASELINE`, `FLY-IO-DEPLOYMENT`, `FRONTEND-BFF`,
 `SERVICE-API-PATTERNS`, `IDENTITY-AND-ACCOUNTS`, `SHARED-SERVICE-REUSE`, `TESTING-STRATEGY`,
-`E2E-ACCEPTANCE-TESTING`, `README-BADGES`. (Not loaded here, loaded by the task that needs them:
-`ai-evals`, `metric-ethics`, `security-review`, `open-source-release`, `research-documentation`,
+`E2E-ACCEPTANCE-TESTING`, `README-BADGES`. The identity task (T2, ADR-0012..0014) loaded `IDENTITY-AND-ACCOUNTS`,
+`SHARED-SERVICE-REUSE`, `FRONTEND-BFF`, `SERVICE-API-PATTERNS`, `SECURITY-REVIEW`, `TESTING-STRATEGY` and the reference
+architecture (P5, P8, P11). (Not loaded here, loaded by the task that needs them:
+`ai-evals`, `metric-ethics`, `open-source-release`, `research-documentation`,
 `demo-data-and-seeding`.)
 
 ## Where each principle lives
@@ -45,10 +47,11 @@ them (REPO-BASELINE §4b).
 | P2 kernel is plumbing | `ExitInterviewAgent.ServiceDefaults`; ceiling in `scripts/check-kernel-size.sh` (CI); boundary in `tests/**/Architecture/KernelBoundaryTests.cs` |
 | P3 database per service | `interviewdb` (this service), `authdb` (authservice); roles per database in `flyio/postgres.fly.toml` |
 | P4 migrate, never ensure | `MigrationExtensions` (hosted service after Kestrel); baseline migration `InitialBaseline`; deviation ADR-006 |
-| P5 one signing key, config via environment | authservice holds the only key (ADR-003); `AuthenticationExtensions` validates RS256 only; scanner in hook and CI |
+| P5 one signing key, config via environment | authservice holds the only key (ADR-003); the kernel's `AuthenticationExtensions` and the service's `McpAuthenticationExtensions` validate RS256 only (two schemes, ADR-012); scanner in hook and CI |
 | P6 container per service | `src/ExitInterviewAgent.InterviewService/Dockerfile`, `web/app/Dockerfile` |
 | P7 Fly topology | `flyio/*.fly.toml`, `flyio/INFRASTRUCTURE-ANALYSIS.md` (generated, not deployed) |
-| P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, database, telemetry-export; startup banner prints the same |
+| P8 optional dependencies degrade | `IntegrationStatus`: `/health` lists identity, mcp-auth, database, telemetry-export; startup banner prints the same |
+| P11 anti-corruption at the edge | two token dialects become one principal (`sub`, `client_id`, `scope`) in `McpAuthenticationExtensions` (ADR-012) |
 | P9 `Program.cs` is a manifest | `InterviewService/Program.cs` calls into `Infrastructure/ServiceCollectionExtensions.cs` |
 | P12 tag-driven CI/CD | `.github/workflows/flyio.yml` (never triggered) |
 | P13 test at the layer with the logic | service tests (InMemory), Vitest for BFF logic, Playwright for the journey |
@@ -69,7 +72,10 @@ Every row carries a date and a reason. An acknowledged deviation is a decision; 
 
 ## Known limits of the scaffold (not deviations)
 
-- The BFF has no refresh-token rotation yet and no consent handling; both arrive with T2/T9.
-- `interview-service` has one authenticated slice (`GET /api/v1/me`) and no domain model by design.
+- The BFF rotates refresh tokens (single-flight, per process) and gates on consent (ADR-013); two-factor sign-in is unsupported (501).
+- `interview-service` has one authenticated slice (`GET /api/v1/me`), the MCP mount point (`/mcp`, scope-guarded, no transport until T8)
+  and no domain model by design.
+- The web CSP allows inline scripts and styles (Next emits inline bootstrap scripts; no per-request nonces yet): a weaker CSP than a
+  nonce-based one, same-origin otherwise (`web/app/lib/security-headers.ts`). Trigger: nonce support when the portal gets user-rendered content.
 - The edge gate is Next 16's `proxy.ts` (formerly `middleware.ts`); it is not the BFF catch-all under
   `app/api/proxy`.

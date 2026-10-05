@@ -1,4 +1,5 @@
 using ExitInterviewAgent.InterviewService.Endpoints;
+using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.ServiceDefaults;
 
@@ -30,8 +31,13 @@ public static class ServiceCollectionExtensions
     /// <summary>The authorization triad (SERVICE-API-PATTERNS §2): public and authenticated groups, visible here.</summary>
     public static WebApplication MapInterviewEndpoints(this WebApplication app)
     {
-        var authApi = app.MapGroup("/api/v1").RequireAuthorization().RequireRateLimiting(ApiExtensions.ApiPolicy).WithValidation();
+        var authApi = app.MapGroup("/api/v1").RequireAuthorization(AuthPolicies.Account).RequireRateLimiting(ApiExtensions.ApiPolicy).WithValidation();
         authApi.MapAccountEndpoints();
+
+        // The MCP resource server: public RFC 9728 metadata, and the mount point guarded by the MCP policy (ADR-0012).
+        var mcp = app.Services.GetRequiredService<McpOptions>();
+        app.MapProtectedResourceMetadata(mcp);
+        app.MapMcpMount(mcp);
         return app;
     }
 }

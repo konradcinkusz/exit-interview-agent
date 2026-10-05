@@ -155,12 +155,14 @@ deliberately kept), `Implemented` (only where noted).
   all ([security-review §7](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/SECURITY-REVIEW.md)); no exports in v1 (CSV injection N/A until one exists); no LLM reads stored
   quotes in v1 (Proposal: if one is ever added, quotes are quoted-as-data and the model has no tools). Session
   tokens are HttpOnly cookies, not web storage (Implemented: BFF design in [`web/app`](../../web/app), see
-  [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)). **Gap found while writing this:** `web/app/next.config.ts`
-  sets only `poweredByHeader: false`; no CSP, `X-Frame-Options`, `Referrer-Policy` or `Permissions-Policy` headers are
-  configured (`grep -n -i header web/app/next.config.ts`). The `security-review` §4 rule set requires them. **Decided (brief §10, ADR-0019): T12 adds them to `web/app/next.config.ts`;
-  recorded as a finding, not yet fixed.**
+  [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md)). **Gap found while writing this, closed by T2:** `web/app/next.config.ts`
+  set only `poweredByHeader: false`; no CSP, `X-Frame-Options`, `Referrer-Policy` or `Permissions-Policy` headers were
+  configured. **Implemented (T2):** the five-header set is applied to every response from
+  [`security-headers.ts`](../../web/app/lib/security-headers.ts), covered by a unit test and a Playwright spec against the production
+  artifact. The CSP allows inline scripts and styles (Next emits inline bootstrap scripts; no nonces yet), a known weaker form recorded in
+  [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) "Known limits".
 - **Residual.** Low once headers and encoding are in place. **Likelihood medium, impact medium.**
-- **Status.** Open (T9/T12).
+- **Status.** Open (T9: encoding and markdown rules apply when stored content is first rendered; headers Implemented, T2).
 
 ### T-07 Tool exfiltration and data leakage via the MCP host
 
@@ -247,11 +249,12 @@ deliberately kept), `Implemented` (only where noted).
   ([authservice docs](https://github.com/konradcinkusz/authservice/blob/main/docs/issue-analysis.md)); web edge gate and BFF verify the JWT signature, not just decode it
   (Implemented per [`UI-UX.md`](../ux/UI-UX.md) and [`AuthenticationExtensions`](../../src/ExitInterviewAgent.ServiceDefaults/AuthenticationExtensions.cs): RS256 only); MCP access tokens last 15 minutes by default and logout /
   password change / deletion end MCP connections (authservice [`DEPLOYMENT.md`](https://github.com/konradcinkusz/authservice/blob/main/docs/DEPLOYMENT.md), "Revocation and rotation"); tickets are short-lived and
-  require a live session to mint. Refresh-token rotation in the BFF is **not yet implemented** ([`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) "Known limits"; Planned T2/T9). MFA is
-  optional in authservice; whether the portal requires it is Open.
+  require a live session to mint. **Implemented (T2, [ADR-0013](../adr/0013-bff-session-refresh-rotation-and-consent-gate.md)):** the BFF rotates the refresh token single-flight (a
+  replayed token revokes the family at authservice, observed), and logout revokes the account's refresh tokens at authservice. The BFF does not
+  support two-factor sign-in yet (501). MFA is optional in authservice; whether the portal requires it is Open.
 - **Residual.** A takeover of an account that has *already* submitted cannot reach its records (unlinked), which limits
   harm to future submissions and tickets. **Likelihood medium, impact medium.**
-- **Status.** Open (T2/T9).
+- **Status.** Open (T9: tickets; MFA decision).
 
 ### T-13 Insider operator with database and key
 
@@ -293,6 +296,11 @@ deliberately kept), `Implemented` (only where noted).
   no log line, span attribute or audit event, and the test must be shown to fail when logging of bodies is turned on
   (Planned, T5/T6); tickets and receipt codes never in URLs; the telemetry exporter is only active when configured and
   probe traffic is filtered (Implemented as plumbing, see [`00-ARCHITECTURE.md`](../architecture/00-ARCHITECTURE.md) P15).
+  **Implemented (T2, [ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md)) for email:** the validated principal keeps only
+  `sub`, `client_id`, `scope` and protocol claims (the email authservice puts in every token never reaches a handler), and an `ILoggerFactory`
+  wrapper replaces email addresses in every message, argument and exception before any provider sees them; tests cover both and were shown to
+  fail without them. This is a net for addresses, not the content guarantee. **Not covered:** authservice's own audit rows include the actor's
+  email (for example on account deletion): outside this repository, see OPEN-PROBLEMS.
 - **Residual.** Platform-level logs (proxy, load balancer, database slow-query logs) are outside application control.
   **Likelihood medium, impact high.**
 - **Status.** Open (T5/T6).
@@ -316,11 +324,14 @@ deliberately kept), `Implemented` (only where noted).
   web/BFF API, or a web token to the MCP endpoint; or `alg` confusion (`none`, HS256 with the public key).
 - **Asset.** A5.
 - **Mitigation.** RS256-only verification against the JWKS (**Implemented**: `ValidAlgorithms = [RsaSha256]` in
-  [`AuthenticationExtensions`](../../src/ExitInterviewAgent.ServiceDefaults/AuthenticationExtensions.cs)); the second scheme validates `iss`, `aud` and scope with
-  separate parameters and policies per route group (Planned, T2; brief §4); authservice itself refuses MCP tokens on its own
-  API ([DEPLOYMENT.md](https://github.com/konradcinkusz/authservice/blob/main/docs/DEPLOYMENT.md): startup refuses `Jwt__Issuer`/`Jwt__Audience` equal to the issuer/resource); a test for each
-  cross-use (a negative test per scheme).
-- **Residual.** Low if tests exist. **Status.** Open (T2).
+  [`AuthenticationExtensions`](../../src/ExitInterviewAgent.ServiceDefaults/AuthenticationExtensions.cs)); the second scheme validates `iss` (one exact string), `aud` (canonical resource, trailing-slash tolerance off), `typ`
+  `at+jwt`, RS256 and scope, with separate policies per route group (**Implemented**, T2, [ADR-0012](../adr/0012-two-jwt-schemes-and-the-mcp-resource-server.md)); authservice itself refuses MCP tokens on its own
+  API ([DEPLOYMENT.md](https://github.com/konradcinkusz/authservice/blob/main/docs/DEPLOYMENT.md): startup refuses `Jwt__Issuer`/`Jwt__Audience` equal to the issuer/resource); a negative test for each
+  cross-use and the full matrix (wrong issuer or audience, expired, unknown kid, `alg=none`, HS256 with the public key, wrong `typ`, scope
+  variants) runs against both schemes ([`TokenMatrixTests`](../../tests/ExitInterviewAgent.InterviewService.Tests/Auth/TokenMatrixTests.cs));
+  an endpoint-by-policy test fails the build if an endpoint is neither on the short anonymous list nor behind `account` or `mcp-submit`. Checked
+  once against a real authservice token, not only test tokens (ADR-0012).
+- **Residual.** Low. An issued access token cannot be recalled (15 minutes for MCP). **Status.** Mitigated (T2); revisit if a third token family is added.
 
 ### T-18 Denial of service and cost abuse
 
@@ -364,18 +375,18 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 | T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Decided (ADR-0019) | Medium-high | Open | T10 |
 | T-02 | Re-identification from quotes/episodes | M | H | Planned (T1/T5) + Proposal (no quote display) | Medium | Open | T1, T10 |
 | T-07 | Exfiltration via MCP host | M | H | Planned (T8) | Accepted, disclosed | Open | T8 |
-| T-15 | Log/trace leakage | M | H | Planned (T5/T6); canary-in-logs test Decided (T5) | Medium (platform logs) | Open | T5, T6 |
-| T-12 | Account takeover | M | M | authservice features; BFF rotation Planned | Medium | Open | T2, T9 |
+| T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary Planned (T5/T6) | Medium (platform logs) | Open | T5, T6 |
+| T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
 | T-03 | Prompt injection into interviewer | M | M | Planned (T4/T7) | Medium (mode A) | Open | T4, T7 |
 | T-04 | Injection into extractor / fabricated quotes | M | M | Planned | Medium | Open | T1, T4 |
-| T-06 | Stored XSS/markdown; missing web security headers | M | M | **gap found: no CSP/headers configured**; fix Decided (T12) | Low after fix | Open | T9, T12 |
+| T-06 | Stored XSS/markdown; missing web security headers | M | M | headers Implemented (T2; CSP allows inline); encoding rules apply at T9 | Low | Open | T9 |
 | T-14 | Supply chain (mutable image tag, Dependabot off) | L-M | H | partly; digest pin Proposed | Medium | Open | T12 |
 | T-08 | Ledger correlation with DB + key | L | H | Planned (T5); coarse timestamps Decided | Accepted | Accepted | T5 |
 | T-09 | Ticket redemption correlation | L | H | Planned (T5/T11) | Accepted | Accepted | T5, T11 |
 | T-13 | Insider with DB + key + traffic | L | H | not preventable | Accepted | Accepted | operator |
 | T-19 | Legal compulsion / litigation | L | H | policy: no real data | Accepted | Accepted | owner |
 | T-16 | Consent withdrawal mid-interview | M | M | Planned (T4/T7) | Medium | Open | T4, T7 |
-| T-17 | Token confusion (two JWT schemes) | L | H | RS256-only Implemented; scheme 2 Planned; negative cross-scheme tests Decided (T2) | Low | Open | T2 |
+| T-17 | Token confusion (two JWT schemes) | L | H | both schemes + cross-scheme matrix Implemented (T2) | Low | Mitigated | T2 |
 | T-11 | Receipt-code enumeration/abuse | L | L-M | Planned (T5) | Low | Open | T5 |
 | T-05 | Judge manipulation / Goodhart | M | L-M | Planned (T7) | Medium | Open | T7 |
 | T-18 | DoS / cost | M | L-M | plumbing Implemented | Low | Open | T5 |

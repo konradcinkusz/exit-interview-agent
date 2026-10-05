@@ -13,8 +13,8 @@ integration tests through a browser, or to pixel-check visuals.
 ## What runs, and against what
 
 The suite runs the **production artifact** (the Next.js standalone server from `web/`) against
-`support/stub-backend.mjs`, a stub that serves a JWKS, one fake account's login and an authenticated
-`/api/v1/me`. It is test scaffolding: it lets the web app's real code (login, HttpOnly cookies, edge gate,
+`support/stub-backend.mjs`, a stub that serves a JWKS, fake accounts (created on first login, one per test), login, single-use
+refresh rotation that revokes on reuse like authservice does, consents, logout, account deletion and an authenticated `/api/v1/me`. It is test scaffolding: it lets the web app's real code (login, HttpOnly cookies, edge gate,
 proxy with bearer injection) run unmodified without a database or the identity container. Credentials in
 it are fake and exist only there. A full-stack journey against the real AppHost is a later layer (T9).
 

@@ -1,11 +1,15 @@
 using ExitInterviewAgent.InterviewService.Infrastructure;
+using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
+using ExitInterviewAgent.InterviewService.Infrastructure.Logging;
 using ExitInterviewAgent.ServiceDefaults;
 
 // Program.cs is a manifest (P9): each block is one capability, wired in the service's own extensions.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.Services.AddEmailScrubbingLogs();
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddInterviewAuthentication(builder.Configuration);
 builder.Services.AddCorsPolicy(builder.Configuration, CorsPolicies.Frontend);
 builder.Services.AddStandardRateLimiting();
 builder.Services.AddOpenApiDocument("interview-service", "v1", "Structured exit-interview records and employer signals.");
