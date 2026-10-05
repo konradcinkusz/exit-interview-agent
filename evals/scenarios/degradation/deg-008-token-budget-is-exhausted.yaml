@@ -1,0 +1,21 @@
+id: deg-008-token-budget-is-exhausted
+class: degradation
+gate: behaviour
+title: Reaching the token budget closes the interview gracefully with a record from what exists
+why: >-
+  Cost abuse and runaway loops are bounded by a budget. Reaching it must close the interview with the budget
+  wording and still produce a valid record from the answers given, never an error and never an endless loop.
+persona: talkative
+seeds: [1]
+faults:
+  - kind: usage_inflated
+    roles: [interviewer, prober, extractor]
+    tokens: 30000
+expect:
+  outcome: completed
+  end_reason: budget_exhausted
+  record: present
+  events_present: [interview.budget.exhausted]
+measure: [budget_graceful]
+spec: [B-07, C-09]
+origin: designed (T7)
