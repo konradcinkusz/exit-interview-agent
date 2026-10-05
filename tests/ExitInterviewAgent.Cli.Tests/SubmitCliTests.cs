@@ -591,6 +591,17 @@ public sealed partial class SubmitCliTests : IDisposable
     }
 
     [Fact]
+    public void Writing_a_receipt_file_refuses_an_existing_file_even_if_it_appeared_after_the_early_check()
+    {
+        var file = Path.Combine(_dir, "raced.txt");
+        File.WriteAllText(file, "somebody else's content");
+
+        Assert.ThrowsAny<IOException>(() => ReceiptFile.Write(file, CliRun.CanaryReceipt));
+
+        Assert.Equal("somebody else's content", File.ReadAllText(file));
+    }
+
+    [Fact]
     public async Task Without_save_receipt_no_file_is_written_anywhere_and_the_receipt_is_only_on_the_terminal()
     {
         _backend.ValidTickets.Add(Ticket);
