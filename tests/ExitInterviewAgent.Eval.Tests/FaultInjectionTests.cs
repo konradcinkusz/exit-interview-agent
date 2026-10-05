@@ -120,7 +120,7 @@ public class FaultInjectionTests
     {
         var kinds = new[] { "timeout", "server_error", "empty_answer", "malformed_json", "usage_missing", "usage_inflated", "compromised" };
 
-        var used = Support.Fixtures.Corpus.SelectMany(l => l.Scenario.Faults ?? []).Select(f => f.Kind).Distinct().ToList();
+        var used = Support.Fixtures.All.SelectMany(l => l.Scenario.Faults ?? []).Select(f => f.Kind).Distinct().ToList();
 
         foreach (var k in kinds) Assert.Contains(k, used);
         await Task.CompletedTask;

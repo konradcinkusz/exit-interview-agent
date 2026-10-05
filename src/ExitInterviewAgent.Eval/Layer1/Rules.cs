@@ -27,12 +27,9 @@ public static partial class IndependentRules
 
     public static bool IsLeading(string question) => LeadingCodes(question).Count > 0;
 
-    /// <summary>Two questions in one: two or more interrogative words, or two question marks. Reported, not gated as "leading".</summary>
-    public static bool IsDoubleBarrelled(string question)
-    {
-        var wh = Tokens(question).Count(w => w is "what" or "how" or "why" or "who" or "when" or "where" or "which");
-        return wh >= 2 || question.Count(c => c == '?') >= 2;
-    }
+    /// <summary>Two questions in one: two question marks, or a second interrogative clause coordinated with "and"/"or" ("... and how ..."). Reported, not gated as "leading".</summary>
+    public static bool IsDoubleBarrelled(string question) =>
+        question.Count(c => c == '?') >= 2 || Coordinated().IsMatch(question);
 
     /// <summary>A quote or answer that shows a concrete detail: a number, a date or day, or an explicit example or event marker.</summary>
     public static bool HasConcreteDetail(string text) => Concrete().IsMatch(text);
@@ -44,6 +41,9 @@ public static partial class IndependentRules
         Regex.Matches(s.ToLowerInvariant(), @"[a-z']+").Select(m => m.Value).ToList();
 
     private const RegexOptions O = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+
+    [GeneratedRegex(@"\b(and|or)\s+(what|how|why|who|when|where|which)\b", O, 200)]
+    private static partial Regex Coordinated();
 
     [GeneratedRegex(@"\b(surely|obviously|clearly|undoubtedly|certainly|of\s+course|naturally|no\s+doubt|you\s+must\s+(have|be|feel)|i\s+(assume|imagine|suppose|take\s+it|bet))\b", O, 200)]
     private static partial Regex Presupposing();

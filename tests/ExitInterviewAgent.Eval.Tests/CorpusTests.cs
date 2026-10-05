@@ -9,7 +9,7 @@ public class CorpusTests
     [Fact]
     public void The_committed_corpus_satisfies_the_schema_and_every_corpus_rule()
     {
-        var report = Corpus.Validate(Fixtures.Corpus);
+        var report = Corpus.Validate(Fixtures.All);
 
         Assert.True(report.Ok, string.Join(Environment.NewLine, report.Errors));
         Assert.All(Corpus.Classes, c => Assert.True(report.PerClass[c] > 0, $"class {c} is empty"));
@@ -19,8 +19,8 @@ public class CorpusTests
     public void Every_scenario_class_the_methodology_requires_is_present_with_both_gates_in_use()
     {
         Assert.Equal(6, Corpus.Classes.Length);
-        Assert.Contains(Fixtures.Corpus, l => l.Scenario.Gate == "constraint");
-        Assert.Contains(Fixtures.Corpus, l => l.Scenario.Gate == "behaviour");
+        Assert.Contains(Fixtures.All, l => l.Scenario.Gate == "constraint");
+        Assert.Contains(Fixtures.All, l => l.Scenario.Gate == "behaviour");
     }
 
     private static string Write(string yaml)
@@ -89,7 +89,7 @@ public class CorpusTests
     [Fact]
     public void The_validator_can_fail_an_empty_class_a_missing_absence_a_dangling_citation_and_an_unlabelled_class_gate()
     {
-        var all = Fixtures.Corpus.ToList();
+        var all = Fixtures.All.ToList();
 
         // An empty class.
         Assert.Contains(Corpus.Validate(all.Where(l => l.Scenario.Class != "consent").ToList()).Errors, e => e.Contains("class 'consent' has no scenario"));
@@ -131,9 +131,9 @@ public class CorpusTests
     [Fact]
     public void The_corpus_digest_is_stable_across_runs_and_moves_when_a_scenario_changes()
     {
-        var a = Corpus.Digest(Fixtures.Corpus);
-        var b = Corpus.Digest(Fixtures.Corpus);
-        var edited = Fixtures.Corpus.Select((l, i) => i == 0 ? Clone(l, s => s with { Seeds = [7] }) : l).ToList();
+        var a = Corpus.Digest(Fixtures.All);
+        var b = Corpus.Digest(Fixtures.All);
+        var edited = Fixtures.All.Select((l, i) => i == 0 ? Clone(l, s => s with { Seeds = [7] }) : l).ToList();
         // The canonical JSON is what is hashed, so edit it too (a Scenario record alone is not what the digest reads).
         edited[0] = edited[0] with { CanonicalJson = edited[0].CanonicalJson + " " };
 

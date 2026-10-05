@@ -36,15 +36,22 @@ public static class ConformanceReport
         {
             ["report"] = new JsonObject
             {
-                ["specVersion"] = r.SpecVersion, ["corpusDigest"] = r.CorpusDigest, ["harnessVersion"] = Baseline.HarnessVersion,
-                ["command"] = r.Command, ["unitOfEvaluation"] = "interview artifact (scenario, seed): transcript, trace, record; never a person or an employer",
-                ["notAComposite"] = "there is no weighted total and no ranking; read each row with its counter-metric and its interval",
+                ["specVersion"] = r.SpecVersion,
+                ["corpusDigest"] = r.CorpusDigest,
+                ["harnessVersion"] = Baseline.HarnessVersion,
+                ["command"] = r.Command,
+                ["unitOfEvaluation"] = "interview artifact (scenario, seed): transcript, trace, record; never a person or an employer",
+                ["readingGuide"] = "there is no composite score, no weighted total and no ranking; read each row with its counter-metric and its interval; overlapping intervals are not different",
                 ["whatTheMockShows"] = MockLimits,
             },
             ["profiles"] = new JsonArray(r.Profiles.Select(p => (JsonNode)new JsonObject
             {
-                ["name"] = p.Profile.Name, ["modelId"] = p.Profile.ModelId, ["description"] = p.Profile.Description, ["status"] = p.Status,
-                ["runs"] = p.Grades.Count, ["harnessErrors"] = p.Errors.Count,
+                ["name"] = p.Profile.Name,
+                ["modelId"] = p.Profile.ModelId,
+                ["description"] = p.Profile.Description,
+                ["status"] = p.Status,
+                ["runs"] = p.Grades.Count,
+                ["harnessErrors"] = p.Errors.Count,
             }).ToArray()),
         };
 
@@ -77,8 +84,13 @@ public static class ConformanceReport
             }
             metrics.Add(new JsonObject
             {
-                ["id"] = def.Id, ["title"] = def.Title, ["direction"] = def.Direction.ToString().ToLowerInvariant(), ["counterMetric"] = def.Counter, ["gated"] = def.Gated,
-                ["definition"] = def.Description, ["byProfile"] = byProfile,
+                ["id"] = def.Id,
+                ["title"] = def.Title,
+                ["direction"] = def.Direction.ToString().ToLowerInvariant(),
+                ["counterMetric"] = def.Counter,
+                ["gated"] = def.Gated,
+                ["definition"] = def.Description,
+                ["byProfile"] = byProfile,
             });
         }
         root["metrics"] = metrics;
@@ -94,7 +106,9 @@ public static class ConformanceReport
                 var grades = p.Grades.Where(g => g.ScenarioId == l.Id).ToList();
                 byProfile[p.Profile.Name] = new JsonObject
                 {
-                    ["status"] = Evaluation.ScenarioStatus(p.Grades, p.Errors, l.Id), ["runs"] = grades.Count, ["runsPassed"] = grades.Count(g => g.Passed),
+                    ["status"] = Evaluation.ScenarioStatus(p.Grades, p.Errors, l.Id),
+                    ["runs"] = grades.Count,
+                    ["runsPassed"] = grades.Count(g => g.Passed),
                     ["failedAssertions"] = new JsonArray(grades.SelectMany(g => g.Failures).Select(f => f.Id).Distinct().Order(StringComparer.Ordinal).Select(x => (JsonNode)x!).ToArray()),
                 };
             }
@@ -111,8 +125,12 @@ public static class ConformanceReport
             var cost = r.Prices?.CostOf(p.Profile.ModelId, inTok, outTok);
             usage[p.Profile.Name] = new JsonObject
             {
-                ["tokensPerInterviewMean"] = t is null ? null : Math.Round(t.Value.Mean, 1), ["tokensPerInterviewMin"] = t?.Min, ["tokensPerInterviewMax"] = t?.Max,
-                ["modelCallsTotal"] = p.Grades.Sum(g => g.Usage.ModelCalls), ["inputTokens"] = inTok, ["outputTokens"] = outTok,
+                ["tokensPerInterviewMean"] = t is null ? null : Math.Round(t.Value.Mean, 1),
+                ["tokensPerInterviewMin"] = t?.Min,
+                ["tokensPerInterviewMax"] = t?.Max,
+                ["modelCallsTotal"] = p.Grades.Sum(g => g.Usage.ModelCalls),
+                ["inputTokens"] = inTok,
+                ["outputTokens"] = outTok,
                 ["cost"] = cost is { } c ? new JsonObject { ["amount"] = Math.Round(c, 6), ["currency"] = r.Prices!.Currency, ["priceTableAsOf"] = r.Prices.As_Of, ["priceSource"] = r.Prices.Source } : "not computed: no price for this model in a user-supplied price table (--prices); tokens are reported instead",
             };
         }
@@ -144,18 +162,25 @@ public static class ConformanceReport
 
     public static JsonObject Cnt(Count c) => new()
     {
-        ["k"] = c.K, ["n"] = c.N, ["rate"] = c.Rate is { } x ? Math.Round(x, 4) : null,
-        ["low"] = c.Interval is { } i ? Math.Round(i.Low, 4) : null, ["high"] = c.Interval is { } j ? Math.Round(j.High, 4) : null,
+        ["k"] = c.K,
+        ["n"] = c.N,
+        ["rate"] = c.Rate is { } x ? Math.Round(x, 4) : null,
+        ["low"] = c.Interval is { } i ? Math.Round(i.Low, 4) : null,
+        ["high"] = c.Interval is { } j ? Math.Round(j.High, 4) : null,
     };
 
     private static JsonObject Layer2Json(Layer2Result l)
     {
         var o = new JsonObject
         {
-            ["status"] = l.Status, ["judgeModelConfigured"] = l.JudgeModelConfigured, ["judgeModelAnswering"] = l.JudgeModelAnswering,
-            ["rubricSha256"] = l.RubricSha, ["promptSha256"] = l.PromptSha,
-            ["gating"] = l.Gate.Gating, ["calibration"] = l.Gate.Reason,
-            ["labels"] = new JsonObject { ["total"] = l.Gate.AllLabels, ["countedAsHuman"] = l.Gate.HumanLabels },
+            ["status"] = l.Status,
+            ["judgeModelConfigured"] = l.JudgeModelConfigured,
+            ["judgeModelAnswering"] = l.JudgeModelAnswering,
+            ["rubricSha256"] = l.RubricSha,
+            ["promptSha256"] = l.PromptSha,
+            ["gating"] = l.Gate.Gating,
+            ["calibration"] = l.Gate.Reason,
+            ["labels"] = new JsonObject { ["present"] = l.Gate.AllLabels, ["countedAsHuman"] = l.Gate.HumanLabels },
             ["ruleScreensVsAuthorLabels"] = new JsonArray(l.RuleScreens.Select(a => (JsonNode)a.ToString()).ToArray()),
         };
         if (l.JudgeAgreement is { } a) o["judgeVsAuthorLabels"] = a.ToString();
@@ -166,7 +191,10 @@ public static class ConformanceReport
             var mi = Agreement.MeanInterval(vals);
             scores[g.Key] = new JsonObject
             {
-                ["n"] = vals.Count, ["mean"] = mi is null ? null : Math.Round(mi.Value.Mean, 3), ["low"] = mi is null ? null : Math.Round(mi.Value.Low, 3), ["high"] = mi is null ? null : Math.Round(mi.Value.High, 3),
+                ["n"] = vals.Count,
+                ["mean"] = mi is null ? null : Math.Round(mi.Value.Mean, 3),
+                ["low"] = mi is null ? null : Math.Round(mi.Value.Low, 3),
+                ["high"] = mi is null ? null : Math.Round(mi.Value.High, 3),
                 ["levels"] = new JsonObject(vals.GroupBy(v => v).OrderBy(x => x.Key).Select(x => KeyValuePair.Create(x.Key.ToString(CultureInfo.InvariantCulture), (JsonNode?)x.Count()))),
             };
         }

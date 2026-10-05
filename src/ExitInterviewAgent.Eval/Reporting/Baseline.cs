@@ -75,6 +75,6 @@ public sealed class Baseline
             ["scenarios"] = scn,
             ["metrics"] = met,
         };
-        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
+        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) + "\n";
     }
 }

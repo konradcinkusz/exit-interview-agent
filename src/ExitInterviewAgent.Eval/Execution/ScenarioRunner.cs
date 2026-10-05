@@ -61,7 +61,10 @@ public static partial class ScenarioRunner
         var clock = new Agent.Mock.SimulatedClock();
         var options = new InterviewOptions(persona.Employer.Ref, persona.Context.ToRecordContext())
         {
-            EmployerNames = persona.Employer.Names.ToArray(), IdFactory = () => PersonaSession.DemoInterviewId(persona.Id, seed), Clock = clock, Logger = logger,
+            EmployerNames = persona.Employer.Names.ToArray(),
+            IdFactory = () => PersonaSession.DemoInterviewId(persona.Id, seed),
+            Clock = clock,
+            Logger = logger,
         };
         Func<string, string> decorate = reply => { raw.Add(reply); return scenario.Canary ? reply + " " + Canary : reply; };
         using var recorder = new TraceRecorder();
