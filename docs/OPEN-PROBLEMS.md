@@ -25,6 +25,10 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-16 | Manual accessibility pass | see section |
 | OP-17 | Two-factor sign-in has been tested only against the stub | see section |
 | OP-18 | Mode A: host fidelity, the opening text, and the unverified Claude run | High |
+| OP-19 | K is a convention, and small batches expose small differences | High |
+| OP-20 | Homogeneous cells are shown | Medium |
+| OP-21 | What is withheld is itself a signal | Low |
+| OP-22 | Clean partitions withhold more than a textbook rule would | Medium |
 
 ## OP-1. Real employment verification
 
@@ -44,14 +48,15 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** Nothing in code: the model is Planned (T5). *Proposal:* a closed, operator-curated employer id list with canonical
   names; unknown employers are not accepted in v1.
 - **What would close it.** A curated registry with a documented policy for merges, minimum size and removal (an employer that asks to be
-  removed), plus a size floor below which an employer's signals are never shown ([OP-3](#op-3-band-granularity-vs-small-groups)).
+  removed), plus a size floor below which an employer's signals are never shown ([OP-3](#op-3-tenure-and-role-band-granularity-vs-small-groups)).
 
 ## OP-3. Tenure and role band granularity vs small groups
 
 - **Why it matters.** Finer bands make a record more informative and a small group easier to identify ([T-01](security/THREAT-MODEL.md)); K = 5
   per employer says nothing about K per band.
-- **What we do now.** The brief fixes n ≥ K (default 5). *Decided in ADR-0019, not implemented* ([privacy design §5.5](privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)):
-  K per displayed cell, no cross-products, batched publication, coarse bands. The band sets themselves are not defined (T1).
+- **What we do now.** The brief fixes n ≥ K (default 5). **Implemented (T10, [AGGREGATION](privacy/AGGREGATION.md), [ADR-0053](adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md)):**
+  K per displayed cell, single-band cuts only, each a clean partition or withheld whole, batched publication, coarse bands. The band sets are ADR-0007's; no employer-size floor exists, so an employer with a
+  handful of records shows nothing only because no cell reaches K.
 - **What would close it.** Band sets chosen against a modelled smallest-realistic-group, a documented size floor for employers, and (if the
   project later wants stronger guarantees) a formal approach such as noise addition, evaluated rather than assumed. Evidence needed:
   simulated re-identification tests on synthetic populations (eval-adjacent work for T7/T10).
@@ -172,7 +177,6 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** Unit tests pin the three texts; the stub carries a contract note.
 - **What would close it.** The full-stack journey against the AppHost with a two-factor account enrolled through authservice (a later e2e layer).
 
-
 ## OP-18. Mode A: host fidelity, the opening text, and the unverified Claude run
 
 - **Why it matters.** In mode A the host model, not this project, conducts the interview. The server checks the record (schema, PII re-scan, AI-disclosure flag, size, one per employer) but cannot see whether consent was
@@ -182,3 +186,35 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** Server-side validation, the confirm-before-submit instruction, a pinned and reviewed contract, an operator runbook that says what was and was not verified, and the README/connect copy that says mode A is the weakest of the three modes.
 - **What would close it.** (1) A live run against Claude with the real authservice image and two tunnels, recorded with date and versions. (2) The T7 harness running the personas against mode A hosts and reporting the same metrics as mode B.
   (3) A lawyer's reading of the opening plus note. (4) A server-observable signal that is not the transcript (for example the interview's own turn and duration bands, already in the record) compared with what hosts report.
+
+## OP-19. K is a convention, and small batches expose small differences
+
+- **Why it matters.** K = 5 is the brief's number, not a measured privacy level. Three limits of any k-threshold remain after T10: (1) an adversary who adds one record of their own to an employer with k - 1 others sees
+  the cell appear, and "everything minus mine" is exactly those k - 1 people; with *m* accounts it is k - m, and the ledger limits one submission per employer per account, not the number of accounts ([OP-1](#op-1-real-employment-verification),
+  [T-10](security/THREAT-MODEL.md)); (2) an adversary who knows who else submitted can eliminate; (3) a batch in which only a few known people submitted exposes their joint contribution to the cells they touch.
+- **What we do now.** The clean-partition rule bounds (1) at k - 1 for one account and no lower, proved exhaustively on small partitions and by property tests, with the boundary stated as a test
+  (`The_known_boundary_...`); batches default to a day and cannot be shorter than an hour; k is configurable and cannot be below 3; whole cuts are withheld rather than partly shown.
+- **What would close it.** Verification that makes an account cost something (OP-1); a minimum number of *changes* per batch before a cell is republished (this conflicts with deleting a record "at the next batch", so it needs
+  a decision about erasure); noise addition evaluated against simulated re-identification, if the project later wants a formal guarantee instead of a convention; an employer-size floor from a registry ([OP-2](#op-2-employer-registry-and-identity)).
+
+## OP-20. Homogeneous cells are shown
+
+- **Why it matters.** A cell where everyone gave the same rating is displayed (with a wide interval, never a point): a person known to be in the cell has a known rating. That is the homogeneity limit of k-anonymity (the l-diversity gap).
+- **What we do now.** Nothing suppresses it, on purpose: suppressing unanimous cells would show only polarised employers, and the pattern of suppression would itself tell (OP-21). The interval is wide at small n; the copy contract says what the
+  numbers describe.
+- **What would close it.** A diversity rule evaluated for its cost in coverage, or showing only cells whose spread is above a floor, with the bias that introduces written down.
+
+## OP-21. What is withheld is itself a signal
+
+- **Why it matters.** A withheld cut says some band in it has between 1 and k - 1 ratings, or that a group left out of the band does; an `insufficient_data` topic says fewer than k people rated it. Which band, and how many, are not said.
+- **What we do now.** Statuses are a fixed vocabulary; the response always has six topics and three cuts per displayable topic; no count of withheld cells is returned, logged or emitted as a metric; an employer below k and an unknown one get
+  byte-identical answers.
+- **What would close it.** Publishing every cut in a fixed shape regardless of what it hides (not possible without noise), or recoding bands so withholding is rarer ([OP-22](#op-22-clean-partitions-withhold-more-than-a-textbook-rule-would)).
+
+## OP-22. Clean partitions withhold more than a textbook rule would
+
+- **Why it matters.** A clean partition is withheld whole when any band holds 1 to k - 1 ratings, so at a mid-sized employer a single small band (a tenure band of three people) removes that topic's whole tenure cut. Distribution and
+  verification breakdowns appear only from about 3k ratings. The cuts will often be empty for small employers, which weakens what the product says about *why* a topic is rated as it is.
+- **What we do now.** The textbook rule would show more and is unsafe across two snapshots ([ADR-0053](adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md)); the loss is chosen, documented and visible in the demo data.
+- **What would close it.** Recoding (merging adjacent bands such as `lt_6m` and `6m_1y` when one is small), which changes the wire vocabulary and needs the versioning process of ADR-0009; evidence needed: how many cuts are withheld on a population shaped like the
+  expected users. **Trigger:** a measured share of withheld cuts that makes them useless.

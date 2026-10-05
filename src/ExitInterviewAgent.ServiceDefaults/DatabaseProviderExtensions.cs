@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace ExitInterviewAgent.ServiceDefaults;
 
@@ -14,7 +15,8 @@ public static class DatabaseProviderExtensions
     public const string PostgreSql = "PostgreSQL";
 
     public static IServiceCollection AddDatabaseContext<TContext>(
-        this IServiceCollection services, IConfiguration configuration, string connectionName, string inMemoryName)
+        this IServiceCollection services, IConfiguration configuration, string connectionName, string inMemoryName,
+        Action<NpgsqlDbContextOptionsBuilder>? configureNpgsql = null, bool reportIntegration = true)
         where TContext : DbContext
     {
         var connection = configuration.GetConnectionString(connectionName);
@@ -25,15 +27,21 @@ public static class DatabaseProviderExtensions
         if (usePostgres)
         {
             services.AddDbContext<TContext>(o => o.UseNpgsql(NormalizeConnectionString(connection!),
-                npgsql => npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(30), null).CommandTimeout(60)));
+                npgsql =>
+                {
+                    npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(30), null).CommandTimeout(60);
+                    configureNpgsql?.Invoke(npgsql);
+                }));
         }
         else
         {
             services.AddDbContext<TContext>(o => o.UseInMemoryDatabase(inMemoryName));
         }
         services.AddSingleton(new DatabaseMode(usePostgres));
-        return services.AddIntegration("database", usePostgres,
-            usePostgres ? "PostgreSQL" : "InMemory (no connection string): data is lost on restart");
+        // A second context on the same database (the signals module) must not list "database" twice in /health.
+        return reportIntegration
+            ? services.AddIntegration("database", usePostgres, usePostgres ? "PostgreSQL" : "InMemory (no connection string): data is lost on restart")
+            : services;
     }
 
     /// <summary>Fly private addressing: <c>.flycast</c> does not wake machines for databases; use <c>.internal</c>. Raises the cold-start timeout.</summary>

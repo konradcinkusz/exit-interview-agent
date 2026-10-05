@@ -76,15 +76,20 @@ deliberately kept), `Implemented` (only where noted).
   from n = 5 to n = 6 and an observer subtracts. Or: the total and all-but-one cell are shown, exposing the last cell by
   subtraction. External data (public profiles) narrows the cell further.
 - **Asset.** A1, A2.
-- **Mitigation.** n ≥ K (default 5, configurable) *per displayed cell*, not only per employer; suppression that cannot
-  be undone by subtraction (show the total and one cut at a time); publish in batches/on a schedule rather than per
-  submission; coarse bands chosen against the smallest realistic group; uncertainty displayed with every number;
-  aggregates withdrawn when deletions take n below K. K ≥ 5 is the brief's number (Planned, T10). *Per-cell K,
-  batching and no-cross-product are Decided (ADR-0019, brief §6), not yet implemented* for T10 ([privacy design §5.5](../privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)).
-- **Residual.** K = 5 is a convention, not a guarantee. A group of five where four are known to be the employer's
-  disgruntled engineers can still be identified by elimination. Very small employers should show **nothing**; the
-  employer-size floor is an open problem ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)). **Likelihood medium, impact high.**
-- **Status.** Open (T10); mitigations Decided (ADR-0019), none implemented.
+- **Mitigation.** n ≥ K (default 5, configurable, at least 3) *per displayed cell*, not only per employer; single-band cuts only, **each a clean partition or withheld whole** (every band empty or at least K,
+  and so is the group that left the band out), because the textbook "hide the smallest shown cell too" is safe for one snapshot and not for two snapshots one record apart; publication **in batches** (a day by
+  default), never per submission, with the snapshot carrying only the start of its period; deletions reach the aggregates at the next batch (and the API says so); uncertainty on every number.
+  **Implemented (T10, [AGGREGATION](../privacy/AGGREGATION.md), [ADR-0053](../adr/0053-disclosure-control-clean-partitions-and-k-per-cell.md), [ADR-0055](../adr/0055-publication-batches-snapshot-and-deletion-semantics.md)).**
+  Shown by an exhaustive search over every small partition (k = 3, 4, 5, every one-record neighbour) and by seeded property tests over random populations through the whole pipeline: within one snapshot
+  no group below K is recoverable by subtraction; for an adversary whose own record is added or removed between two snapshots, no group of *other* people below K - 1 is. Four mutants (no complementary suppression, the textbook
+  rule, an off-by-one threshold, a forgotten "outside" group) are each caught. K = 5 is the brief's number (a convention).
+- **Residual.** K = 5 is a convention, not a guarantee. **(a)** An adversary with m accounts (the ledger limits one per employer per account, not accounts: T-10) isolates a group of k - m others; with one account, k - 1 (a
+  test states the boundary instead of hiding it). **(b)** Side knowledge: a group of five where four are known to be the employer's disgruntled engineers can still be identified by elimination. **(c)** A unanimous
+  cell is shown (everyone in it gave that rating; [OP-20](../OPEN-PROBLEMS.md#op-20-homogeneous-cells-are-shown)). **(d)** The pattern of what is withheld is itself a signal
+  ([OP-21](../OPEN-PROBLEMS.md#op-21-what-is-withheld-is-itself-a-signal)). **(e)** A batch in which a few known people submitted exposes their joint contribution
+  ([OP-19](../OPEN-PROBLEMS.md#op-19-k-is-a-convention-and-small-batches-expose-small-differences)). Very small employers should show **nothing** and the employer-size floor is still an open problem
+  ([OP-2](../OPEN-PROBLEMS.md#op-2-employer-registry-and-identity), [OP-3](../OPEN-PROBLEMS.md#op-3-tenure-and-role-band-granularity-vs-small-groups)). **Likelihood medium, impact high.**
+- **Status.** Mitigated in code (T10): the rules above are Implemented and tested; the residual items (a)-(e) are Open and documented.
 
 ### T-02 Re-identification from content: quote style, distinctive episodes, names
 
@@ -96,9 +101,11 @@ deliberately kept), `Implemented` (only where noted).
   caps (Proposal, T1); the agent never asks for names (agent rules, T4) and a persona tests that it handles "tries to
   name a manager" (T7); individual quotes are never shown publicly (brief §2); quotes in aggregates, if shown at all,
   only above K and curated by rule, not selected by a model that sees identity (Proposal, T10).
-- **Residual.** Detection has false negatives; distinctive episodes are not PII. **Quote display should be off by
-  default** (Proposal: aggregates are numbers only in v1). Accepted. **Likelihood medium, impact high.**
-- **Status.** Open (T1/T5/T10).
+  **Implemented (T10):** aggregates are numbers only: the Signals module never receives a quote (the port has no field for one and the one adapter that reads `Records.Json` drops quotes), its store has no column
+  that could hold one, and a test scans every signals response for the quote and record fields of records it was built from.
+- **Residual.** Detection has false negatives; distinctive episodes are not PII. **Quote display is off** (aggregates are numbers only in v1; showing a quote later needs its own ADR and this entry re-opened). Accepted.
+  **Likelihood medium, impact high.**
+- **Status.** Open (T1/T5); the aggregate path (T10) never carries content, tested.
 
 ### T-03 Prompt injection through interviewee text into the interviewer/prober
 
@@ -248,7 +255,10 @@ deliberately kept), `Implemented` (only where noted).
 - **Residual.** **High.** Until real verification exists, the system cannot distinguish a real ex-employee from a script;
   every aggregate is "claimed by accounts", not "verified". Output must be labelled accordingly. Account creation cost
   (email verification, authservice rate limits) is the only brake on Sybil attacks. **Likelihood high, impact medium.**
-- **Status.** Open; documented as unsolved ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)); the T5 mitigations above are Implemented.
+  **Implemented (T10):** signals are statistical, with n, an interval that is not falsely precise at small n, a reliability label and the coverage of the cell in the same object; the verification level is shown only as a
+  breakdown whose groups are each empty or at least K, on the employer x topic cell; the API contract requires every view to say that employment is *claimed, not verified* ([AGGREGATION §8](../privacy/AGGREGATION.md#8-api-contract-and-ui-copy-contract)),
+  and the per-account rate limit on the signals endpoints limits scraping, not fabrication. K does not protect against m accounts (T-01 (a)).
+- **Status.** Open; documented as unsolved ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)); the T5 and T10 mitigations above are Implemented.
 
 ### T-11 Enumeration, timing and abuse of receipt codes
 
@@ -338,6 +348,10 @@ deliberately kept), `Implemented` (only where noted).
   channel, and a regression that logs request bodies, and one that logs request headers, are shown to be caught. The only outcome metric is labelled `accepted` or a rejection code. **Not covered:**
   `User-Agent`, method, route, status and timing are in the standard HTTP-server span by design; the PII detector's own limits (T-02); model prompts (T6). **Not covered:** authservice's own audit rows include the actor's
   email (for example on account deletion): outside this repository, see OPEN-PROBLEMS.
+  **Implemented (T10), Signals:** the publisher logs one line per publication (employers published, rule version, k) and, on failure, the exception *type*; no employer, quote, record id or count of withheld cells
+  is a log argument or a metric label (the only label is `outcome`: published, skipped, failed; withheld counts are not emitted because they are themselves a statement about small groups); tests capture the logs and the
+  metrics of a publication. **Scope decision:** the employer reference is in the signals URL path, so it is in request logs and in `url.path` of traces like any URL. It is a public identifier (the string the list returns), not
+  an attribute of a submitter, and this service adds no account identifier to spans or logs; if reading an employer must not be traceable at all, the reference moves to a POST body.
 - **Residual.** Platform-level logs (proxy, load balancer, database slow-query logs) are outside application control.
   **Likelihood medium, impact high.**
 - **Provider side (T6, Implemented, [ADR-0035](../adr/0035-provider-telemetry-and-export.md)):** the canary test is extended to every provider client (Anthropic, OpenAI-compatible, Ollama) and plants the interviewee's marker, the API key, a response header, a base-URL path and an error body that echoes the request; none appears in any activity of any source, metric label, log line or exception, and each case proves it has power. There is no switch that records prompt or completion text. The scan can fail (a test shows a deliberately leaking span is caught). **Not covered:** a real provider's behaviour (no live call was made).
@@ -345,7 +359,7 @@ deliberately kept), `Implemented` (only where noted).
   body, a verifier exception, and the receipt code) found three leaks in the SDK that were fixed: full outgoing messages (receipt code) at Trace, client-chosen names in log lines, and the same names in metric and span tags. Fixes: SDK log floor at Information
   (config cannot lower it), `McpBodyScrubber` (unknown method, tool, prompt, URI replaced by constants before the SDK reads the body). Each fix is shown to be needed (the test fails without it). **Not covered:** the connecting application's `clientInfo` name and version
   (Information logs), chosen by the application.
-- **Status.** Mitigated for the submission, ticket, receipt and MCP paths (T5, T8) and for the model-call side (T6, against fakes: no live provider call was made); Open for platform logs.
+- **Status.** Mitigated for the submission, ticket, receipt and MCP paths (T5, T8) for the model-call side (T6, against fakes: no live provider call was made) and for the Signals publisher (T10); Open for platform logs.
 
 ### T-16 Consent withdrawal mid-interview
 
@@ -387,8 +401,11 @@ deliberately kept), `Implemented` (only where noted).
   (Planned, T4/T6).
   **Implemented (T5):** the 160 KiB cap is enforced while the body is read (a chunked body without a length is refused too), the anonymous endpoints have per-client and global limits with no queue, ticket
   minting is limited per account, a PII scan has a time budget, and the verifier a timeout.
+  **Implemented (T10):** the signals endpoints have their own per-account budget (default 30 a minute, no queue, one budget for both endpoints) and clamp their list; a repeated query cannot learn more than the snapshot holds
+  because the snapshot changes once per period; the publisher is bounded in memory (one employer at a time, writes in batches of 100), runs one at a time in a process, and a unique fingerprint settles a race between instances.
 - **Residual.** An in-memory limiter does not share state across replicas; acceptable for single-instance local use,
-  re-examined before any deployment. **Status.** Mitigated for a single instance (T5); Open for replicas.
+  re-examined before any deployment; the same holds for the signals limiter, the publisher's in-process lock, and the rule that one instance publishes (an instance that sweeps "orphan" rows could delete another's invisible rows
+  mid-run, [ADR-0052](../adr/0052-signals-module-boundary-input-port-and-store.md)). A scraper with many accounts is not stopped by a per-account limit; the snapshot is what bounds what it learns. **Status.** Mitigated for a single instance (T5, T10); Open for replicas.
 
 ### T-19 Legal compulsion and employer litigation
 
@@ -418,9 +435,9 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
 
 | ID | Risk | Likelihood | Impact | Mitigation status | Residual | Status | Owner |
 |---|---|---|---|---|---|---|---|
-| T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | ledger, domain rate and size limits, validation, PII re-scan Implemented (T5); verification is a mock | **High**, unsolved | Open | open problem |
-| T-01 | Small-group deanonymisation, differencing | M | H | Planned (T10) + Decided (ADR-0019) | Medium-high | Open | T10 |
-| T-02 | Re-identification from quotes/episodes | M | H | Planned (T1/T5) + Proposal (no quote display) | Medium | Open | T1, T10 |
+| T-10 | Fabricated / bulk / Sybil records, no real verification | H | M | ledger, domain rate and size limits, validation, PII re-scan Implemented (T5); signals labelled and shown with uncertainty (T10); verification is a mock | **High**, unsolved | Open | open problem |
+| T-01 | Small-group deanonymisation, differencing | M | H | Implemented (T10): per-cell k, clean partitions, single-band cuts, batched snapshots; exhaustive and property tests with mutants | Medium (re-rated from medium-high: one-snapshot and one-record differencing are closed in tests; m accounts give k - m and side knowledge remain, tied to T-10) | Mitigated in code; residual Open | T10 |
+| T-02 | Re-identification from quotes/episodes | M | H | Implemented (T1, T5, T10): PII detection and caps; the aggregate path never carries a quote (tested) | Medium | Open (detection limits) | T1 |
 | T-07 | Exfiltration via MCP host | M | H | server side Implemented (T8); host behaviour unmeasured, no live Claude run | Accepted, disclosed | Open | T7 |
 | T-15 | Log/trace leakage | M | H | email scrubbing + claim minimisation Implemented (T2); content canary test Implemented (T5, extended to MCP in T8); model-call side Planned (T6) | Medium (platform logs) | Mitigated (T5, T8), Open (T6) | T6 |
 | T-12 | Account takeover | M | M | authservice features; BFF single-flight rotation + logout revocation Implemented (T2) | Medium | Open | T9 |
@@ -445,7 +462,8 @@ Likelihood and impact are ordinal judgements by the author, not measurements (As
    accounts", and every surface must say so.
 2. **An operator with the database, the key and live traffic can link accounts to records** (T-08, T-09, T-13). The design raises the
    bar and shrinks what is stored; it does not remove trust in the operator.
-3. **Small groups defeat k-anonymity** (T-01). K = 5 is a convention; small employers should show nothing.
+3. **Small groups defeat k-anonymity** (T-01). K = 5 is a convention; small employers should show nothing. The rules (T10) close subtraction within a snapshot and across one record of the adversary's own; they do not stop several
+   accounts (k - m), side knowledge, or unanimity ([AGGREGATION §7](../privacy/AGGREGATION.md#7-what-k-does-not-protect-against)).
 4. **In mode A the host, and in all modes the AI provider, sees the full transcript** (T-07, T-20); the server cannot verify
    transcript fidelity (T-04).
 5. **Free-text quotes carry identity** (T-02); detection will miss some of it.

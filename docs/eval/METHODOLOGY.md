@@ -228,3 +228,18 @@ All offline; the .NET 10 SDK is the only requirement. From the repository root:
 
 A real-model run is `dotnet run --project src/ExitInterviewAgent.Eval -- run --profile <name> --out report/` once a provider factory is registered and the profile's environment is set
 ([README](README.md#plugging-in-model-providers)); it has **not** been done.
+
+## 14. Aggregate counter-metrics (T10)
+
+The employer signals apply the same metric-ethics rules to a different artifact: the aggregate of what *former employees said*, not the quality of an interview. Summary of where each rule lives
+([AGGREGATION](../privacy/AGGREGATION.md), [ADR-0054](../adr/0054-statistics-regularised-t-interval-and-reliability.md)):
+
+| Rule ([metric-ethics](https://github.com/konradcinkusz/architecture-standards/blob/main/docs/guides/METRIC-ETHICS.md)) | In the signals |
+|---|---|
+| §1 anti-goals enforced by architecture | no composite, cross-topic average, ranking, best/worst or percentile: no field, column, query or route; employers listed alphabetically (tests) |
+| §2 counter-metric in the same payload | every rating carries its **coverage** (the share of its population that rated the topic, banded) in the same object; the degenerate strategy it catches is a topic that looks good because most people skipped it |
+| §3 no number without confidence | n, a 95% interval that is not falsely precise at small n, and a reliability label, in the same object; "a wide interval means early, not wrong" is part of the UI copy contract |
+| §4 heuristics about people are report-only | nothing about a person is computed; the record has no affect field (ADR-0019 (d)) |
+| §5 the unit is the artifact | the unit is an employer x topic cell of at least k ratings; no per-person view exists |
+
+The interval's own coverage is measured, not assumed: the table is in AGGREGATION §5 and is produced by a test (`IntervalCoverageTests`). The ratings the cells average are produced by a model reading an interview ([OP-5](../OPEN-PROBLEMS.md#op-5-model-bias)); the interval does not contain that error.

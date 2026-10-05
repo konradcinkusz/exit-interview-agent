@@ -120,7 +120,7 @@ were blocked. Everything below is an **assessment from general knowledge, Unveri
   within Annex III(4) as designed.**
 - **Where it could drift in.** An employer-facing view that ranks or scores *individuals* ("who is a flight risk", "which manager is
   the problem"), a per-person record, or use of interview output in HR decisions about current staff would change the assessment.
-  The architecture's anti-goals (no per-person view, no composite ranking; [privacy design §5.5](../privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-planned-t10)) are the structural guard.
+  The architecture's anti-goals (no per-person view, no composite ranking; [privacy design §5.5](../privacy/DESIGN.md#55-aggregates-k-threshold-uncertainty-no-ranking-implemented-t10)) are the structural guard.
 - **Emotion recognition in the workplace.** The Act is generally described as prohibiting emotion-recognition systems in workplace
   and education settings (Art. 5(1)(f)). The agent must **not infer the interviewee's emotional state**; this also follows the
   repository's own rule that heuristics about human state are report-only and outside scoring
