@@ -10,6 +10,7 @@ COPY src/ExitInterviewAgent.Contracts/ExitInterviewAgent.Contracts.csproj src/Ex
 COPY src/ExitInterviewAgent.Records/ExitInterviewAgent.Records.csproj src/ExitInterviewAgent.Records/
 COPY src/ExitInterviewAgent.Privacy/ExitInterviewAgent.Privacy.csproj src/ExitInterviewAgent.Privacy/
 COPY src/ExitInterviewAgent.Agent/ExitInterviewAgent.Agent.csproj src/ExitInterviewAgent.Agent/
+COPY src/ExitInterviewAgent.Providers/ExitInterviewAgent.Providers.csproj src/ExitInterviewAgent.Providers/
 COPY src/ExitInterviewAgent.Signals/ExitInterviewAgent.Signals.csproj src/ExitInterviewAgent.Signals/
 COPY src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj src/ExitInterviewAgent.InterviewService/
 RUN dotnet restore src/ExitInterviewAgent.InterviewService/ExitInterviewAgent.InterviewService.csproj
@@ -21,6 +22,8 @@ COPY src/ExitInterviewAgent.Privacy/ src/ExitInterviewAgent.Privacy/
 COPY src/ExitInterviewAgent.Signals/ src/ExitInterviewAgent.Signals/
 # The Agent project publishes the interview protocol that the MCP prompt and resources serve (ADR-0042).
 COPY src/ExitInterviewAgent.Agent/ src/ExitInterviewAgent.Agent/
+# The web interview builds its provider (ADR-0076): the same Providers project the CLI uses.
+COPY src/ExitInterviewAgent.Providers/ src/ExitInterviewAgent.Providers/
 # The Records and Agent projects embed the published schemas.
 COPY schemas/ schemas/
 COPY src/ExitInterviewAgent.InterviewService/ src/ExitInterviewAgent.InterviewService/
