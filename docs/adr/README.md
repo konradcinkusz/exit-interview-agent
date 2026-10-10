@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 65 ADRs** (numbered 0001–0072). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 66 ADRs** (numbered 0001–0073). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -166,11 +166,12 @@ This directory holds all architecture decisions made during the project, indexed
 
 ---
 
-## 15. Documentation and Build Output (0072)
+## 15. Documentation, Build Output and Releasing (0072–0073)
 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0072](0072-polish-latex-guide-built-on-demand.md) | Polish LaTeX guide to the product, built on demand | accepted | Guide is LaTeX source in `docs/papers/` on the house preamble; PDF is build output from a `workflow_dispatch`-only workflow, never committed; drift from `docs/` accepted |
+| [0073](0073-cli-release-workflow-manual-draft-unsigned.md) | CLI release workflow is manual, draft by default, and unsigned | accepted | `release-cli.yml` builds three self-contained binaries plus SHA-256 sums into a draft GitHub Release; no tag until the owner publishes; unsigned and Windows/macOS unrun, stated in the notes |
 
 ---
 
@@ -198,5 +199,6 @@ Start with the **Foundation** (0001–0005), then pick your domain:
 - **Signals web UI:** 0067–0071
 - **Hardening:** 0062–0063
 - **Documentation and the guide PDF:** 0017, 0072
+- **Releasing the CLI:** 0026, 0073
 
 Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related standards guides, and related ADRs. ADRs are immutable once accepted; amendments are noted in later ADRs or in the brief.

@@ -1,0 +1,155 @@
+name: Release CLI
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Packages the offline/BYO-key CLI as self-contained single-file binaries for
+#  linux-x64, win-x64 and osx-arm64, adds SHA-256 sums, and creates a GitHub
+#  Release.
+#
+#  Manual only, and a DRAFT by default: nothing is public and no tag exists
+#  until the owner publishes the draft in the GitHub UI (or reruns this with
+#  `publish` ticked). The brief forbids releases and tags before the owner
+#  decides; running this workflow IS that decision (ADR-0073).
+#
+#  The binaries are NOT signed or notarised (no certificate, no Apple
+#  Developer account). The Windows and macOS binaries are built, never run, in
+#  CI; only the Linux one is smoke-tested. The release notes say so.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without the leading v, e.g. 0.1.0 or 0.1.0-pre.1'
+        required: true
+        type: string
+      publish:
+        description: 'Publish immediately (creates the tag). Leave off to create a draft.'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-cli
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and package (${{ matrix.rid }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        rid: [linux-x64, win-x64, osx-arm64]
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Validate version
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "bad version: $VERSION"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish a self-contained single-file binary
+        run: >
+          dotnet publish src/ExitInterviewAgent.Cli -c Release -r ${{ matrix.rid }} --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version="$VERSION" -o out/${{ matrix.rid }}
+
+      # Only the Linux binary can run on this runner.
+      - name: Smoke run on linux-x64
+        if: matrix.rid == 'linux-x64'
+        run: |
+          set -euo pipefail
+          out/linux-x64/exit-interview --version | grep -q "^exit-interview, interview protocol"
+          out/linux-x64/exit-interview personas
+          out/linux-x64/exit-interview demo --persona talkative --seed 1 | tee demo1.txt
+          grep -q "valid: yes, errors: 0" demo1.txt
+          if grep -q "\[FAIL\]" demo1.txt; then echo "an invariant failed"; exit 1; fi
+          out/linux-x64/exit-interview providers | grep -q "Not supported, on purpose"
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          name="exit-interview-${VERSION}-${{ matrix.rid }}"
+          mkdir -p "pkg/$name"
+          cp LICENSE "pkg/$name/"
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            cp out/win-x64/exit-interview.exe "pkg/$name/"
+            (cd pkg && zip -qr "../$name.zip" "$name")
+            echo "ASSET=$name.zip" >> "$GITHUB_ENV"
+          else
+            cp "out/${{ matrix.rid }}/exit-interview" "pkg/$name/"
+            chmod +x "pkg/$name/exit-interview"
+            tar -C pkg -czf "$name.tar.gz" "$name"
+            echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Create the GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+      PUBLISH: ${{ inputs.publish }}
+      PRERELEASE: ${{ inputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          ls -l
+          sha256sum exit-interview-* | tee SHA256SUMS.txt
+
+      - name: Release notes
+        run: |
+          cat > notes.md <<'NOTES'
+          Command-line interview agent, self-contained (no .NET needed).
+
+          **Read before using**
+          - Not signed or notarised. Windows SmartScreen and macOS Gatekeeper will warn; see docs/release/RELEASING.md in the repository for how to proceed, and verify the SHA-256 sums below first.
+          - Only the Linux binary was run in CI (smoke test). The Windows and macOS binaries were built, not executed.
+          - The offline demo (`demo`, `interview --provider mock`) sends nothing anywhere. With a real provider, the conversation goes to that provider; `submit` is the only command that talks to a server, and no server is deployed by this project.
+          - The project's release gate currently reads NOT READY (docs/release/RELEASE-GATE.md); no real model has been evaluated.
+
+          Verify: `sha256sum -c SHA256SUMS.txt` (macOS: `shasum -a 256 -c SHA256SUMS.txt`).
+          NOTES
+
+      - name: Create release
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          if gh release view "$tag" >/dev/null 2>&1; then echo "release $tag already exists"; exit 1; fi
+          args=(--target "$GITHUB_SHA" --title "exit-interview $VERSION" --notes-file notes.md)
+          [ "$PUBLISH" = "true" ] || args+=(--draft)
+          [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
+          gh release create "$tag" "${args[@]}" exit-interview-* SHA256SUMS.txt
+          { echo "## Release $tag"; echo; [ "$PUBLISH" = "true" ] && echo "Published." || echo "Created as a **draft**: review it under Releases, then publish."; } >> "$GITHUB_STEP_SUMMARY"
