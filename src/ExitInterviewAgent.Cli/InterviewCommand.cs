@@ -23,7 +23,7 @@ internal static class InterviewCommand
         public const int Ok = 0, Usage = 2, NoRecordByChoice = 3, AgentFailed = 4, ProviderFailed = 5, NotConfirmed = 6, Cancelled = 130;
     }
 
-    internal static readonly IReadOnlySet<string> Values = new HashSet<string>(ProviderOptions.ValueFlags) { "--out", "--employer", "--tenure", "--seniority", "--function", "--server", "--save-receipt" };
+    internal static readonly IReadOnlySet<string> Values = new HashSet<string>(ProviderOptions.ValueFlags) { "--out", "--employer", "--tenure", "--seniority", "--function", "--server", "--save-receipt", "--language" };
     internal static readonly IReadOnlySet<string> Switches = new HashSet<string> { "--save-transcript", "--yes-i-understand" };
 
     public static async Task<int> RunAsync(string[] args, CliHost host)
@@ -34,6 +34,7 @@ internal static class InterviewCommand
         var outDir = flags["--out"];
         var saveTranscript = flags.Has("--save-transcript");
         if (saveTranscript && outDir is null) throw new ArgumentException("--save-transcript needs --out <dir>: the transcript is written only where you say.");
+        var language = ResolveLanguage(flags["--language"], CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
 
         // Checked before the interview, not after: a bad address should not be discovered once the record exists.
         var server = ServerUrl.TryResolve(flags["--server"], host.Env);
@@ -45,7 +46,8 @@ internal static class InterviewCommand
         var context = await ReadContextAsync(flags, host).ConfigureAwait(false);
         if (context is null) return Exit.Cancelled;
 
-        var protocol = settings.MaxTokens is { } cap ? InterviewProtocol.Current.WithLimits(InterviewProtocol.Current.Limits with { MaxEstimatedTokens = (int)Math.Min(cap, int.MaxValue) }) : InterviewProtocol.Current;
+        var wording = InterviewProtocol.For(language);
+        var protocol = settings.MaxTokens is { } cap ? wording.WithLimits(wording.Limits with { MaxEstimatedTokens = (int)Math.Min(cap, int.MaxValue) }) : wording;
         ProviderChatClient? provider = null;
         IChatClient model;
         if (settings.Kind == ProviderKind.Mock) model = new ScriptedChatClient();
@@ -81,6 +83,18 @@ internal static class InterviewCommand
             return await ReportAsync(result, host, outDir, saveTranscript, provider, settings, server, flags["--save-receipt"]).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// <c>--language pl|en|auto</c>. <c>auto</c> (the default) follows the system UI language: Polish if it is Polish, English otherwise.
+    /// <paramref name="uiLanguage"/> is the two-letter UI language (<c>CultureInfo.CurrentUICulture.TwoLetterISOLanguageName</c>), passed in so
+    /// the choice is tested without changing the process culture.
+    /// </summary>
+    internal static string ResolveLanguage(string? value, string uiLanguage) => value switch
+    {
+        null or "auto" => uiLanguage == "pl" ? "pl" : "en",
+        "pl" or "en" => value,
+        _ => throw new ArgumentException("--language must be one of: pl, en, auto."),
+    };
 
     private static string Hint(string code) => code switch
     {
