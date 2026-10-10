@@ -1,6 +1,6 @@
 # Web interview app: plan
 
-Status: **planned** (nothing below is built). Owner decisions are listed in section 9; the plan does not assume them silently.
+Status: **approved by the owner, being built in parallel tasks** (section 7). Decisions taken are in section 9; the contract between the service, the BFF and the page is section 10 and is the one thing the tasks must not change on their own.
 
 ## 1. What it is
 
@@ -87,11 +87,38 @@ W9 is the gate: if the Polish interview or the tiles are not good with a real mo
 
 Real-model quality in Polish, real cost per interview, completion rate, whether people pay, whether tiles are used, extraction reliability with the production model.
 
-## 9. Decisions needed from the owner
+## 9. Decisions
 
-1. Customer: the leaving employee (this plan) or the employer (a different product: no tiles, an employer-facing report).
-2. The key model: service key (this plan) or user key.
-3. Price and currency; whether a first interview is free (it costs real money on the shared key).
-4. Model: a stronger model costs more per interview; a cheaper one may write worse Polish. Decided from W9, not now.
-5. Where it runs: Fly (the repository already has the files); the domain name.
-6. Legal: who reviews the terms and the tile feature, and before which step.
+Taken (2026-10-10, the owner said: build everything for the former employee, all decisions not named are the builder's):
+
+1. Customer: the leaving employee. No employer-facing product here.
+2. The key: the service's own key, server side only (section 2). The user-key mode is not built.
+3. Price: a configuration value (`Billing:PriceMinorUnits`, `Billing:Currency`), no number is hard-coded; the first interview is not free. The value is set after W9.
+4. Model: configurable (`Interviews:Provider`, `Interviews:Model`), default the one the CLI documents for Anthropic; chosen for production after W9.
+5. Hosting: Fly, as the repository already declares; the build adds files and a runbook and **deploys nothing** (AGENTS.md). Domain name: the owner's, set at deploy time.
+6. Legal: W8 delivers drafts (privacy policy, terms, consent wording) and a checklist. Review by a lawyer is recorded in RELEASE-GATE as **NOT RUN, owner action**; no paid interview before it.
+
+Still the owner's, outside the code: the Anthropic spend limit, the Stripe account and keys, the domain, the lawyer, and W9 (needs a key).
+
+## 10. Contract (fixed; a task that needs a change proposes it in its PR and does not diverge)
+
+All routes are in `ExitInterviewAgent.InterviewService` under `/api/v1`, require the account bearer (`AuthPolicies.Account`) unless marked anonymous, return `application/json`, errors are RFC 9457 problem documents with a stable `code`. Types live in `ExitInterviewAgent.Contracts` (`InterviewContracts.cs`); the BFF mirrors them in `web/app/lib/interview-contract.ts`.
+
+| Method and path | Request | Success | Errors |
+|---|---|---|---|
+| `POST /interviews` | `{ "language": "pl"\|"en", "tenure": "lt_6m"\|"6m_1y"\|"1y_3y"\|"3y_5y"\|"5y_10y"\|"gt_10y" }` | `201 { id, status, language, expiresAt, turn }` (the opening turn) | `402 payment_required` (no credit), `429 rate_limited`, `503 interviews_disabled` (kill switch or provider not configured), `409 interview_in_progress` (one open session per account) |
+| `POST /interviews/{id}/reply` | `{ "text": string }` (1..2000 chars) | `200 { status, turn?, ending? }` | `404`, `409 interview_ended`, `422 reply_invalid`, `429`, `503 provider_unavailable` |
+| `GET /interviews/{id}` | | `200 { id, status, language, turnCount, expiresAt }` | `404`, `410 gone` |
+| `GET /interviews/{id}/result` | | `200 { record, tiles, usage }` once `status` is `completed` | `404`, `409 not_completed`, `410 gone` |
+| `DELETE /interviews/{id}` | | `204` (the transcript and result are wiped) | `404` |
+| `GET /credits` | | `200 { balance }` | |
+| `POST /checkout` | `{ "quantity": 1..10 }` | `200 { url }` (provider-hosted payment page) | `503 billing_disabled` |
+| `POST /webhooks/payments` (anonymous, signature verified) | provider event | `200` (idempotent by event id) | `400 bad_signature` |
+
+- `status` is `awaiting_consent`, `in_progress`, `completed`, `stopped` (consent refused or withdrawn: nothing kept) or `failed` (service fault; the credit is returned).
+- `turn` is `{ index, kind, text }` with `kind` one of `opening`, `consent_reask`, `topic`, `probe`, `clarification`, `deep_probe`, `redirect`, `close`, `stop`. `ending` is `{ reason }` on the last turn.
+- `tiles` is `{ items: [{ kind, text }], dropped: [{ code }], notice }` where `kind` is `glassdoor`, `google_review`, `reddit`, `short_note`, `overview`, `facts` as the CLI renders them (`TileKind`); `notice` is the same legal notice the CLI prints, in the interview's language.
+- `usage` is counts only: `{ modelCalls, tokensEstimated }`. No text appears in any log, trace tag or metric.
+- A session expires 30 minutes after its last request; after completion the result stays readable for 30 minutes, then it is wiped. A restart loses open sessions; the next request is `410 gone` and the credit is returned.
+- The interview runs in a background task per session: an `IInterviewee` backed by a channel feeds `InterviewRunner`; `reply` writes to the channel and waits (with a timeout) for the next interviewer turn.
+- Credits are consumed when the session is created and returned when it ends as `failed`.
