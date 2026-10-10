@@ -17,6 +17,7 @@ public sealed class CostMetrics : IDisposable
     private readonly Counter<long> _withdrawn;
     private readonly Counter<long> _rateLimited;
     private readonly Counter<long> _rejectedEmailUnverified;
+    private readonly Counter<long> _lostRefunded;
     private readonly Histogram<long> _tokensEstimated;
     private readonly Histogram<long> _modelCalls;
 
@@ -29,6 +30,7 @@ public sealed class CostMetrics : IDisposable
         _withdrawn = Meter.CreateCounter<long>("interviews_withdrawn");
         _rateLimited = Meter.CreateCounter<long>("rate_limited");
         _rejectedEmailUnverified = Meter.CreateCounter<long>("rejected_email_unverified");
+        _lostRefunded = Meter.CreateCounter<long>("interviews_lost_refunded");
         _tokensEstimated = Meter.CreateHistogram<long>("tokens_estimated");
         _modelCalls = Meter.CreateHistogram<long>("model_calls");
     }
@@ -49,6 +51,9 @@ public sealed class CostMetrics : IDisposable
     public void RateLimited() => _rateLimited.Add(1);
 
     public void RejectedEmailUnverified() => _rejectedEmailUnverified.Add(1);
+
+    /// <summary>A session that was open when its process stopped got its credit back at the startup sweep (W11). Counts only.</summary>
+    public void LostRefunded() => _lostRefunded.Add(1);
 
     /// <summary>What one interview (its turns and its tiles) cost in estimated tokens, once it has ended.</summary>
     public void Usage(long tokensEstimated, long modelCalls)

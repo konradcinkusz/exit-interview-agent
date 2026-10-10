@@ -18,7 +18,7 @@ public static class BillingServiceCollectionExtensions
         services.AddOptions<BillingOptions>().Bind(configuration.GetSection(BillingOptions.SectionName));
         services.AddSingleton<CreditLedger>();
         services.AddSingleton<LedgerCreditGate>();
-        services.AddSingleton<LedgerCreditRefund>();
+        services.AddSingleton<LedgerCreditSettlement>();
 
         var options = configuration.GetSection(BillingOptions.SectionName).Get<BillingOptions>() ?? new BillingOptions();
         var ready = options.Configured(out var reason);

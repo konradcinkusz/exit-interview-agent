@@ -17,6 +17,9 @@ public sealed class InterviewSessionStore(TimeProvider clock, IOptionsMonitor<In
     private readonly Dictionary<string, string> _openByOwner = [];
     private readonly Dictionary<string, (string Owner, DateTimeOffset Until)> _tombstones = [];
 
+    // Sessions wiped by expiry (not by a request or a delete): their settlement is written by the sweeper, outside this lock (W11).
+    private readonly List<InterviewSession> _ended = [];
+
     /// <summary>Adds the session unless its account already has an open one. Returns false for a second open session.</summary>
     public bool TryAdd(InterviewSession session)
     {
@@ -42,6 +45,7 @@ public sealed class InterviewSessionStore(TimeProvider clock, IOptionsMonitor<In
                 if (found.IsExpired(now, options.CurrentValue))
                 {
                     expired = RemoveLocked(found);
+                    _ended.Add(expired);
                     _tombstones[id] = (owner, now + options.CurrentValue.IdleTimeout);
                     session = null;
                 }
@@ -98,12 +102,30 @@ public sealed class InterviewSessionStore(TimeProvider clock, IOptionsMonitor<In
             foreach (var session in _sessions.Values.Where(s => s.IsExpired(now, options.CurrentValue)).ToList())
             {
                 expired.Add(RemoveLocked(session));
+                _ended.Add(session);
                 _tombstones[session.Id] = (session.Owner, now + options.CurrentValue.IdleTimeout);
             }
             PurgeTombstonesLocked(now);
         }
         foreach (var session in expired) session.Cancel();
         return expired.Count;
+    }
+
+    /// <summary>The sessions wiped by expiry since the last call, for their settlement. Taken once: the caller owns them.</summary>
+    public List<InterviewSession> TakeEnded()
+    {
+        lock (_gate)
+        {
+            var taken = new List<InterviewSession>(_ended);
+            _ended.Clear();
+            return taken;
+        }
+    }
+
+    /// <summary>The ids of the sessions this process still holds (open or finished, not yet wiped). The startup sweep never refunds these.</summary>
+    public string[] LiveIds()
+    {
+        lock (_gate) return [.. _sessions.Keys];
     }
 
     public int Count { get { lock (_gate) return _sessions.Count; } }

@@ -11,6 +11,7 @@ namespace ExitInterviewAgent.InterviewService.Tests.Billing;
 /// so that the wrong order would give a different answer, and the rate-limited case proves that no credit is taken for a start
 /// that was refused.
 /// </summary>
+[Collection(BillingCollection.Name)]
 public sealed class StartGateOrderTests : IDisposable
 {
     private readonly List<BillingHost> _hosts = [];

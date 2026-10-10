@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.InterviewService.Tests.Support;
 
 namespace ExitInterviewAgent.InterviewService.Tests.Interviews;
@@ -95,7 +96,7 @@ public sealed class InterviewEndpointTests : IDisposable
         var usage = result.GetProperty("usage");
         Assert.True(usage.GetProperty("modelCalls").GetInt32() > 0);
         Assert.True(usage.GetProperty("tokensEstimated").GetInt64() > 0);
-        Assert.Empty(_host.Refunds.Sessions);
+        Assert.Empty(_host.Settlements.Settled.Where(s => s.Outcome is SessionOutcome.Failed or SessionOutcome.Lost).Select(s => s.Session).ToArray());
     }
 
     [Fact]
@@ -282,7 +283,7 @@ public sealed class InterviewEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal("interviews_disabled", CodeOf(await Json(response)));
-        Assert.Empty(_host.Refunds.Sessions);
+        Assert.Empty(_host.Settlements.Settled.Where(s => s.Outcome is SessionOutcome.Failed or SessionOutcome.Lost).Select(s => s.Session).ToArray());
     }
 
     [Fact]
@@ -386,7 +387,7 @@ public sealed class InterviewEndpointTests : IDisposable
         Assert.Equal("provider_unavailable", CodeOf(await Json(reply)));
         var state = await Json(await client.GetAsync($"/api/v1/interviews/{id}"));
         Assert.Equal("failed", state.GetProperty("status").GetString());
-        Assert.Equal(new[] { id }, _host.Refunds.Sessions);
+        Assert.Equal(new[] { id }, _host.Settlements.Settled.Where(s => s.Outcome is SessionOutcome.Failed or SessionOutcome.Lost).Select(s => s.Session).ToArray());
     }
 
     [Fact]
@@ -400,7 +401,7 @@ public sealed class InterviewEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, reply.StatusCode);
         Assert.Equal("stop", (await Json(reply)).GetProperty("turn").GetProperty("kind").GetString());
         await WaitForStatus(client, id, "stopped");
-        Assert.Empty(_host.Refunds.Sessions);
+        Assert.Empty(_host.Settlements.Settled.Where(s => s.Outcome is SessionOutcome.Failed or SessionOutcome.Lost).Select(s => s.Session).ToArray());
     }
 
     [Fact]

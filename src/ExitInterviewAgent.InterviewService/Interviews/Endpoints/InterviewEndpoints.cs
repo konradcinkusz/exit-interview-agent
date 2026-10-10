@@ -70,10 +70,10 @@ public static class InterviewEndpoints
           .ProducesProblem(StatusCodes.Status409Conflict)
           .ProducesProblem(StatusCodes.Status410Gone);
 
-        group.MapDelete("/interviews/{id}", (string id, HttpContext http, InterviewSessions sessions) =>
+        group.MapDelete("/interviews/{id}", async (string id, HttpContext http, InterviewSessions sessions, CancellationToken ct) =>
         {
             if (Owner(http) is not { } owner) return Results.Unauthorized();
-            return sessions.Delete(owner, id) ? Results.NoContent() : Problem(InterviewCodes.NotFound, StatusCodes.Status404NotFound);
+            return await sessions.DeleteAsync(owner, id, ct) ? Results.NoContent() : Problem(InterviewCodes.NotFound, StatusCodes.Status404NotFound);
         }).WithName(InterviewEndpointNames.DeleteInterview)
           .ProducesProblem(StatusCodes.Status404NotFound);
 

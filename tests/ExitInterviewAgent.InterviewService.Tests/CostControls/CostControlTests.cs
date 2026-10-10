@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ExitInterviewAgent.InterviewService.Tests.Billing;
 using ExitInterviewAgent.InterviewService.Tests.Support;
 
 namespace ExitInterviewAgent.InterviewService.Tests.CostControls;
@@ -9,6 +10,7 @@ namespace ExitInterviewAgent.InterviewService.Tests.CostControls;
 /// W4 (web-app-plan §2): the cost controls on the session endpoints. Rate limits per account and per address, the emergency
 /// switch, the verified-email gate, and the global daily start cap. Each test builds its own host, so limits do not leak.
 /// </summary>
+[Collection(BillingCollection.Name)]
 public sealed class CostControlTests : IDisposable
 {
     private const string StartUrl = "/api/v1/interviews";
