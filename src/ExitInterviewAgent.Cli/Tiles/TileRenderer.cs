@@ -16,9 +16,9 @@ namespace ExitInterviewAgent.Cli.Tiles;
 /// </summary>
 internal static class TileRenderer
 {
-    internal const string NoticePl = "To są propozycje tekstów, nie fakty. Program niczego nie weryfikuje i niczego nie publikuje. Za treść, którą opublikujesz, odpowiadasz Ty; publikacja opinii o pracodawcy może mieć skutki prawne. Przeczytaj i zmień każdy tekst, zanim go użyjesz. To nie jest porada prawna.";
+    internal const string NoticePl = "To są propozycje tekstów, nie fakty. Program niczego nie weryfikuje i niczego nie publikuje. Za treść, którą opublikujesz, odpowiadasz Ty; publikacja opinii o pracodawcy może mieć skutki prawne. Przeczytaj i zmień każdy tekst, zanim go użyjesz. To nie jest porada prawna. Limity długości są orientacyjne; sprawdź aktualne zasady platformy. Nazwę firmy wstaw sam albo zostaw [FIRMA].";
 
-    internal const string NoticeEn = "These are draft texts, not facts. The program verifies nothing and publishes nothing. You are responsible for any text you publish; publishing an opinion about an employer can have legal consequences. Read and change every text before you use it. This is not legal advice.";
+    internal const string NoticeEn = "These are draft texts, not facts. The program verifies nothing and publishes nothing. You are responsible for any text you publish; publishing an opinion about an employer can have legal consequences. Read and change every text before you use it. This is not legal advice. Length limits are approximate; check the platform's current rules. Insert the company name yourself or leave [COMPANY].";
 
     /// <summary>The page's only script: copies one tile's text, or selects it when the clipboard is not available.</summary>
     internal const string CopyScript = """
@@ -63,7 +63,9 @@ internal static class TileRenderer
         .notice { background: var(--note-bg); color: var(--note-fg); border-left: 4px solid #b7791f; padding: 12px 14px; border-radius: 6px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; }
         .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+        .card.wide { grid-column: 1 / -1; }
         .card h2 { font-size: 1.05rem; margin: 0; }
+        .kind { color: var(--muted); font-size: .85rem; font-weight: 600; margin: 0; }
         .meta { color: var(--muted); font-size: .85rem; margin: 0; }
         .text { white-space: pre-line; overflow-wrap: anywhere; margin: 0; }
         .copy { display: none; align-self: flex-start; min-height: 40px; padding: 8px 14px; border: 0; border-radius: 6px; font: inherit; background: var(--btn-bg); color: var(--btn-fg); cursor: pointer; }
@@ -73,11 +75,14 @@ internal static class TileRenderer
         """;
 
     /// <summary>Terminal and page wording by language. Anything not Polish is shown in English.</summary>
-    private sealed record Words(string Title, string NoTiles, string BasedOn, string Dropped, string Codes, string Copy, string Copied, string Version, string Notice)
+    private sealed record Words(string Title, string NoTiles, string BasedOn, string Dropped, string Codes, string Copy, string Copied, string Version, string Notice, string[] KindLabels)
     {
-        public static readonly Words Pl = new("Propozycje tekstów", "Brak kafelków.", "na podstawie", "Odrzucone", "kody", "Kopiuj", "Skopiowano", "wersja", NoticePl);
+        /// <summary>Kind labels, indexed by <see cref="TileKind"/>.</summary>
+        public static readonly Words Pl = new("Propozycje tekstów", "Brak kafelków.", "na podstawie", "Odrzucone", "kody", "Kopiuj", "Skopiowano", "wersja", NoticePl,
+            ["Fakty", "Przegląd", "Co się sprawdziło", "Co można poprawić", "Dla następnej osoby", "Krótka notatka", "Glassdoor", "Opinia Google", "Reddit"]);
 
-        public static readonly Words En = new("Draft texts", "No tiles.", "based on", "Dropped", "codes", "Copy", "Copied", "version", NoticeEn);
+        public static readonly Words En = new("Draft texts", "No tiles.", "based on", "Dropped", "codes", "Copy", "Copied", "version", NoticeEn,
+            ["Facts", "Overview", "What worked", "What could improve", "For the next person", "Short note", "Glassdoor", "Google review", "Reddit"]);
 
         public static Words For(string language) =>
             language.Equals("pl", StringComparison.OrdinalIgnoreCase) || language.StartsWith("pl-", StringComparison.OrdinalIgnoreCase) ? Pl : En;
@@ -92,6 +97,7 @@ internal static class TileRenderer
         for (var i = 0; i < set.Tiles.Count; i++)
         {
             var tile = set.Tiles[i];
+            text.Append(w.KindLabels[(int)tile.Kind]).Append('\n');
             text.Append('[').Append(i + 1).Append("] ").Append(tile.Title).Append('\n').Append(tile.Text).Append('\n');
             if (tile.BasedOn.Count > 0) text.Append('(').Append(w.BasedOn).Append(": ").Append(string.Join(", ", tile.BasedOn)).Append(")\n");
             text.Append('\n');
@@ -121,7 +127,9 @@ internal static class TileRenderer
         {
             var tile = set.Tiles[i];
             var id = "tile-" + (i + 1);
-            html.Append("<article class=\"card\">\n<h2>").Append(E(tile.Title)).Append("</h2>\n");
+            var wide = tile.Kind == TileKind.Reddit ? " wide" : string.Empty;
+            html.Append("<article class=\"card").Append(wide).Append("\">\n<p class=\"kind\">").Append(E(w.KindLabels[(int)tile.Kind])).Append("</p>\n")
+                .Append("<h2>").Append(E(tile.Title)).Append("</h2>\n");
             if (tile.BasedOn.Count > 0) html.Append("<p class=\"meta\">(").Append(E(w.BasedOn)).Append(": ").Append(E(string.Join(", ", tile.BasedOn))).Append(")</p>\n");
             html.Append("<p class=\"text\" id=\"").Append(id).Append("\">").Append(E(tile.Text)).Append("</p>\n")
                 .Append("<button type=\"button\" class=\"copy\" data-target=\"").Append(id)

@@ -22,7 +22,8 @@ public class TileGeneratorTests
     {
         var set = await Scripted().GenerateAsync(Full(), CancellationToken.None);
 
-        Assert.Equal(new[] { TileKind.Facts, TileKind.Overview, TileKind.WhatWorked, TileKind.WhatCouldImprove, TileKind.ForTheNextPerson, TileKind.ShortNote }, set.Tiles.Select(t => t.Kind));
+        // Facts plus the eight model kinds (ADR-0075 adds Glassdoor, GoogleReview and Reddit to the five of ADR-0074).
+        Assert.Equal(new[] { TileKind.Facts, TileKind.Overview, TileKind.WhatWorked, TileKind.WhatCouldImprove, TileKind.ForTheNextPerson, TileKind.ShortNote, TileKind.Glassdoor, TileKind.GoogleReview, TileKind.Reddit }, set.Tiles.Select(t => t.Kind));
         Assert.Empty(set.Dropped);
         Assert.Equal(TileSet.CurrentVersion, set.TilesVersion);
         Assert.Equal("en", set.Language);

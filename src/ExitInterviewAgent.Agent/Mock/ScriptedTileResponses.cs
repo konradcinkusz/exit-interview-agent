@@ -53,6 +53,11 @@ internal static class ScriptedTileResponses
             }
 
             tiles.Add(Entry(language, "short_note", new[] { "Short note", "Krótka notatka" }, ShortNote(language, covered), all));
+
+            // Platform-shaped drafts (ADR-0075). Only covered topics, ratings in words, no experience terms, the company token.
+            tiles.Add(Entry(language, "glassdoor", new[] { "Glassdoor entry", "Wpis na Glassdoor" }, Glassdoor(language, covered), all));
+            tiles.Add(Entry(language, "google_review", new[] { "Google review", "Opinia Google" }, GoogleReview(language, covered), all));
+            tiles.Add(Entry(language, "reddit", new[] { "Reddit post", "Post na Reddicie" }, Reddit(language, covered), all));
         }
 
         return JsonSerializer.Serialize(new { tiles });
@@ -62,6 +67,35 @@ internal static class ScriptedTileResponses
         new { kind, title = lang == "pl" ? titles[1] : titles[0], text, basedOn };
 
     private static string[] Names(IEnumerable<(Topic Topic, int? Rating)> items) => items.Select(i => Wire.Name(i.Topic)).ToArray();
+
+    /// <summary>Three labelled blocks: pros, cons, advice to management.</summary>
+    private static string Glassdoor(string lang, List<(Topic Topic, int? Rating)> covered)
+    {
+        var pros = Summaries(lang, covered.Where(c => c.Rating >= 4));
+        var cons = Summaries(lang, covered.Where(c => c.Rating <= 2));
+        var advice = covered.Where(c => c.Rating <= 2).Select(c => TileWording.Label(lang, c.Topic)).ToList();
+        return lang == "pl"
+            ? $"Plusy: {pros}\nMinusy: {cons}\nRada dla zarządu: {(advice.Count > 0 ? "przejrzeć: " + string.Join(", ", advice) + "." : "zachować to, co działa.")}"
+            : $"Pros: {pros}\nCons: {cons}\nAdvice to management: {(advice.Count > 0 ? "review " + string.Join(", ", advice) + "." : "keep what works.")}";
+    }
+
+    /// <summary>Two to four plain sentences: the covered topics, no accusation.</summary>
+    private static string GoogleReview(string lang, List<(Topic Topic, int? Rating)> covered) =>
+        lang == "pl"
+            ? $"{Summaries(lang, covered)} Opinia oparta na moich własnych odpowiedziach."
+            : $"{Summaries(lang, covered)} An opinion based on my own answers.";
+
+    /// <summary>A first-person narrative. The company is the token, never a name.</summary>
+    private static string Reddit(string lang, List<(Topic Topic, int? Rating)> covered) =>
+        lang == "pl"
+            ? $"Chcę opisać mój czas w [FIRMA] własnymi słowami. {Summaries(lang, covered)} Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem."
+            : $"I want to describe my time at [COMPANY] in my own words. {Summaries(lang, covered)} Looking back, these are the points I would want to know before joining.";
+
+    private static string Summaries(string lang, IEnumerable<(Topic Topic, int? Rating)> items)
+    {
+        var text = string.Join(' ', items.Select(c => TileWording.Summary(lang, c.Topic, c.Rating)));
+        return text.Length > 0 ? text : (lang == "pl" ? "brak." : "none.");
+    }
 
     private static string Ask(string lang, IEnumerable<Topic> topics)
     {

@@ -94,8 +94,9 @@ public class TileWriterOutputTests
     }
 
     [Fact]
-    public void The_schema_limits_are_the_contract_limits() =>
-        Assert.Equal(TileLimits.MaxTextChars, Schema().GetProperty("$defs").GetProperty("tile").GetProperty("properties").GetProperty("text").GetProperty("maxLength").GetInt32());
+    public void The_schema_text_limit_is_the_largest_kind_limit_and_each_kind_has_its_own_clause() =>
+        // ADR-0075: the base limit is the Reddit limit; the other kinds are narrowed by if/then clauses in allOf.
+        Assert.Equal(TileLimits.MaxTextCharsFor(TileKind.Reddit), Schema().GetProperty("$defs").GetProperty("tile").GetProperty("properties").GetProperty("text").GetProperty("maxLength").GetInt32());
 
     [Fact]
     public void The_schema_topic_list_is_the_record_topics()
