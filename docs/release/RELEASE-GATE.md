@@ -2,7 +2,7 @@
 
 Run on 2026-10-05 against `main` at `062cd48` (before the correcting pull request), following the `open-source-release` guide of `konradcinkusz/architecture-standards`. Each item is **PASS**, **FAIL**, **NOT RUN** or **OWNER DECISION**, with the evidence or the reason. No session changed the repository's visibility, pushed a tag or deployed anything; this document does not either. The verdict is advisory to the owner.
 
-An earlier version of this file (pushed directly to `main` by a Haiku-class session) checked one item and listed "passing gates" that were not gate items (for example "security review completed (PR #15, merged)": PR #15 was closed, not merged). It also listed 13 commits with model names while 16 exist on `main`. It was replaced by this one.
+An earlier version of this file (pushed directly to `main` by an earlier session) checked one item and listed "passing gates" that were not gate items (for example "security review completed (PR #15, merged)": PR #15 was closed, not merged). It also listed 13 commits with model names while 16 exist on `main`. It was replaced by this one.
 
 ## Verdict
 
@@ -26,6 +26,7 @@ An earlier version of this file (pushed directly to `main` by a Haiku-class sess
 | 12 | Legal sources verified | **NOT RUN** | A session tried and the egress proxy denied 9 primary sources (EUR-Lex, EDPB, ICO, UODO, OpenAI, docs.github.com, Gemma, Hugging Face, Mistral). `docs/legal/CONSIDERATIONS.md` §6 keeps those rows *unverified*. The owner can allowlist the domains in the environment's network settings and re-run. |
 | 13 | Real-world checks | **NOT RUN** | No live Claude connector run (OP-18), no two-factor sign-in against the real `authservice` image (OP-17), no real TLS, Windows or macOS CLI run (OP-25), no screen-reader pass (OP-16), no real-model evaluation (`docs/research/RESULTS.md` §6). |
 | 14 | Repository visibility | **UNCHANGED** | No session changed it. Decide after items 1, 3, 4, 7 and 12. |
+| 15 | Polish and deepening: not evaluated with a real model | **NOT RUN** (owner decision, ADR-0075) | The Polish wording, the deepening questions, the mid-interview language switch and the tile texts have not been run with a real model. The offline evidence (mock, scripted tests, the eval gate with 30 scenarios and 54 runs, and the 14 of 14 mutation pass on 2026-10-10) shows the code-side rules hold; it says nothing about the quality of the wording. See [interview-v2.md](../architecture/interview-v2.md#what-was-measured-and-what-was-not) and [RESULTS.md §1](../research/RESULTS.md#1-evaluation-harness-mock-profile). |
 
 ## Commits on `main` with a model name in the message or trailer (item 7)
 

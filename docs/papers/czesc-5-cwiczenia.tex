@@ -647,6 +647,71 @@ miarą jakości ani kosztu.
         używaj atrapy, jak wyżej.
 \end{itemize}
 
+\subsection{Ćwiczenie 10: wywiad po polsku i kafelki na platformy}\label{cw:polski}
+
+\textbf{Cel.} Zobaczyć, że \texttt{interview} prowadzi rozmowę po polsku przy
+\texttt{--language pl}, że po zakończeniu sam tworzy kafelki (bez osobnego polecenia),
+że \texttt{--no-tiles} je pomija i że ponowne użycie tego samego folderu \texttt{--out}
+jest odrzucane przed rozmową. Model to \texttt{mock}: nic nie idzie do sieci, a wypowiedzi
+podajemy z potoku, więc polecenie jest powtarzalne.
+
+\textbf{Czas.} Kilka minut.
+
+\textbf{Wymagania.} Zbudowane CLI (ćwiczenie 1). Bez klucza API i bez sieci.
+
+\textbf{Kroki.} Co druga linia potoku to „tak” (zgoda), reszta to odpowiedzi.
+Polecenie z folderem wyjścia:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+(for i in $(seq 1 40); do echo "tak"; echo "Byłem zespołowym programistą, zespół był nieprzyjemny. Dużo nadgodzin i brak wsparcia."; done) \
+  | dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider mock --model scripted --language pl --tenure 1y_3y --out ./wywiad-pl
+\end{Verbatim}
+
+\textbf{Oczekiwane wyjście} (skrócone; ścieżki w prawdziwym wyjściu są bezwzględne):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+Interviewer: Dzień dobry i dziękuję za poświęcony czas. Zanim zaczniemy, trzy sprawy. Po pierwsze,
+jestem systemem sztucznej inteligencji (AI) prowadzącym ten wywiad, a nie człowiekiem. [...]
+Czy zgadza się Pan/Pani kontynuować? Proszę odpowiedzieć tak lub nie.
+...
+== Result ==
+outcome: completed (all_topics_covered)
+...
+valid: yes, errors: 0
+submittable: yes.
+Wrote: .../wywiad-pl/record.json
+Fakty ... Opinia Google ...
+Odrzucone: 2 (kody: pii_found)
+...
+Wrote: .../wywiad-pl/tiles/tiles.json, .../wywiad-pl/tiles/tiles.html
+\end{Verbatim}
+
+\textbf{Co zaobserwowano w tej sesji.} Wywiad zakończył się w języku polskim, rekord był
+poprawny i zawierał \texttt{"language": "pl"} w sekcji \texttt{interview}. Kafelki powstały
+po rekordzie, w tym samym polu, z dwoma odrzuconymi (kod \texttt{pii\_found}). Dwa dodatkowe
+uruchomienia pokazują resztę: polecenie z tym samym \texttt{--out} kończy się
+kodem 2 (\texttt{record.json already exists and will not be overwritten}) jeszcze przed pierwszym
+pytaniem; \texttt{--no-tiles} daje kod 0 i tylko plik \texttt{record.json}; niepoprawna wartość
+\texttt{--language xx} daje kod 2.
+
+\textbf{Czego szukać i zapisać.}
+\begin{enumerate}[leftmargin=2em,itemsep=1pt]
+  \item Pierwsza wypowiedź: czy przedstawia się jako AI, mówi, co jest zapisywane, że można
+        przerwać w każdej chwili, i pyta o zgodę? Porównaj z regułą R01 w
+        \repopath{src/ExitInterviewAgent.Agent/Protocol/interview-protocol.pl.v1.json}.
+  \item W \texttt{tiles/tiles.json} odrzucenia mają pole \texttt{kind} i \texttt{reasonCode},
+        a nie treść. Jaki kod i który rodzaj kafelka? Dlaczego kod nie mówi, co było w tekście?
+  \item Zmień \texttt{--language pl} na \texttt{--language en} i porównaj pierwsze pytanie.
+        Co się zmienia: język wypowiedzi prowadzącego. Sprawdź też, czy kolejność sześciu
+        tematów w rekordzie jest taka sama.
+\end{enumerate}
+
+\textbf{Czego to nie pokazuje.} Że pytania są dobre, że kafelki po polsku brzmią naturalnie,
+że pogłębianie przy poważnej sprawie (do czterech pytań neutralnych) zadaje właściwe pytania,
+albo że przełączenie języka działa na prawdziwych odpowiedziach. Model mock nie rozumie niczego:
+jego zdania są mechaniczne. Te cechy nie były mierzone z prawdziwym modelem; zob.
+\repopath{docs/architecture/interview-v2.md}, sekcja „What was measured and what was not”.
+
 \subsection{Lista kontrolna przed pokazaniem komuś}
 
 W \repopath{docs/release/RELEASE-GATE.md} nie ma osobnej listy o tym tytule. Plik

@@ -469,6 +469,36 @@ Kod & \texttt{interview} & \texttt{submit} \\
 \texttt{demo} ma własne kody: 0 --- wszystkie niezmienniki spełnione, 1 ---
 któryś zawiódł, 2 --- błąd użycia (z kodu \texttt{CliApp.cs}).
 
+\subsection{Język, pogłębianie i kafelki przy \texttt{interview}}
+
+\textbf{Język.} \komenda{--language pl|en|auto} wybiera język pytań; domyślnie \texttt{auto}
+(polski, gdy język systemu to polski, inaczej angielski). Język zmienia się w trakcie
+wywiadu, gdy odpowiedź ma co najmniej pięć słów i jest w większości w drugim języku, albo
+gdy o to poprosisz („po polsku”, „in English”). Pole \texttt{interview.language} w rekordzie
+to język, w którym napisano większość odpowiedzi. Detektor liczy polskie znaki i częste
+słowa, nie jest modelem językowym.
+
+\textbf{Pogłębianie.} Gdy odpowiedź opisuje poważną sprawę (lista słów po polsku i po angielsku:
+mobbing, molestowanie, dyskryminacja, groźby, odwet, niebezpieczne warunki, niewypłacone
+wynagrodzenie, upokarzanie, szykany i podobne), wywiad zadaje na tym temacie do czterech neutralnych pytań o fakty:
+co się stało, jak często i kiedy, kto (tylko rola, bez nazwisk), jak zareagował pracodawca,
+jak się skończyło. Każde może zaczynać się jednym zdaniem odbijającym Twoje słowa, bez oceny
+i bez porad. Lista słów jest leksykalna: pomija parafrazy i wiele polskich odmian, a może
+zadziałać na słowo użyte w niewinnym sensie.
+
+\textbf{Kafelki.} Po zakończonym wywiadzie powstają kafelki (teksty robocze) od tego samego
+dostawcy, z tego samego budżetu, na podstawie rekordu i zamaskowanego transkryptu (o ile jest
+jeszcze w pamięci). \komenda{--no-tiles} je pomija. Błąd kafelków nie zmienia wyniku wywiadu:
+powód jest wypisany, a kod wyjścia pozostaje kodem wywiadu. Z \komenda{--out} kafelki trafiają
+do \texttt{tiles/tiles.json} i \texttt{tiles/tiles.html}; ponowne użycie tego samego folderu
+jest odrzucane przed rozmową (kod 2).
+
+\textbf{Kody wyjścia} są te z tabeli powyżej; nowe flagi nie dodają kodu. Odrzucenia kafelków
+mają kody powodu (\texttt{schema\_invalid}, \texttt{pii\_found}, \texttt{ungrounded},
+\texttt{copied\_quote}, \texttt{banned\_term}, \texttt{too\_long}, \texttt{empty}). Żaden kafelek
+nie był oceniany prawdziwym modelem; to, jak brzmi pogłębianie i tekst po polsku, nie jest
+zmierzone (\repopath{docs/architecture/interview-v2.md}).
+
 \subsection{Tryb offline: \texttt{personas} i \texttt{demo}}
 
 Bez sieci i bez poświadczeń. \komenda{personas} wypisuje osiem symulowanych

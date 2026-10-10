@@ -1,6 +1,6 @@
 # Interview v2: Polish, a responsive interviewer, and platform tiles
 
-Status: **in progress** (ADR-0075). Y2 (Polish cues and question guard, serious-account signal, deepening, protocol 1.2, eval limits and baseline) is implemented on branch `claude/y2-deepening`; Y1 and Y3 are already on `main`; Y4 and Y5 are not part of this branch.
+Status: **implemented** (ADR-0075), all five tasks merged to `main`. **No real-model evaluation:** every behaviour below was exercised with the scripted mock, fake transports and the offline eval harness. Whether the Polish wording, the deepening questions and the tile texts are good with a real model is **not measured** (see [What was measured and what was not](#what-was-measured-and-what-was-not)).
 
 ## Why
 
@@ -24,12 +24,50 @@ The first real run showed three problems the owner named:
 
 ## Tasks
 
-| ID | Wave | Title | Files it owns | Depends on |
-|---|---|---|---|---|
-| Y1 | 1 | Polish protocol, `--language`, language-aware prompts | `Protocol/*`, `Roles/Prompts.cs` (language lines only), `Cli/InterviewCommand.cs` (flag), tests | none |
-| Y3 | 1 | Platform tiles: kinds, per-kind limits, tiered guard, transcript input, writer prompts, mock, renderer | `Agent/Tiles/*`, `Agent/Mock/*` (tile role only), `schemas/tile-writer-output.v1.schema.json`, `Cli/Tiles/*`, tests | none |
-| Y2 | 2 | Polish cues, question guard in Polish, serious-account signal, deepening phase, reflective sentence, protocol 1.2, eval limits and baseline | `Machine/*`, `Roles/QuestionGuard.cs`, `Roles/Prompts.cs`, `Protocol/*.json`, `Eval/Layer1/*`, `evals/baseline.json`, tests | Y1 |
-| Y4 | 3 | `interview` ends with tiles (auto), mid-interview language switch, `--no-tiles` | `Cli/InterviewCommand.cs`, `Agent/Runner/*`, tests | Y1, Y2, Y3 |
-| Y5 | 4 | Docs, guide chapter and exercise, README, ADR notes, Polish eval scenarios | `docs/`, `evals/scenarios/*`, README | Y4 |
+| ID | Wave | Title | Files it owns | Depends on | PR | Status |
+|---|---|---|---|---|---|---|
+| plan | 0 | This document and ADR-0075 | `docs/` | none | [#33](https://github.com/konradcinkusz/exit-interview-agent/pull/33) | merged |
+| Y1 | 1 | Polish protocol, `--language`, language-aware prompts | `Protocol/*`, `Roles/Prompts.cs` (language lines only), `Cli/InterviewCommand.cs` (flag), tests | none | [#34](https://github.com/konradcinkusz/exit-interview-agent/pull/34) | merged |
+| Y3 | 1 | Platform tiles: kinds, per-kind limits, tiered guard, transcript input, writer prompts, mock, renderer | `Agent/Tiles/*`, `Agent/Mock/*` (tile role only), `schemas/tile-writer-output.v1.schema.json`, `Cli/Tiles/*`, tests | none | [#35](https://github.com/konradcinkusz/exit-interview-agent/pull/35) | merged |
+| Y2 | 2 | Polish cues, question guard in Polish, serious-account signal, deepening phase, reflective sentence, protocol 1.2, eval limits and baseline | `Machine/*`, `Roles/QuestionGuard.cs`, `Roles/Prompts.cs`, `Protocol/*.json`, `Eval/Layer1/*`, `evals/baseline.json`, tests | Y1 | [#36](https://github.com/konradcinkusz/exit-interview-agent/pull/36) | merged |
+| Y4 | 3 | `interview` ends with tiles (auto), mid-interview language switch, `--no-tiles` | `Cli/InterviewCommand.cs`, `Agent/Runner/*`, tests | Y1, Y2, Y3 | [#37](https://github.com/konradcinkusz/exit-interview-agent/pull/37) | merged |
+| Y5 | 4 | Docs, guide chapter and exercise, README, ADR notes, evidence (this document's measurements, RESULTS, release gate item) | `docs/`, README | Y4 | this PR | in review |
+
+Y5 adds no Polish eval scenarios beyond the three deepening scenarios Y2 already added (`hap-003`, `con-003` in Polish; `hap-004` in English); the scenario count is 30, not 27 (see below).
 
 Definition of done per task: `dotnet build -warnaserror`, `dotnet test` of the touched projects, `dotnet format --verify-no-changes`, `scripts/run-evals.sh` where behaviour changes, no AI model identifier in any file, commit or PR text, tests written first, a PR per task merged when all CI checks are green.
+
+## What was measured and what was not
+
+Measured on 2026-10-10 on `claude/y5-v2-docs` (from `main` at `4415623`, all five tasks merged), with the commands shown. Nothing here was measured with a real model.
+
+**Build and tests.** `dotnet build -warnaserror` passed with 0 warnings. Each test project was run on its own with `dotnet test <project> --no-build`:
+
+| Project | Passed | Skipped |
+|---|---|---|
+| Agent | 826 | 0 |
+| Cli | 207 | 0 |
+| Eval | 161 | 0 |
+| InterviewService | 359 | 15 (PostgreSQL only) |
+| Personas | 18 | 0 |
+| Privacy | 184 | 0 |
+| Providers | 174 | 2 (`Category=Live`) |
+| Records | 110 | 0 |
+| Signals | 102 | 0 |
+| **Total** | **2141** | **17** |
+
+**Evaluation harness.** `scripts/run-evals.sh` (validate, gate, report, calibrate) exited 0. The gate ran 54 runs over 30 scenarios (happy 4, ambiguity 4, hostile 2, adversarial 8, degradation 9, consent 3), evaluated 562 constraint assertions with 0 harness errors, and the 12 hard constraints held in every run. Behaviour metrics on the mock profile include coverage 156/156, leading-question rate 0/126 and double-barrelled questions 0/126. The full figures, with the calibration numbers, are in [RESULTS.md §1](../research/RESULTS.md#1-evaluation-harness-mock-profile).
+
+**Mutation proof.** `python3 scripts/mutate-agent.py` weakened one protection at a time in the Agent project (14 mutations, including the two Y2 deepening mutations M-13 and M-14). **14 of 14 were caught** by an assertion in the gate. The tree was clean afterwards.
+
+**Scripted interview in Polish.** `interview --provider mock --model scripted --language pl --tenure 1y_3y --out <dir>` with piped answers completed, wrote `record.json` (valid, submittable) and `tiles/tiles.json` and `tiles/tiles.html`. Two of six tile candidates were dropped by the guard with code `pii_found` (the mock's wording, not a finding about real text).
+
+**Not measured.**
+
+- Whether a real model asks good deepening questions, reflects the interviewee's words without judgement, or keeps to the rules for Polish. The mock understands nothing.
+- Whether the tiles written by a real model are good, pass the guard often enough, or read well in Polish or as Reddit-style text.
+- The serious-account cue list: its recall and precision on real speech. It is a word list; paraphrases and most Polish inflections are missed, and a word used harmlessly can fire it.
+- The language switch on real replies. It is a word count with a short word list, tested on short examples.
+- Token cost and budget use with a real model. The mock's +16.9 % mean token rise (protocol 1.2) is a prompt-size fact, not a measure of answer quality.
+- Any provider call. No key was used and no network call to a model was made in this work.
+- The legal exposure of publishing a tile. The notice and the README say so; the program cannot assess it.
