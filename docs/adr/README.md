@@ -215,3 +215,9 @@ Start with the **Foundation** (0001–0005), then pick your domain:
 
 
 Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related standards guides, and related ADRs. ADRs are immutable once accepted; amendments are noted in later ADRs or in the brief.
+
+## 17. Web app: payments and credits (0077)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0077](0077-credits-ledger-and-payment-provider.md) | Credits ledger and payment provider | accepted | Append-only credit ledger with database-enforced uniqueness per payment event and per session; provider seam with Stripe over HTTP and a fake sharing the production classifier; signature over the raw body; fail-closed configuration; a start takes one credit and a failed session returns it; the Stripe wire format is not yet checked against the provider |

@@ -20,6 +20,8 @@ public sealed class EndpointAuthorizationMatrixTests(ServiceFactory factory) : I
         // T5: no account by design. Both are rate limited per client and globally (ADR-0029, ADR-0030) and read their secret from a header.
         "/api/v1/receipts",
         "/api/v1/submissions/ticketed",
+        // W3: the payment provider calls it, with no account. Its signature is verified over the raw body before anything is read (ADR-0077).
+        "/api/v1/webhooks/payments",
     ];
 
     private static readonly string[] DevelopmentOnlyAnonymous = ["/openapi/{documentName}.json"];

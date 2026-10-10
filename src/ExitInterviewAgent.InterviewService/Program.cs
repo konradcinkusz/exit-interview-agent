@@ -1,3 +1,4 @@
+using ExitInterviewAgent.InterviewService.Billing;
 using ExitInterviewAgent.InterviewService.Infrastructure;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.InterviewService.Infrastructure.Logging;
@@ -18,6 +19,7 @@ builder.Services.AddInterviewPersistence(builder.Configuration);
 builder.Services.AddSubmissions(builder.Configuration, builder.Environment);
 builder.Services.AddSignalsModule(builder.Configuration, builder.Environment);
 builder.Services.AddInterviewMcp();
+builder.Services.AddBilling(builder.Configuration, builder.Environment);
 builder.Services.AddInterviewSessions(builder.Configuration);
 
 var app = builder.Build();
