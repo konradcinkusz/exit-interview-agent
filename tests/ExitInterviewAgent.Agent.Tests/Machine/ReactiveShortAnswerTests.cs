@@ -87,3 +87,48 @@ public class ReactiveShortAnswerTests
         Assert.Equal(TurnKind.Topic, second.Kind);
     }
 }
+
+/// <summary>The second pre-release run: "możemy już skończyć?" was answered with another question, "mobingowany" (one b) was not seen.</summary>
+public class SecondRunRegressionTests
+{
+    private static ReplySignals Analyze(string text) => ReplyAnalyzer.Analyze(text, Limits, false);
+
+    [Theory]
+    [InlineData("mozemy juz skonczyc?")]
+    [InlineData("Możemy już skończyć?")]
+    [InlineData("czy możemy zakończyć")]
+    [InlineData("Can we wrap up?")]
+    [InlineData("skończmy już")]
+    public void A_request_to_finish_is_recognised_and_is_not_a_withdrawal(string text)
+    {
+        var s = Analyze(text);
+        Assert.True(s.FinishRequest);
+        Assert.False(s.Withdrawal);
+    }
+
+    [Theory]
+    [InlineData("Kończymy projekty w terminie")]
+    [InlineData("nie bylo w ogole")]
+    public void Ordinary_talk_is_not_a_finish_request(string text) => Assert.False(Analyze(text).FinishRequest);
+
+    [Fact]
+    public void A_finish_request_closes_with_a_record_not_a_stop_and_not_another_question()
+    {
+        var m = AtFirstTopic();
+        var step = m.OnReply(Analyze("mozemy juz skonczyc?"));
+        Assert.Equal(TurnKind.Close, step.Kind);
+        Assert.Equal(CloseReason.Unresponsive, step.Close);
+    }
+
+    [Theory]
+    [InlineData("bylem mobingowany przez kolege")]
+    [InlineData("byłem mobbingowany")]
+    [InlineData("gnebili mnie")]
+    [InlineData("nekali mnie codziennie")]
+    [InlineData("poniżali mnie przy ludziach")]
+    public void Common_spellings_of_a_serious_account_open_the_deepening(string text) => Assert.True(Analyze(text).Serious);
+
+    [Theory]
+    [InlineData("Wynagrodzenie było poniżej rynku")]
+    public void Below_market_is_not_a_serious_account(string text) => Assert.False(Analyze(text).Serious);
+}
