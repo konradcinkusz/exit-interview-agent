@@ -31,7 +31,7 @@ The first real run showed three problems the owner named:
 | Y3 | 1 | Platform tiles: kinds, per-kind limits, tiered guard, transcript input, writer prompts, mock, renderer | `Agent/Tiles/*`, `Agent/Mock/*` (tile role only), `schemas/tile-writer-output.v1.schema.json`, `Cli/Tiles/*`, tests | none | [#35](https://github.com/konradcinkusz/exit-interview-agent/pull/35) | merged |
 | Y2 | 2 | Polish cues, question guard in Polish, serious-account signal, deepening phase, reflective sentence, protocol 1.2, eval limits and baseline | `Machine/*`, `Roles/QuestionGuard.cs`, `Roles/Prompts.cs`, `Protocol/*.json`, `Eval/Layer1/*`, `evals/baseline.json`, tests | Y1 | [#36](https://github.com/konradcinkusz/exit-interview-agent/pull/36) | merged |
 | Y4 | 3 | `interview` ends with tiles (auto), mid-interview language switch, `--no-tiles` | `Cli/InterviewCommand.cs`, `Agent/Runner/*`, tests | Y1, Y2, Y3 | [#37](https://github.com/konradcinkusz/exit-interview-agent/pull/37) | merged |
-| Y5 | 4 | Docs, guide chapter and exercise, README, ADR notes, evidence (this document's measurements, RESULTS, release gate item) | `docs/`, README | Y4 | this PR | in review |
+| Y5 | 4 | Docs, guide chapter and exercise, README, ADR notes, evidence (this document's measurements, RESULTS, release gate item) | `docs/`, README | Y4 | [#38](https://github.com/konradcinkusz/exit-interview-agent/pull/38) | in review |
 
 Y5 adds no Polish eval scenarios beyond the three deepening scenarios Y2 already added (`hap-003`, `con-003` in Polish; `hap-004` in English); the scenario count is 30, not 27 (see below).
 
