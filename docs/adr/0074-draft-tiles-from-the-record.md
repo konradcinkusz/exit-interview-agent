@@ -29,3 +29,13 @@ The hosted, paid variant is **not** part of this decision. It needs its own thre
 - Quality of the wording is unmeasured with real models; tests prove the guard and the plumbing on the scripted mock, not the usefulness of the text.
 - The banned-term list and grounding check are lexical and will miss paraphrased accusations; the notice and the person's own review are the backstop. This is recorded as a limit, not hidden.
 - Adding eval-harness constraints for tiles later changes the spec and the baseline and is deferred on purpose.
+
+## Implementation notes
+
+Facts read from the code as merged in X1 to X4 (PRs #26 to #29); the Decision above is unchanged.
+
+- **Files:** the guard in `src/ExitInterviewAgent.Agent/Tiles/TileGuard.cs`, the writer role and parser in `TileWriter.cs` and `TileWriterOutput.cs`, the generator in `TileGenerator.cs`, the command in `src/ExitInterviewAgent.Cli/TilesCommand.cs`, and the renderers in `src/ExitInterviewAgent.Cli/Tiles/TileRenderer.cs`. The limits are the constants of `TileLimits` in `TileContracts.cs`: titles at most 60 characters, texts 600, short notes 280, a copied run of 7 words from a quote is refused, at most 6 topics in `BasedOn`.
+- **Drop codes** (`TileDropReason`, codes only, never text): `schema_invalid`, `empty`, `too_long`, `banned_term`, `pii_found`, `ungrounded`, `copied_quote`. The guard checks in that order and the first failure decides the code; it also drops a second tile of a kind that already appeared.
+- **Exit codes** of `tiles` (`TilesCommand.Exit`): 0 ok, 2 usage or configuration, 3 not confirmed, 4 the record failed the local check, 5 provider failure (no files written), 130 cancelled.
+- **The JSON output has no notice.** The fixed "draft texts, not facts" notice is printed by the text and HTML views only; `--format json` and `tiles.json` do not carry it. Recorded as a gap; the Decision above does not say which views carry it.
+- **Not run with a real model.** The tests use the scripted mock and a fake transport; the mock's wording is mechanical. No quality or cost figure exists (see [draft-tiles.md](../architecture/draft-tiles.md#what-was-measured-and-what-was-not)).

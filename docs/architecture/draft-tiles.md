@@ -1,7 +1,8 @@
 # Draft tiles: neutral texts the interviewee may publish
 
-Status: **planned** (ADR-0074). Nothing in this page is implemented except the contract in
-`src/ExitInterviewAgent.Agent/Tiles/TileContracts.cs`. Update this page as each task below lands.
+Status: **implemented** on `main` (ADR-0074): the `tiles` command, guard, writer role, renderers and offline tests are
+merged. It has **not been run with a real model**, and no provider has been called by a test. Section
+[What was measured and what was not](#what-was-measured-and-what-was-not) lists the evidence.
 
 ## What it is
 
@@ -48,7 +49,9 @@ threat model and legal review (see ADR-0018); it is a separate project, not a fo
 `exit-interview tiles --record <record.json> [--provider <p> --model <m> ...] [--out <dir>] [--format text|html|json]`
 
 - Terminal: the tiles as numbered blocks, the dropped codes, the notice. Exit codes follow the `interview` command where they
-  apply (2 usage, 5 provider failure, 3 declined disclosure).
+  apply (2 usage, 5 provider failure, 3 declined disclosure). The codes in `src/ExitInterviewAgent.Cli/TilesCommand.cs` are:
+  0 ok (dropped tiles are counted, not an error), 2 usage or configuration, 3 not confirmed, 4 the record failed the local
+  check (nothing sent), 5 provider failure (no tiles written), 130 cancelled.
 - `--out`: `tiles.json` (the `TileSet`, camelCase), `tiles.html` (self-contained, no scripts from the network, one card per
   tile, a copy button using no external library, the notice at the top).
 
@@ -56,13 +59,45 @@ threat model and legal review (see ADR-0018); it is a separate project, not a fo
 
 Wave 0 (this PR): contract, plan, ADR. Wave 1 tasks are independent and can run in parallel; each touches different files.
 
-| ID | Wave | Title | Files it owns | Depends on |
-|---|---|---|---|---|
-| X1 | 1 | Guard: length, banned terms, PII, grounding, quote copying | `src/ExitInterviewAgent.Agent/Tiles/TileGuard.cs`, `tests/ExitInterviewAgent.Agent.Tests/Tiles/TileGuardTests.cs` | contract |
-| X2 | 1 | Writer role, prompt, parser, schema, scripted mock, generator | `Tiles/TileWriter.cs`, `Tiles/TilePrompts.cs`, `Tiles/TileGenerator.cs`, `Tiles/FactsTile.cs`, `schemas/tile-writer-output.v1.schema.json`, mock additions in `Mock/`, tests in `tests/ExitInterviewAgent.Agent.Tests/Tiles/` | contract |
-| X3 | 1 | Renderers: text and self-contained HTML | `src/ExitInterviewAgent.Cli/Tiles/TileRenderer.cs`, `tests/ExitInterviewAgent.Cli.Tests/Tiles/` | contract |
-| X4 | 2 | `tiles` command: flags, disclosure, wiring, `--out`, end-to-end offline test | `src/ExitInterviewAgent.Cli/TilesCommand.cs`, a one-line dispatch in `CliApp.cs`, usage text, `tests/ExitInterviewAgent.Cli.Tests/` | X1, X2, X3 |
-| X5 | 3 | Docs: this page's status, README, guide exercise, ADR-0074 status, `RELEASING`/CLI mentions | `docs/`, `README.md`, `docs/papers/` | X4 |
+| ID | Wave | Title | Files it owns | Depends on | PR | State |
+|---|---|---|---|---|---|---|
+| plan | 0 | Contract, this plan, ADR-0074 | `TileContracts.cs`, `docs/` | none | #25 | merged |
+| X1 | 1 | Guard: length, banned terms, PII, grounding, quote copying | `src/ExitInterviewAgent.Agent/Tiles/TileGuard.cs`, `tests/ExitInterviewAgent.Agent.Tests/Tiles/TileGuardTests.cs` | contract | #26 | merged |
+| X2 | 1 | Writer role, prompt, parser, schema, scripted mock, generator | `Tiles/TileWriter.cs`, `Tiles/TilePrompts.cs`, `Tiles/TileGenerator.cs`, `Tiles/FactsTile.cs`, `schemas/tile-writer-output.v1.schema.json`, mock additions in `Mock/`, tests in `tests/ExitInterviewAgent.Agent.Tests/Tiles/` | contract | #28 | merged |
+| X3 | 1 | Renderers: text and self-contained HTML | `src/ExitInterviewAgent.Cli/Tiles/TileRenderer.cs`, `tests/ExitInterviewAgent.Cli.Tests/Tiles/` | contract | #27 | merged |
+| X4 | 2 | `tiles` command: flags, disclosure, wiring, `--out`, end-to-end offline test | `src/ExitInterviewAgent.Cli/TilesCommand.cs`, a one-line dispatch in `CliApp.cs`, usage text, `tests/ExitInterviewAgent.Cli.Tests/` | X1, X2, X3 | #29 | merged |
+| X5 | 3 | Docs: this page's status, README, guide exercise, ADR-0074 implementation notes, `RELEASING`/CLI mentions | `docs/`, `README.md`, `docs/papers/` | X4 | #30 | open |
+
+The release `v0.1.0-pre.1` was tagged at `de48f46`, before X4 (#29), so it does **not** contain the `tiles` command. See
+[`docs/release/RELEASING.md`](../release/RELEASING.md).
+
+## What was measured and what was not
+
+Measured on 2026-10-10 in the X5 session, on `main` plus this branch (no `.cs` file changed in X5):
+
+- **Unit and offline tests** (`dotnet test`, xUnit, no network): `ExitInterviewAgent.Agent.Tests` 531 passed, of which 130 are in
+  the `Tiles` namespace (guard, writer output parser, generator, facts tile, model-writer adapter); `ExitInterviewAgent.Cli.Tests`
+  166 passed, of which 36 have `Tiles` in their name (command with its fake transport, renderers). Zero failed, zero skipped.
+  Only these two projects were run for this page; the full solution run is the CI gate, not repeated here.
+- **Command, offline:** `demo --persona talkative --seed 1 --out <dir>`, then `tiles --record <dir>/record.json --provider mock
+  --model scripted`, in text and `--format json`, and the external-provider refusals (exit 2 without a key, exit 3 without the
+  typed `yes`). The exact outputs are in exercise 9 of the guide (`docs/papers/czesc-5-cwiczenia.tex`).
+- **The guard and the disclosure** are tested on fixed inputs: a tile that names an uncovered topic, copies seven quoted words,
+  contains a banned term or an address is dropped with its code; an external provider is not called without confirmation.
+
+Not measured:
+
+- **The quality and the cost of the texts with a real model.** No real provider was called, in tests or by hand. There is no key
+  in this environment. The scripted mock writes **mechanical text** generated from the ratings (for example
+  "Management: positive, 4 of 5"); it is a test seam, **not a measure of quality**, and says nothing about how a model would word
+  a tile or whether a tile would be dropped.
+- **Tests with any provider.** The `anthropic` path is tested with a fake transport and a canary key; no test talks to a real API.
+- **Ollama and the openai-compatible path** have no `tiles` test: no file under the tiles tests mentions either provider.
+- **Language.** Only the record's language is used, and the mock only writes English.
+- **The JSON output has no notice.** `--format json` and `tiles.json` carry no "draft texts, not facts" notice; the text and
+  HTML views do (checked in the X5 run, see the guide's exercise 9).
+- **The disclosure text mixes languages.** The line that names the destination is written in Polish inside an English message
+  (observed in the X5 run). It is reported here, not changed in X5.
 
 Deferred, not part of this plan: eval-harness constraints for tiles (they change `docs/eval/SPEC.md` and the baseline and
 need their own review), real-model quality and cost measurement (needs the owner's key), Polish and other languages beyond

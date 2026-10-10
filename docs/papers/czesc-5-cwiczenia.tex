@@ -535,6 +535,118 @@ Tego nie sprawdzono.
         i mają prefiks \texttt{demo-}.
 \end{itemize}
 
+\subsection{Ćwiczenie 9: kafelki z rekordu i co z nich wynika}\label{cw:kafelki}
+
+\textbf{Cel.} Zobaczyć, że komenda \texttt{tiles} buduje krótkie teksty wyłącznie z
+\emph{rekordu}, że strażnik po stronie kodu odrzuca to, czego nie wolno, i że
+przy modelu \texttt{mock} teksty są mechaniczne: to nie jest ocena jakości.
+
+\textbf{Czas.} Kilka minut.
+
+\textbf{Wymagania.} Ćwiczenie 1 (katalog \texttt{demo-out} z plikiem \texttt{record.json}).
+Bez klucza API i bez sieci. Nie wklejaj tu prawdziwego klucza.
+
+\textbf{Kroki.} Najpierw wywiad demonstracyjny, potem kafelki offline, w tekście i w JSON:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+dotnet run --project src/ExitInterviewAgent.Cli -- demo --persona talkative --seed 1 --out demo-out
+dotnet run --project src/ExitInterviewAgent.Cli -- tiles --record demo-out/record.json \
+    --provider mock --model scripted --out demo-out/tiles
+echo "kod=$?"
+dotnet run --project src/ExitInterviewAgent.Cli -- tiles --record demo-out/record.json \
+    --provider mock --model scripted --format json
+\end{Verbatim}
+
+\textbf{Oczekiwane wyjście} (skrócone; ścieżki w prawdziwym wyjściu są bezwzględne,
+a stderr i stdout przeplatają się w terminalu):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+Scripted mock model: nothing is sent anywhere.
+Wrote: demo-out/tiles/tiles.json, demo-out/tiles/tiles.html
+[1] Facts from your ratings
+Onboarding: rating 3 of 5, confidence high.
+Management: rating 4 of 5, confidence high.
+...
+[2] Overview
+Onboarding: mixed, 3 of 5. Management: positive, 4 of 5. Growth: positive, 4 of 5. ...
+[3] What worked
+Management: positive, 4 of 5. Growth: positive, 4 of 5. Culture: positive, 4 of 5.
+[4] Short note
+Topics covered: 6. Negative: none. Positive: Management, Growth, Culture.
+These are draft texts, not facts. The program verifies nothing and publishes nothing. ...
+kod=0
+{
+  "tilesVersion": "1",
+  "language": "en",
+  "tiles": [ { "id": "t1", "kind": "facts", "title": "Facts from your ratings", ... } ],
+  "dropped": []
+}
+\end{Verbatim}
+
+Linia o modelu pojawia się na stderr w obu wariantach; linia \texttt{Wrote:} tylko przy
+\texttt{--out}. Pole \texttt{dropped} jest puste, bo strażnik nic nie odrzucił.
+Uwaga: wyjście JSON nie zawiera nagłówka „These are draft texts, not facts”; wyjście
+tekstowe i plik HTML go zawierają. Kto przetwarza JSON, musi sam dołączyć tę informację.
+
+Dwie próby z zewnętrznym dostawcą. Bez klucza komenda kończy się przed jakimkolwiek
+pytaniem; z klucz-atrapą (nie prawdziwym) dochodzi do pytania o potwierdzenie, które
+dostaje pusty wpis:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+env -u ANTHROPIC_API_KEY dotnet run --project src/ExitInterviewAgent.Cli -- tiles \
+    --record demo-out/record.json --provider anthropic --model example-model --out demo-out/ext </dev/null
+echo "kod=$?"
+ANTHROPIC_API_KEY=klucz-probny dotnet run --project src/ExitInterviewAgent.Cli -- tiles \
+    --record demo-out/record.json --provider anthropic --model example-model --out demo-out/ext </dev/null
+echo "kod=$?"
+
+No API key: set ANTHROPIC_API_KEY (or name another variable with --api-key-env). See README.md#run-it-with-your-own-model.
+Run 'exit-interview --help' for usage.
+kod=2
+
+Before we start: where your record goes
+rekord (nie transkrypt) zostanie wysłany do Anthropic API, at api.anthropic.com, using your own API key.
+Only the validated record is sent: its ratings, confidence and the quotes it holds. ...
+Type "yes" to continue (anything else stops): Not confirmed. Nothing was sent anywhere.
+kod=3
+\end{Verbatim}
+
+\textbf{Jak sprawdzić sukces.}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item Oba przebiegi offline kończą się kodem 0; \texttt{demo-out/tiles/tiles.json} i
+        \texttt{tiles.html} istnieją, a \texttt{dropped} w JSON jest puste.
+  \item \texttt{grep -c "https?://" demo-out/tiles/tiles.html} zwraca 0: plik HTML nie
+        odwołuje się do sieci. Skrypt w nim jest jeden, wbudowany (przycisk kopiowania).
+  \item Próba z dostawcą kończy się kodem 2 bez klucza i kodem 3 z kluczem-atrapą. Katalog
+        \texttt{demo-out/ext} nie powstaje: nic nie zostało wysłane ani zapisane.
+  \item Nagłówek „These are draft texts, not facts” jest w wyjściu tekstowym i w HTML,
+        a w JSON go nie ma (patrz wyżej).
+\end{itemize}
+
+\textbf{Czego to ćwiczenie nie pokazuje.} Teksty z \texttt{mock} są \emph{mechaniczne}:
+to zdania składane z ocen (np. „Management: positive, 4 of 5”), a nie tekst napisany
+przez model. Nie mówią nic o tym, czy prawdziwy model pisałby dobrze, czy strażnik
+odrzucałby jego teksty, ani ile by to kosztowało. \textbf{Z prawdziwym modelem nie
+było testowane} (brak klucza i sieci w tym środowisku); żaden test nie wywołuje
+dostawcy, a ścieżka \texttt{anthropic} działa na atrapie transportu. Te liczby nie są
+miarą jakości ani kosztu.
+
+\textbf{Typowe błędy.}
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+  \item Uznanie tekstu z mocka za ocenę jakości albo gotowy do publikacji tekst.
+        Nic nie jest publikowane; każdy tekst trzeba przeczytać i zmienić samodzielnie,
+        a odpowiedzialność za publikację jest po stronie osoby, która ją robi.
+  \item Podanie transkryptu zamiast rekordu. Komenda czyta tylko rekord: dla
+        \texttt{transcript.txt} kończy się kodem 4 z komunikatem \texttt{not JSON (NOT\_JSON)},
+        bez wysyłania czegokolwiek.
+  \item Ponowne uruchomienie z tym samym \texttt{--out}. Komenda kończy się kodem 2 z
+        komunikatem, że \texttt{tiles.json} już istnieje i nie będzie nadpisany; wybierz
+        nowy katalog.
+  \item Wzięcie kodu 3 za awarię. To brak potwierdzenia: nic nie wysłano.
+  \item Wklejenie prawdziwego klucza do przykładu. Klucz zostaje w historii powłoki;
+        używaj atrapy, jak wyżej.
+\end{itemize}
+
 \subsection{Lista kontrolna przed pokazaniem komuś}
 
 W \repopath{docs/release/RELEASE-GATE.md} nie ma osobnej listy o tym tytule. Plik
@@ -577,6 +689,8 @@ zmienia: pozycje 1, 3, 4, 7 i 12 wymagają decyzji albo narzędzi, których tu n
         odczyt sygnałów z tożsamością (ćw. 8).
   \item \textbf{Nieprzetestowane w tej sesji:} prawdziwy model (Anthropic, OpenAI-compatible,
         Ollama), w tym polecenie \texttt{providers ping}; nie było klucza ani sieci.
+  \item \textbf{Nieprzetestowane w tej sesji:} kafelki (\texttt{tiles}, ćwiczenie 9) z
+        prawdziwym modelem: teksty z \texttt{mock} są mechaniczne i nie mierzą jakości.
   \item \textbf{Nieprzetestowane w tej sesji:} Claude jako host MCP (sekcja~\ref{sec:mcp}).
   \item \textbf{Nieprzetestowane w tej sesji:} skrypty Windows (\texttt{setup.ps1}) i
         macOS.
