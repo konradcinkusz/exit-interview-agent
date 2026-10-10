@@ -8,8 +8,8 @@ public sealed record DisclosureNotice(int Version, string Text, bool RequiresCon
 
 public static class Disclosure
 {
-    /// <summary>Bump when the wording changes in substance: a remembered confirmation of an older version is asked again.</summary>
-    public const int NoticeVersion = 1;
+    /// <summary>Bump when the wording changes in substance: a remembered confirmation of an older version is asked again. 2: publication drafts (Y4).</summary>
+    public const int NoticeVersion = 2;
 
     public static DisclosureNotice For(ProviderSettings settings)
     {
@@ -41,6 +41,8 @@ public static class Disclosure
         sb.AppendLine();
         sb.AppendLine("  - It is not sent to this project or to any server of ours. It stays in memory on this computer and is not saved unless you pass --save-transcript.");
         sb.AppendLine("  - If you finish, only a structured record (ratings and short quotes from your own words, personal names masked) is produced. This version does not send it anywhere.");
+        sb.AppendLine("  - If you finish, the same provider also writes draft texts for publication from the conversation (short review-style and forum-style texts). They are drafts for you to read and change: nothing publishes them, and this program does not send them anywhere else.");
+        sb.AppendLine("  - Jeśli rozmowę dokończysz, ten sam dostawca napisze też teksty do publikacji wygenerowane z rozmowy (krótkie opinie i wpis na forum). To szkice do przeczytania i zmiany: nic ich nie publikuje, a ten program nie wysyła ich nigdzie indziej.");
         sb.AppendLine("  - Ctrl-C or Ctrl-D at any time stops the interview and discards everything.");
         sb.AppendLine("  - To keep everything on your machine, use a local model: --provider ollama.");
         sb.AppendLine();

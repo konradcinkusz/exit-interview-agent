@@ -33,7 +33,7 @@ public class InterviewLanguageTests : IDisposable
     [Fact]
     public async Task Language_pl_puts_the_polish_opening_on_standard_output_and_records_pl()
     {
-        var (code, output, err) = await Run(["interview", .. MockArgs, "--language", "pl", "--out", Out], InterviewCliTests.Answers());
+        var (code, output, err) = await Run(["interview", .. MockArgs, "--language", "pl", "--out", Out], InterviewCliTests.PolishAnswers());
 
         Assert.Equal(0, code);
         Assert.Equal(string.Empty, err);
@@ -47,7 +47,7 @@ public class InterviewLanguageTests : IDisposable
     [Fact]
     public async Task Language_pl_asks_the_topic_questions_in_polish()
     {
-        var (_, output, _) = await Run(["interview", .. MockArgs, "--language", "pl"], InterviewCliTests.Answers());
+        var (_, output, _) = await Run(["interview", .. MockArgs, "--language", "pl"], InterviewCliTests.PolishAnswers());
 
         foreach (var t in InterviewProtocol.For("pl").Topics) Assert.Contains(t.Question, output);
         foreach (var t in InterviewProtocol.Current.Topics) Assert.DoesNotContain(t.Question, output);
