@@ -21,7 +21,7 @@ public sealed class InterviewServiceOptions
     /// <summary>The NAME of the environment variable that holds the key. Never the key itself.</summary>
     public string? ApiKeyEnv { get; set; }
 
-    /// <summary>When true, a start needs a credit from <see cref="ICreditGate"/>. The default gate refuses everything until payments exist (W3).</summary>
+    /// <summary>When true, a start needs a credit from the ledger (<see cref="ICreditGate"/>, ADR-0077). False (development and tests) makes starts free.</summary>
     public bool RequireCredit { get; set; }
 
     /// <summary>A session that receives no request for this long is wiped.</summary>

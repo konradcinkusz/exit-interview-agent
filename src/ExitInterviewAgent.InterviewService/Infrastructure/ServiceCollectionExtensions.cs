@@ -1,3 +1,4 @@
+using ExitInterviewAgent.InterviewService.Billing.Endpoints;
 using ExitInterviewAgent.InterviewService.Endpoints;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.InterviewService.Interviews;
@@ -67,10 +68,12 @@ public static class ServiceCollectionExtensions
         authApi.MapAccountSubmissionEndpoints();
         authApi.MapSignalsEndpoints();
         authApi.MapInterviewSessionEndpoints();
+        authApi.MapCreditEndpoints();
 
-        // No account, no token: ticketed submission and receipt deletion. Short enough to read aloud; the architecture test pins the list.
+        // No account, no token: ticketed submission, receipt deletion and the payment webhook. Short enough to read aloud; the architecture test pins the list.
         var publicApi = app.MapGroup("/api/v1").AllowAnonymous().WithValidation();
         publicApi.MapAnonymousSubmissionEndpoints();
+        publicApi.MapPaymentWebhookEndpoint();
 
         // The MCP resource server: public RFC 9728 metadata, and the mount point guarded by the MCP policy (ADR-0012).
         var mcp = app.Services.GetRequiredService<McpOptions>();

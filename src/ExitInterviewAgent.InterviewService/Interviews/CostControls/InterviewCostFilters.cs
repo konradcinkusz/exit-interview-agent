@@ -18,8 +18,9 @@ public static class InterviewCostFilters
     public const string EmailNotVerified = "email_not_verified";
 
     /// <summary>
-    /// A start, in this order: the per-account and per-address limit, the emergency switch, the verified-email gate, then the
-    /// daily cap. Only a 201 is counted as started; any other answer gives the day's slot back.
+    /// A start, in this order: the emergency switch, the verified-email gate, the per-account and per-address limit, then the
+    /// daily cap. The credit is taken later, by the session, only after all of these pass (ADR-0077). Only a 201 is counted as
+    /// started; any other answer gives the day's slot back.
     /// </summary>
     public static RouteHandlerBuilder WithInterviewStartControls(this RouteHandlerBuilder builder) =>
         builder.AddEndpointFilter(async (ctx, next) =>
@@ -27,12 +28,6 @@ public static class InterviewCostFilters
             var http = ctx.HttpContext;
             var services = http.RequestServices;
             var metrics = services.GetRequiredService<CostMetrics>();
-
-            if (Admit(http, InterviewRateKind.Start) is { } wait)
-            {
-                metrics.RateLimited();
-                return RateLimited(http, wait);
-            }
 
             if (!services.GetRequiredService<IOptionsMonitor<InterviewServiceOptions>>().CurrentValue.Enabled)
             {
@@ -43,6 +38,12 @@ public static class InterviewCostFilters
             {
                 metrics.RejectedEmailUnverified();
                 return Refuse(StatusCodes.Status403Forbidden, EmailNotVerified);
+            }
+
+            if (Admit(http, InterviewRateKind.Start) is { } wait)
+            {
+                metrics.RateLimited();
+                return RateLimited(http, wait);
             }
 
             var cap = services.GetRequiredService<DailyStartCap>();

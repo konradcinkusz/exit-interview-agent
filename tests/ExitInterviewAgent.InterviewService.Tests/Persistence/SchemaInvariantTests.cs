@@ -14,10 +14,15 @@ public static class SchemaGolden
         ["SubmissionLedger"] = ["Id", "KeyId", "Tag", "CreatedWeek"],
         ["Receipts"] = ["Id", "CodeHash", "RecordId"],
         ["SubmissionTickets"] = ["Id", "TokenHash", "Sub", "ExpiresAt"],
+        ["CreditEntries"] = ["Id", "AccountRef", "Delta", "Reason", "Reference", "CreatedWeek"],
+        ["PaymentEvents"] = ["Id", "ProviderEventId", "Kind", "AccountRef", "Quantity", "AmountMinorUnits", "Currency", "ReceivedWeek"],
     };
 
+    /// <summary>The only columns that hold an account: the ticket's subject (short-lived) and the credit and payment rows (W3).</summary>
+    public static readonly string[] AccountHolders = ["SubmissionTickets.Sub", "CreditEntries.AccountRef", "PaymentEvents.AccountRef"];
+
     /// <summary>Columns that hold a value derived from an account subject, or the subject itself.</summary>
-    public static readonly string[] SubjectDerived = ["SubmissionLedger.Tag", "SubmissionLedger.KeyId", "SubmissionTickets.Sub"];
+    public static readonly string[] SubjectDerived = ["SubmissionLedger.Tag", "SubmissionLedger.KeyId", "SubmissionTickets.Sub", "CreditEntries.AccountRef", "PaymentEvents.AccountRef"];
 
     /// <summary>Columns that identify, or can be joined to, a stored record.</summary>
     public static readonly string[] RecordIdentifying =
@@ -53,6 +58,13 @@ public sealed class SchemaInvariantTests
     }
 
     [Fact]
+    public void Only_the_named_tables_hold_an_account_column()
+    {
+        // Credits and payments belong to an account by definition (W3); the record, receipt and ledger tables stay account-free.
+        Assert.Equal(["CreditEntries.AccountRef", "PaymentEvents.AccountRef", "SubmissionTickets.Sub"], SchemaGolden.AccountHolders.Order().ToArray());
+    }
+
+    [Fact]
     public void No_column_names_an_account_except_the_ticket_row()
     {
         var banned = new[] { "sub", "subject", "user", "account", "email", "principal", "owner", "client", "ip" };
@@ -63,7 +75,7 @@ public sealed class SchemaInvariantTests
             var hit = banned.Any(b => name == b || name.StartsWith(b, StringComparison.Ordinal) && name.Length > b.Length && char.IsUpper(property.GetColumnName()[b.Length]));
             if (hit)
             {
-                Assert.True(table == "SubmissionTickets" && property.GetColumnName() == "Sub", $"{table}.{property.GetColumnName()} looks like an account column");
+                Assert.True(SchemaGolden.AccountHolders.Contains($"{table}.{property.GetColumnName()}"), $"{table}.{property.GetColumnName()} looks like an account column");
             }
         }
     }
@@ -84,7 +96,9 @@ public sealed class SchemaInvariantTests
     public void Every_column_is_classified_so_a_new_one_cannot_slip_past_the_rule_above()
     {
         var known = SchemaGolden.SubjectDerived.Concat(SchemaGolden.RecordIdentifying)
-            .Concat(["SubmissionLedger.Id", "SubmissionLedger.CreatedWeek", "SubmissionTickets.Id", "SubmissionTickets.TokenHash", "SubmissionTickets.ExpiresAt"]);
+            .Concat(["SubmissionLedger.Id", "SubmissionLedger.CreatedWeek", "SubmissionTickets.Id", "SubmissionTickets.TokenHash", "SubmissionTickets.ExpiresAt"])
+            .Concat(["CreditEntries.Id", "CreditEntries.Delta", "CreditEntries.Reason", "CreditEntries.Reference", "CreditEntries.CreatedWeek"])
+            .Concat(["PaymentEvents.Id", "PaymentEvents.ProviderEventId", "PaymentEvents.Kind", "PaymentEvents.Quantity", "PaymentEvents.AmountMinorUnits", "PaymentEvents.Currency", "PaymentEvents.ReceivedWeek"]);
 
         var all = SchemaGolden.Columns.SelectMany(t => t.Value.Select(c => $"{t.Key}.{c}"));
 

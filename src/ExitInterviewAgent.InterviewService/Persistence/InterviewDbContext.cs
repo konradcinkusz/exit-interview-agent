@@ -13,9 +13,37 @@ public sealed class InterviewDbContext(DbContextOptions<InterviewDbContext> opti
     public DbSet<LedgerEntry> SubmissionLedger => Set<LedgerEntry>();
     public DbSet<ReceiptRow> Receipts => Set<ReceiptRow>();
     public DbSet<TicketRow> SubmissionTickets => Set<TicketRow>();
+    public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
+    public DbSet<PaymentEventRow> PaymentEvents => Set<PaymentEventRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.Entity<CreditEntry>(e =>
+        {
+            e.ToTable("CreditEntries");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Id).ValueGeneratedNever();
+            e.Property(c => c.AccountRef).HasMaxLength(256).IsRequired();
+            e.Property(c => c.Reason).HasConversion<string>().HasMaxLength(16);
+            e.Property(c => c.Reference).HasMaxLength(128);
+            e.HasIndex(c => c.AccountRef);
+            // One purchase per payment event, one consume and one refund per session: the database decides a race.
+            e.HasIndex(c => new { c.Reason, c.Reference }).IsUnique().HasDatabaseName(CreditReferenceIndex);
+        });
+
+        model.Entity<PaymentEventRow>(e =>
+        {
+            e.ToTable("PaymentEvents");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Id).ValueGeneratedNever();
+            e.Property(p => p.ProviderEventId).HasMaxLength(128).IsRequired();
+            e.Property(p => p.Kind).HasMaxLength(32).IsRequired();
+            e.Property(p => p.AccountRef).HasMaxLength(256).IsRequired();
+            e.Property(p => p.Currency).HasMaxLength(3).IsRequired();
+            // Idempotency by provider event id (web-app-plan §4): a replay cannot add a second purchase.
+            e.HasIndex(p => p.ProviderEventId).IsUnique().HasDatabaseName(PaymentEventIndex);
+        });
+
         model.Entity<RecordRow>(e =>
         {
             e.ToTable("Records");
@@ -66,4 +94,6 @@ public sealed class InterviewDbContext(DbContextOptions<InterviewDbContext> opti
     }
 
     public const string LedgerTagIndex = "IX_SubmissionLedger_Tag";
+    public const string CreditReferenceIndex = "IX_CreditEntries_Reason_Reference";
+    public const string PaymentEventIndex = "IX_PaymentEvents_ProviderEventId";
 }
