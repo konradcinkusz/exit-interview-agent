@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 68 ADRs** (numbered 0001–0075). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 69 ADRs** (numbered 0001–0076). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -166,6 +166,8 @@ This directory holds all architecture decisions made during the project, indexed
 
 ---
 
+---
+
 ## 15. Documentation, Build Output, Releasing, Tiles and Interview v2 (0072–0075)
 
 | ID | Title | Status | Summary |
@@ -202,5 +204,14 @@ Start with the **Foundation** (0001–0005), then pick your domain:
 - **Hardening:** 0062–0063
 - **Documentation and the guide PDF:** 0017, 0072
 - **Releasing the CLI:** 0026, 0073
+
+---
+
+## 16. Web app: interview sessions (0076)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0076](0076-web-interview-sessions-in-memory-service-key.md) | Web interview sessions: in memory, service key | accepted | Sessions live in process memory, bound to the account, one open per account, 30-minute idle and result windows, credits behind two seams, the service key from the environment; no interview text in logs or spans |
+
 
 Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related standards guides, and related ADRs. ADRs are immutable once accepted; amendments are noted in later ADRs or in the brief.

@@ -1,5 +1,6 @@
 using ExitInterviewAgent.InterviewService.Endpoints;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
+using ExitInterviewAgent.InterviewService.Interviews.Endpoints;
 using ExitInterviewAgent.InterviewService.Mcp;
 using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.ServiceDefaults;
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         authApi.MapAccountEndpoints();
         authApi.MapAccountSubmissionEndpoints();
         authApi.MapSignalsEndpoints();
+        authApi.MapInterviewSessionEndpoints();
 
         // No account, no token: ticketed submission and receipt deletion. Short enough to read aloud; the architecture test pins the list.
         var publicApi = app.MapGroup("/api/v1").AllowAnonymous().WithValidation();

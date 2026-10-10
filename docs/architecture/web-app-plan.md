@@ -106,8 +106,8 @@ All routes are in `ExitInterviewAgent.InterviewService` under `/api/v1`, require
 
 | Method and path | Request | Success | Errors |
 |---|---|---|---|
-| `POST /interviews` | `{ "language": "pl"\|"en", "tenure": "lt_6m"\|"6m_1y"\|"1y_3y"\|"3y_5y"\|"5y_10y"\|"gt_10y" }` | `201 { id, status, language, expiresAt, turn }` (the opening turn) | `402 payment_required` (no credit), `429 rate_limited`, `503 interviews_disabled` (kill switch or provider not configured), `409 interview_in_progress` (one open session per account) |
-| `POST /interviews/{id}/reply` | `{ "text": string }` (1..2000 chars) | `200 { status, turn?, ending? }` | `404`, `409 interview_ended`, `422 reply_invalid`, `429`, `503 provider_unavailable` |
+| `POST /interviews` | `{ "language": "pl"\|"en", "tenure": "lt_6m"\|"6m_1y"\|"1y_3y"\|"3y_5y"\|"5y_10y"\|"gt_10y" }` | `201 { id, status, language, expiresAt, turn }` (the opening turn) | `400 invalid_request` (bad language or tenure), `402 payment_required` (no credit), `429 rate_limited`, `503 interviews_disabled` (kill switch or provider not configured), `409 interview_in_progress` (one open session per account) |
+| `POST /interviews/{id}/reply` | `{ "text": string }` (1..2000 chars) | `200 { status, turn?, ending? }`. A closing or stop turn is returned with `status` still `in_progress` and `ending` null; the tiles are made after it, and `status` turns `completed` or `stopped` when they are ready (poll `GET /interviews/{id}`) | `404 not_found`, `409 interview_ended`, `409 reply_in_progress` (a reply is already pending), `410 gone`, `422 reply_invalid`, `429`, `503 provider_unavailable` (also when the session failed on this reply) |
 | `GET /interviews/{id}` | | `200 { id, status, language, turnCount, expiresAt }` | `404`, `410 gone` |
 | `GET /interviews/{id}/result` | | `200 { record, tiles, usage }` once `status` is `completed` | `404`, `409 not_completed`, `410 gone` |
 | `DELETE /interviews/{id}` | | `204` (the transcript and result are wiped) | `404` |
@@ -122,3 +122,4 @@ All routes are in `ExitInterviewAgent.InterviewService` under `/api/v1`, require
 - A session expires 30 minutes after its last request; after completion the result stays readable for 30 minutes, then it is wiped. A restart loses open sessions; the next request is `410 gone` and the credit is returned.
 - The interview runs in a background task per session: an `IInterviewee` backed by a channel feeds `InterviewRunner`; `reply` writes to the channel and waits (with a timeout) for the next interviewer turn.
 - Credits are consumed when the session is created and returned when it ends as `failed`.
+- Implementation (W2, ADR-0076): the closing turn is returned at once, not after the tiles; `404` carries the code `not_found` on every route (added to the contract); a restart leaves the id unknown, so the answer is `404` (not `410`, which needs the session to be remembered across restarts; W3 records session ids in the ledger and then returns the credit with `410`).

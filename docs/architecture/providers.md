@@ -111,6 +111,8 @@ A provider is an `IChatClient` plus three small edits (P10, ADR-0032):
 
 ## For the eval harness (T7)
 
+**Who references this project (amended by ADR-0076).** The CLI (ADR-0036), the eval harness (ADR-0038) and the web interview service (`ExitInterviewAgent.InterviewService`, the platform key read from its environment) reference it. No other project may; `ProviderArchitectureTests.Only_the_cli_the_eval_harness_and_the_interview_service_reference_the_providers_project` enforces that. ADR-0032 is unchanged.
+
 The harness is wired already: `ProviderRegistration.RegisterAll()` in the eval tool registers `anthropic`, `openai-compatible` and `ollama` from `evals/profiles.yaml` ([eval README](../eval/README.md#plugging-in-model-providers)); `ProviderProfiles.Create` is the entry point behind it. To build a client by hand:
 
 ```csharp
