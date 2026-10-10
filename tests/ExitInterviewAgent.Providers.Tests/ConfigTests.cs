@@ -17,6 +17,31 @@ public class ConfigTests
         return UserConfig.Parse(doc.RootElement);
     }
 
+    // ---- Anthropic workspace id -------------------------------------------------------------------------------------
+
+    [Fact]
+    public void The_anthropic_workspace_id_comes_from_its_variable_and_only_for_anthropic()
+    {
+        var anthropic = ProviderConfigResolver.Resolve(new ProviderCliOptions { Provider = "anthropic", Model = "m" }, Env(("ANTHROPIC_API_KEY", "k"), (EnvVars.AnthropicWorkspaceId, " wrkspc_01X ")), UserConfig.Empty);
+        var ollama = ProviderConfigResolver.Resolve(new ProviderCliOptions { Provider = "ollama", Model = "m" }, Env((EnvVars.AnthropicWorkspaceId, "wrkspc_01X")), UserConfig.Empty);
+
+        Assert.Equal("wrkspc_01X", anthropic.Settings.WorkspaceId);
+        Assert.Null(ollama.Settings.WorkspaceId);
+    }
+
+    [Theory]
+    [InlineData("has space")]
+    [InlineData("semi;colon")]
+    [InlineData("new\nline")]
+    public void A_malformed_workspace_id_is_refused_without_repeating_it(string id)
+    {
+        var settings = Settings.For(ProviderKind.Anthropic) with { WorkspaceId = id };
+
+        var ex = Assert.Throws<ProviderConfigurationException>(() => settings.Validated());
+
+        Assert.DoesNotContain(id, ex.Message);
+    }
+
     // ---- precedence ----------------------------------------------------------------------------------------------
 
     [Fact]

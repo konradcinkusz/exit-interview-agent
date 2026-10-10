@@ -132,6 +132,7 @@ dotnet run --project src/ExitInterviewAgent.Cli -- providers
 
 # Anthropic API (your key, in the environment; pick a model id from your own account):
 export ANTHROPIC_API_KEY=...        # from the Anthropic Console, never a Claude subscription token
+export ANTHROPIC_WORKSPACE_ID=... # only if the API answers HTTP 400 'not scoped to a workspace': the id of the workspace to use (Windows PowerShell: $env:ANTHROPIC_API_KEY = "...")
 dotnet run --project src/ExitInterviewAgent.Cli -- providers ping --provider anthropic --model <model-id>      # one minimal live request, only when you run it
 dotnet run --project src/ExitInterviewAgent.Cli -- interview --provider anthropic --model <model-id> --tenure 1y_3y --employer acme-example --out ./interview-out
 

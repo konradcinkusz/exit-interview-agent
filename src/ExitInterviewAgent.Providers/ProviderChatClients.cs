@@ -30,6 +30,7 @@ public static class ProviderChatClients
             case ProviderKind.Anthropic:
                 {
                     var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, AuthScheme.XApiKey, runtime);
+                    if (settings.WorkspaceId is { } workspaceId) http.DefaultRequestHeaders.TryAddWithoutValidation("anthropic-workspace-id", workspaceId);
                     // MaxRetries = 0: retries belong to the transport policy. ApiKey is explicit, so no environment or profile credential is resolved.
                     var client = new AnthropicClient { ApiKey = key!, BaseUrl = settings.BaseUrl.AbsoluteUri.TrimEnd('/'), HttpClient = http, MaxRetries = 0, Timeout = sdkTimeout };
                     // Current Claude models reject non-default sampling values with HTTP 400, so none is sent.

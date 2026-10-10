@@ -110,6 +110,7 @@ public static partial class ProviderConfigResolver
             Model = model,
             BaseUrl = uri,
             ApiKey = key,
+            WorkspaceId = info.Kind == ProviderKind.Anthropic && env(EnvVars.AnthropicWorkspaceId) is { Length: > 0 } workspace ? workspace.Trim() : null,
             Resilience = resilience,
             Prices = priceIn is { } pi && priceOut is { } po ? new PriceConfig(pi, po, file.Currency ?? "USD") : null,
             MaxTokens = maxTokens,
