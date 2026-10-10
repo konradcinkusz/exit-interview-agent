@@ -21,6 +21,7 @@ builder.Services.AddSignalsModule(builder.Configuration, builder.Environment);
 builder.Services.AddInterviewMcp();
 builder.Services.AddBilling(builder.Configuration, builder.Environment);
 builder.Services.AddInterviewSessions(builder.Configuration);
+builder.Services.AddInterviewCostControls(builder.Configuration);
 
 var app = builder.Build();
 

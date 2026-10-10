@@ -1,10 +1,13 @@
 using ExitInterviewAgent.InterviewService.Billing.Endpoints;
 using ExitInterviewAgent.InterviewService.Endpoints;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
+using ExitInterviewAgent.InterviewService.Interviews;
+using ExitInterviewAgent.InterviewService.Interviews.CostControls;
 using ExitInterviewAgent.InterviewService.Interviews.Endpoints;
 using ExitInterviewAgent.InterviewService.Mcp;
 using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.ServiceDefaults;
+using OpenTelemetry.Metrics;
 
 namespace ExitInterviewAgent.InterviewService.Infrastructure;
 
@@ -15,6 +18,31 @@ public static class ServiceCollectionExtensions
     {
         services.AddDatabaseContext<InterviewDbContext>(configuration, "interviewdb", "InterviewInMemory");
         services.AddMigrationOnStartup<InterviewDbContext>();
+        return services;
+    }
+
+    /// <summary>
+    /// The cost controls on the session routes (web-app-plan §2, ADR-0078): the per-account and per-address limits, the
+    /// verified-email gate, the global daily cap and the spend metrics. Registered after the sessions so the sessions' emergency
+    /// switch and credit seams are already in place. The kernel's rate-limit policies are not changed.
+    /// </summary>
+    public static IServiceCollection AddInterviewCostControls(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<CostControlOptions>().Bind(configuration.GetSection(InterviewServiceOptions.SectionName));
+        services.AddSingleton<CostMetrics>();
+        services.AddSingleton<InterviewRateLimits>();
+        services.AddSingleton<DailyStartCap>();
+        services.ConfigureOpenTelemetryMeterProvider(m => m.AddMeter(CostMetrics.MeterName));
+
+        // Optional and visible (P8): /health and the startup banner show the cost-control state. No key, no environment variable name.
+        var section = configuration.GetSection(InterviewServiceOptions.SectionName);
+        var sessions = section.Get<InterviewServiceOptions>() ?? new InterviewServiceOptions();
+        var costs = section.Get<CostControlOptions>() ?? new CostControlOptions();
+        var providerConfigured = !string.IsNullOrWhiteSpace(sessions.Provider);
+        services.AddIntegration("interview-cost-controls", sessions.Enabled && providerConfigured,
+            $"emergency switch {(sessions.Enabled ? "on (enabled)" : "off (disabled)")}; provider configured: {(providerConfigured ? "yes" : "no")}; "
+            + $"verified email required: {(costs.RequireVerifiedEmail ? "yes" : "no")}; daily start cap: {costs.MaxStartsPerDay} (UTC day); "
+            + "per-account and per-address limits on starts and replies");
         return services;
     }
 

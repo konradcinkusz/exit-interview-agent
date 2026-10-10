@@ -42,6 +42,9 @@ public sealed class BillingHost : WebApplicationFactory<Program>
     public FakeClock Clock { get; } = new(new DateTimeOffset(2026, 10, 10, 9, 0, 0, TimeSpan.Zero));
     public CaptureLoggerProvider Logs { get; } = new();
 
+    /// <summary>Extra settings, applied after the defaults so that a test can override any of them.</summary>
+    public Dictionary<string, string?> Settings { get; } = [];
+
     /// <summary>When set, the interview model fails on every call (a fatal failure): the session ends as failed and its credit comes back.</summary>
     public Microsoft.Extensions.AI.IChatClient? ModelOverride { get; set; }
 
@@ -62,6 +65,10 @@ public sealed class BillingHost : WebApplicationFactory<Program>
         builder.UseSetting("Billing:CancelUrl", CancelUrl);
         builder.UseSetting("Billing:FakeWebhookSecret", WebhookSecret);
         if (Postgres is not null) builder.UseSetting("ConnectionStrings:interviewdb", Postgres);
+        foreach (var (key, value) in Settings)
+        {
+            builder.UseSetting(key, value);
+        }
 
         builder.ConfigureServices(services =>
         {

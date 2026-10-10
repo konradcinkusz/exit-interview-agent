@@ -1,5 +1,6 @@
 using ExitInterviewAgent.Contracts;
 using ExitInterviewAgent.InterviewService.Interviews;
+using ExitInterviewAgent.InterviewService.Interviews.CostControls;
 
 namespace ExitInterviewAgent.InterviewService.Interviews.Endpoints;
 
@@ -30,7 +31,8 @@ public static class InterviewEndpoints
             return result.Value is { } started
                 ? Results.Created($"/api/v1/interviews/{started.Id}", started)
                 : Problem(result);
-        }).WithName(InterviewEndpointNames.StartInterview)
+        }).WithInterviewStartControls()
+          .WithName(InterviewEndpointNames.StartInterview)
           .ProducesProblem(StatusCodes.Status400BadRequest)
           .ProducesProblem(StatusCodes.Status402PaymentRequired)
           .ProducesProblem(StatusCodes.Status409Conflict)
@@ -41,7 +43,8 @@ public static class InterviewEndpoints
             if (Owner(http) is not { } owner) return Results.Unauthorized();
             var result = await sessions.ReplyAsync(owner, id, body, ct);
             return result.Value is { } reply ? Results.Ok(reply) : Problem(result);
-        }).WithName(InterviewEndpointNames.ReplyInterview)
+        }).WithInterviewReplyControls()
+          .WithName(InterviewEndpointNames.ReplyInterview)
           .ProducesProblem(StatusCodes.Status404NotFound)
           .ProducesProblem(StatusCodes.Status409Conflict)
           .ProducesProblem(StatusCodes.Status410Gone)

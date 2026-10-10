@@ -5,6 +5,7 @@ using ExitInterviewAgent.Agent.Roles;
 using ExitInterviewAgent.Agent.Runner;
 using ExitInterviewAgent.Agent.Tiles;
 using ExitInterviewAgent.Contracts;
+using ExitInterviewAgent.InterviewService.Interviews.CostControls;
 using ExitInterviewAgent.Records;
 using Microsoft.Extensions.Options;
 
@@ -29,6 +30,7 @@ public sealed class InterviewSessions(
     ICreditRefund refunds,
     IOptionsMonitor<InterviewServiceOptions> options,
     TimeProvider clock,
+    CostMetrics metrics,
     ILogger<InterviewSessions> logger)
 {
     /// <summary>The employer is not asked in the web interview; the record carries this placeholder. Submission (later) states a real one.</summary>
@@ -110,7 +112,13 @@ public sealed class InterviewSessions(
     }
 
     /// <summary>Withdraws the session and wipes it. No refund: the person chose this.</summary>
-    public bool Delete(string owner, string id) => store.Remove(owner, id);
+    public bool Delete(string owner, string id)
+    {
+        var open = store.Find(owner, id, out var session) == SessionLookup.Found && session is { IsTerminal: false };
+        var removed = store.Remove(owner, id);
+        if (removed && open) metrics.Withdrawn();
+        return removed;
+    }
 
     private SessionLookup Lookup(string owner, string id, out InterviewSession? session) => store.Find(owner, id, out session);
 
@@ -163,6 +171,8 @@ public sealed class InterviewSessions(
         }
         finally
         {
+            // The usage counts every model call of the interview, including its tiles and a cancelled run (cost is cost).
+            metrics.Usage(meter.Tokens, meter.Calls);
             model.Dispose();
         }
     }
@@ -196,6 +206,12 @@ public sealed class InterviewSessions(
     {
         if (!session.Finish(status, reason, payload, clock.GetUtcNow())) return;
         store.MarkClosed(session.Owner, session.Id);
+        switch (status)
+        {
+            case SessionStatus.Completed: metrics.Completed(); break;
+            case SessionStatus.Failed: metrics.Failed(); break;
+            case SessionStatus.Stopped: metrics.Withdrawn(); break;
+        }
         if (status == SessionStatus.Failed && !session.Refunded)
         {
             session.Refunded = true;

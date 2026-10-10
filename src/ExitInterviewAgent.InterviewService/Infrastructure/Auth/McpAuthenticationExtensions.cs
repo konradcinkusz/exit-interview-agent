@@ -22,6 +22,8 @@ public static class McpAuthenticationExtensions
     private static readonly HashSet<string> RetainedClaims = new(StringComparer.Ordinal)
     {
         "sub", "client_id", "scope", "jti", "iss", "aud", "exp", "iat", "nbf",
+        // ADR-0078: a boolean, not personal data. The address itself is still dropped (ADR-0014).
+        "email_verified",
     };
 
     public static IServiceCollection AddInterviewAuthentication(this IServiceCollection services, IConfiguration configuration)
