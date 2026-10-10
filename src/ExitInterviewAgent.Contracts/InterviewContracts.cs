@@ -21,6 +21,8 @@ public static class InterviewCodes
     public const string NotCompleted = "not_completed";
     public const string NotFound = "not_found";
     public const string RequestCancelled = "request_cancelled";
+    public const string RateLimited = "rate_limited";
+    public const string EmailNotVerified = "email_not_verified";
 }
 
 /// <summary><c>POST /api/v1/interviews</c>. <c>Language</c> is <c>pl</c> or <c>en</c>; <c>Tenure</c> is one of the six bands.</summary>

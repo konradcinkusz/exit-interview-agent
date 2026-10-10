@@ -1,0 +1,79 @@
+{
+  "record": {
+    "schemaVersion": "1",
+    "interviewId": "int_sample0000000000000000",
+    "piiMasked": true,
+    "context": {
+      "tenureBand": "1y_3y"
+    },
+    "interview": {
+      "protocolVersion": "1.2",
+      "language": "en",
+      "aiDisclosed": true,
+      "durationBand": "10m_20m",
+      "turnBand": "10_20"
+    },
+    "topics": {
+      "onboarding": {
+        "status": "covered",
+        "rating": 2,
+        "confidence": "medium",
+        "quotes": [
+          "Onboarding was chaotic."
+        ]
+      },
+      "management": {
+        "status": "no_data",
+        "rating": null,
+        "confidence": null,
+        "quotes": []
+      },
+      "growth": {
+        "status": "no_data",
+        "rating": null,
+        "confidence": null,
+        "quotes": []
+      },
+      "pay_vs_promises": {
+        "status": "no_data",
+        "rating": null,
+        "confidence": null,
+        "quotes": []
+      },
+      "culture": {
+        "status": "no_data",
+        "rating": null,
+        "confidence": null,
+        "quotes": []
+      },
+      "reason_for_leaving": {
+        "status": "no_data",
+        "rating": null,
+        "confidence": null,
+        "quotes": []
+      }
+    }
+  },
+  "tiles": {
+    "items": [
+      {
+        "kind": "glassdoor",
+        "text": "Onboarding was chaotic, but the team helped."
+      },
+      {
+        "kind": "short_note",
+        "text": "Chaotic onboarding, good team."
+      }
+    ],
+    "dropped": [
+      {
+        "code": "too_long"
+      }
+    ],
+    "notice": "These are draft texts, not facts."
+  },
+  "usage": {
+    "modelCalls": 4,
+    "tokensEstimated": 5400
+  }
+}

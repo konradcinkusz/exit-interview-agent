@@ -23,6 +23,29 @@ export type TileKind = (typeof TILE_KINDS)[number];
 /** A reply's length bounds, the same as the contract's `text` (1..2000 characters). */
 export const MAX_REPLY_CHARS = 2000;
 
+/**
+ * Every stable `code` the service answers with (ExitInterviewAgent.Contracts `InterviewCodes` and `BillingCodes`, and the kernel's
+ * `rate_limited`). The same list is in tests/contracts/codes.json; interview-contract.test.ts keeps the two equal.
+ */
+export const CONTRACT_ERROR_CODES = [
+  "bad_signature",
+  "billing_disabled",
+  "email_not_verified",
+  "gone",
+  "interview_ended",
+  "interview_in_progress",
+  "interviews_disabled",
+  "invalid_request",
+  "not_completed",
+  "not_found",
+  "payment_required",
+  "provider_unavailable",
+  "rate_limited",
+  "reply_in_progress",
+  "reply_invalid",
+  "request_cancelled",
+] as const;
+
 export interface Turn {
   index: number;
   kind: TurnKind;
@@ -131,15 +154,16 @@ export function parseStarted(v: unknown): InterviewStarted | null {
   return turn ? { id: v.id, status: v.status, language: v.language, expiresAt: v.expiresAt, turn } : null;
 }
 
+/** The service writes `"turn": null` and `"ending": null` on an ordinary reply (the field is present, the value is null): both mean absent. */
 export function parseReply(v: unknown): ReplyResult | null {
   if (!isObj(v) || !oneOf(INTERVIEW_STATUSES, v.status)) return null;
   const out: ReplyResult = { status: v.status };
-  if (v.turn !== undefined) {
+  if (v.turn !== undefined && v.turn !== null) {
     const turn = parseTurn(v.turn);
     if (!turn) return null;
     out.turn = turn;
   }
-  if (v.ending !== undefined) {
+  if (v.ending !== undefined && v.ending !== null) {
     if (!isObj(v.ending) || !isStr(v.ending.reason)) return null;
     out.ending = { reason: v.ending.reason };
   }

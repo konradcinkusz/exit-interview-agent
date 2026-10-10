@@ -1,0 +1,20 @@
+{
+  "codes": [
+    "bad_signature",
+    "billing_disabled",
+    "email_not_verified",
+    "gone",
+    "interview_ended",
+    "interview_in_progress",
+    "interviews_disabled",
+    "invalid_request",
+    "not_completed",
+    "not_found",
+    "payment_required",
+    "provider_unavailable",
+    "rate_limited",
+    "reply_in_progress",
+    "reply_invalid",
+    "request_cancelled"
+  ]
+}
