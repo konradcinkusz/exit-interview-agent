@@ -152,6 +152,159 @@ const signalsCacheControl = () => `private, max-age=${Math.max(60, Math.floor((b
 const isEmployerRef = (v) => typeof v === "string" && v.length >= 3 && v.length <= 64 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(v);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+
+// --- Interview contract (plan section 10, docs/architecture/web-app-plan.md) -------------------------------------------------
+// CONTRACT NOTE (keep in sync with section 10). The /api/v1/interviews session routes, /credits and /checkout mirror the contract
+// row by row: 201 start with the opening turn, 402 payment_required without a credit, 409 interview_in_progress and
+// interview_ended and not_completed, 410 gone, 404 not_found, 422 reply_invalid, 503 interviews_disabled | provider_unavailable |
+// billing_disabled, 204 delete. Errors are problem documents with a lowercase stable `code`. The conversation is a SCRIPT, not a
+// model: two interviewer questions after the opening, then the close on the third reply; the word "stop" ends it without a record.
+// The record matches the shape of schemas/exit-interview-record.v1.schema.json as the page reads it; the tiles use the six kinds of
+// the contract and the CLI's notice, verbatim (ExitInterviewAgent.Cli/Tiles/TileRenderer.cs). All of it is synthetic.
+const INTERVIEW_SCRIPT = {
+  pl: {
+    opening: "Dzień dobry. Jestem rozmówcą AI. Porozmawiamy o Twoim czasie w firmie, w Twoich własnych słowach. Jak wyglądało wdrożenie?",
+    turns: ["Dziękuję. Jak oceniasz kontakt z przełożonym?", "Czy możesz podać jeden konkretny przykład?"],
+    close: "Dziękuję, to wszystkie pytania. Zapis i szkice tekstów są gotowe.",
+    stop: "Rozumiem. Rozmowa została przerwana i nic z niej nie jest zachowywane.",
+    quote: "Wdrożenie było chaotyczne.",
+    notice:
+      "To są propozycje tekstów, nie fakty. Program niczego nie weryfikuje i niczego nie publikuje. Za treść, którą opublikujesz, odpowiadasz Ty; publikacja opinii o pracodawcy może mieć skutki prawne. Przeczytaj i zmień każdy tekst, zanim go użyjesz. To nie jest porada prawna. Limity długości są orientacyjne; sprawdź aktualne zasady platformy. Nazwę firmy wstaw sam albo zostaw [FIRMA].",
+    tiles: [
+      ["glassdoor", "Wdrożenie było chaotyczne, ale zespół pomagał. Kontakt z przełożonym był rzadki."],
+      ["google_review", "Dobry zespół, słabe wdrożenie. Warto zapytać o plan pierwszych tygodni."],
+      ["reddit", "Pracowałem tam ponad rok. Wdrożenie wymagało więcej porządku, zespół był w porządku.\nGdybym miał coś doradzić: zapytaj o plan pierwszych tygodni przed podpisaniem umowy."],
+      ["short_note", "Wdrożenie chaotyczne, zespół dobry."],
+    ],
+  },
+  en: {
+    opening: "Hello. I am an AI interviewer. We will talk about your time at the company, in your own words. How did onboarding go?",
+    turns: ["Thank you. How would you describe your relationship with your manager?", "Can you give one concrete example?"],
+    close: "Thank you, that is all my questions. Your record and draft texts are ready.",
+    stop: "Understood. The interview is stopped and nothing from it is kept.",
+    quote: "Onboarding was chaotic.",
+    notice:
+      "These are draft texts, not facts. The program verifies nothing and publishes nothing. You are responsible for any text you publish; publishing an opinion about an employer can have legal consequences. Read and change every text before you use it. This is not legal advice. Length limits are approximate; check the platform's current rules. Insert the company name yourself or leave [COMPANY].",
+    tiles: [
+      ["glassdoor", "Onboarding was chaotic, but the team helped. Contact with the manager was rare."],
+      ["google_review", "Good team, weak onboarding. Ask about the plan for the first weeks."],
+      ["reddit", "I worked there for over a year. Onboarding needed more structure; the team was fine.\nIf I had one piece of advice: ask about the first-weeks plan before you sign."],
+      ["short_note", "Chaotic onboarding, good team."],
+    ],
+  },
+};
+const INTERVIEW_TENURES = ["lt_6m", "6m_1y", "1y_3y", "3y_5y", "5y_10y", "gt_10y"];
+const interviewState = (a) => (a.interview ??= { credits: 1, session: null, disabled: false, providerDown: false, billingDisabled: false, expireNext: false, checkouts: 0 });
+const newInterviewId = () => `int_${randomBytes(12).toString("base64url")}`;
+
+function recordFor(language, interviewId) {
+  const covered = (rating) => ({ status: "covered", rating, confidence: "medium", quotes: [INTERVIEW_SCRIPT[language].quote] });
+  const noData = { status: "no_data", rating: null, confidence: null, quotes: [] };
+  return {
+    schemaVersion: "1",
+    interviewId,
+    employerRef: "demo-acme",
+    piiMasked: true,
+    context: { tenureBand: "1y_3y" },
+    interview: { protocolVersion: "1.2", language, aiDisclosed: true, durationBand: "10m_20m", turnBand: "10_20" },
+    topics: { onboarding: covered(2), management: noData, growth: noData, pay_vs_promises: noData, culture: noData, reason_for_leaving: noData },
+  };
+}
+
+function tilesFor(language) {
+  const { tiles, notice } = INTERVIEW_SCRIPT[language];
+  return {
+    items: tiles.map(([kind, text]) => ({ kind, text })),
+    dropped: [{ code: "too_long" }],
+    notice,
+  };
+}
+
+async function interviewRoute(req, res, url) {
+  const a = await strictBearerAccount(req);
+  if (!a) return json(res, 401, { error: "unauthenticated" });
+  const st = interviewState(a);
+  const path = url.pathname.slice("/api/v1".length);
+  let body = null;
+  if (req.method === "POST") {
+    try {
+      body = JSON.parse((await readBody(req)) || "{}");
+    } catch {
+      return problem(res, 400, "invalid_request");
+    }
+  }
+
+  if (path === "/credits" && req.method === "GET") return json(res, 200, { balance: st.credits });
+
+  if (path === "/checkout" && req.method === "POST") {
+    if (st.billingDisabled) return problem(res, 503, "billing_disabled");
+    const q = body?.quantity;
+    if (!Number.isInteger(q) || q < 1 || q > 10) return problem(res, 400, "invalid_request");
+    st.checkouts += 1;
+    // An https address on a name that does not resolve: the browser suite intercepts the navigation and asserts it happened.
+    return json(res, 200, { url: `https://checkout.example.invalid/session/e2e-${st.checkouts}` });
+  }
+
+  if (path === "/interviews" && req.method === "POST") {
+    if (st.disabled) return problem(res, 503, "interviews_disabled");
+    if (st.session?.status === "in_progress") return problem(res, 409, "interview_in_progress");
+    if (st.credits < 1) return problem(res, 402, "payment_required");
+    const language = body?.language;
+    if (!INTERVIEW_SCRIPT[language] || !INTERVIEW_TENURES.includes(body?.tenure)) return problem(res, 400, "invalid_request");
+    st.credits -= 1;
+    const id = newInterviewId();
+    const expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+    st.session = { id, status: "in_progress", language, index: 0, replies: 0, expiresAt };
+    return json(res, 201, { id, status: "in_progress", language, expiresAt, turn: { index: 0, kind: "opening", text: INTERVIEW_SCRIPT[language].opening } });
+  }
+
+  const match = /^\/interviews\/([A-Za-z0-9_-]+)(?:\/(reply|result))?$/.exec(path);
+  if (!match) return problem(res, 404, "not_found");
+  const [, id, action] = match;
+  const s = st.session;
+  if (!s || s.id !== id) return problem(res, 404, "not_found");
+
+  if (!action && req.method === "GET") {
+    return json(res, 200, { id, status: s.status, language: s.language, turnCount: s.index + 1, expiresAt: s.expiresAt });
+  }
+  if (!action && req.method === "DELETE") {
+    st.session = null;
+    res.writeHead(204);
+    return res.end();
+  }
+  if (action === "result" && req.method === "GET") {
+    if (s.status !== "completed") return problem(res, 409, "not_completed");
+    return json(res, 200, { record: recordFor(s.language, id), tiles: tilesFor(s.language), usage: { modelCalls: 4, tokensEstimated: 5400 } });
+  }
+  if (action === "reply" && req.method === "POST") {
+    if (s.status !== "in_progress") return problem(res, 409, "interview_ended");
+    const text = typeof body?.text === "string" ? body.text.trim() : "";
+    if (text.length === 0 || body.text.length > 2000) return problem(res, 422, "reply_invalid");
+    if (st.providerDown) return problem(res, 503, "provider_unavailable");
+    if (st.expireNext) {
+      // A restart lost the session: the next request is gone, and the credit comes back.
+      st.expireNext = false;
+      st.session = null;
+      st.credits += 1;
+      return problem(res, 410, "gone");
+    }
+    const script = INTERVIEW_SCRIPT[s.language];
+    if (/\bstop\b/i.test(text)) {
+      s.status = "stopped";
+      s.index += 1;
+      return json(res, 200, { status: "stopped", turn: { index: s.index, kind: "stop", text: script.stop } });
+    }
+    s.replies += 1;
+    s.index += 1;
+    if (s.replies > script.turns.length) {
+      s.status = "completed";
+      return json(res, 200, { status: "completed", turn: { index: s.index, kind: "close", text: script.close }, ending: { reason: "completed" } });
+    }
+    return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: s.replies === 1 ? "topic" : "probe", text: script.turns[s.replies - 1] } });
+  }
+  return problem(res, 404, "not_found");
+}
+
 /** @type {Map<string, any>} keyed by email */
 const accounts = new Map();
 /** refresh token -> email, including consumed ones, so reuse is recognisable */
@@ -483,6 +636,26 @@ http.createServer(async (req, res) => {
     a.deleted = true;
     a.revoked = true;
     return json(res, 200, { message: "Account deleted successfully" });
+  }
+  // Test-only controls for the interview stub: per account, so parallel tests stay independent.
+  if (url.pathname === "/__test/interview-config" && req.method === "POST") {
+    const a = account(url.searchParams.get("email") ?? "");
+    if (!a) return json(res, 400, { error: "bad email" });
+    const st = interviewState(a);
+    if (url.searchParams.has("credits")) st.credits = Number(url.searchParams.get("credits"));
+    for (const flag of ["disabled", "providerDown", "billingDisabled", "expireNext"]) {
+      if (url.searchParams.has(flag)) st[flag] = url.searchParams.get(flag) === "1";
+    }
+    return json(res, 200, { credits: st.credits });
+  }
+  if (url.pathname === "/__test/interview") {
+    const a = account(url.searchParams.get("email") ?? "");
+    if (!a) return json(res, 400, { error: "bad email" });
+    const st = interviewState(a);
+    return json(res, 200, { credits: st.credits, session: st.session ? { id: st.session.id, status: st.session.status, index: st.session.index } : null });
+  }
+  if (url.pathname.startsWith("/api/v1/interviews") || url.pathname === "/api/v1/credits" || url.pathname === "/api/v1/checkout") {
+    return interviewRoute(req, res, url);
   }
   if (url.pathname === "/api/v1/me") {
     const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1];
