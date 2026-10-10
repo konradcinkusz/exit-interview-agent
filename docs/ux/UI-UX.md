@@ -33,6 +33,7 @@ uncertainty. This page is written before the code (T9) and is the reference the 
 | `/signals` | signed in | **Employer signals**: the employers that have something to show, alphabetical and paged; "this tool does not rank employers"; what the figures are and how to read them |
 | `/signals/[employerRef]` | signed in | **One employer**: snapshot freshness, respondent band, six topics each standing alone (mean with interval and n, reliability, coverage, distribution, verification, three single-band cuts) |
 | `/cli` | signed in | **Use the CLI**: mint a submission ticket (shown once, copy button, expiry countdown), what a ticket is and is not, the CLI commands that exist today |
+| `/interview` | signed in | **Interview with an AI** (plan [section 3 and 10](../architecture/web-app-plan.md)): language, time at the company, credits, the full consent, the chat, the record and draft texts, and the delete. Its own section below. Not in the header navigation yet: where it is linked is the owner's decision |
 | `/delete-submission` | public | **Delete a submission** by receipt code. Public on purpose: the code is the only credential, and it must work after the account is gone. It also says published figures drop the record at the next update |
 | `/account` | signed in | the subject, sign-out, **export your data** (authservice only), **delete account** with the exact semantics of [ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md) |
 | `/account-deleted` | public | what deletion did and did not do |
@@ -108,11 +109,60 @@ No search box, no sort control, no filter, no score, no count of employers or of
 **Never on these pages** (and asserted absent): ranking, sorting or scoring controls; "best", "worst", "top", "average", "score", "percentile", "trend", an up or down arrow; a composite across topics; any view that puts two employers or two bands next to each other;
 a colour scale that implies good or bad; any figure computed in the browser or the BFF.
 
+## Interview screens (`/interview`)
+
+One page with five steps, held by a pure reducer (`app/interview/state.ts`). Copy: `lib/messages/interview.ts`, in Polish and
+English; the Polish is typed against the English keys and is a builder's draft until a native speaker has reviewed it (the W9
+quality gate in the plan). The rest of the portal stays English-only.
+
+| Step | What the person sees | Leaves when |
+|---|---|---|
+| start | language (the browser's language on the first visit, then their choice), time at the company, the credits they have, **Continue** (needs one credit), **Buy one interview** (goes to the payment provider's page) | Continue -> consent |
+| consent | the whole disclosure: the interviewer is an AI and says so; everything typed goes to the model provider (Anthropic); the conversation is held in memory and discarded when the interview ends; the result stays readable for 30 minutes; stop and delete at any time; the drafts are not facts and not legal advice; nothing checks employment; a failure on our side returns the credit. A checkbox is needed before **Start the interview**, which uses one credit | start -> chat; failures stay here; **Back** uses nothing |
+| chat | a live log of the conversation; an answer box (Enter sends, Shift+Enter starts a new line); "The interviewer is typing…" while a reply is pending; **Stop and delete** (asks once) | completed -> result; stopped or failed -> ended; deleted -> start; session lost (410) -> start with the credit back |
+| result | the legal notice first, then the draft warning; the record as sentences per topic (rating, confidence, quotes), never raw JSON; one card per draft with **Copy**; downloads: the record (JSON), the drafts (`tiles.html`, built in the browser from the same JSON with no script and no network resource), the drafts (JSON); **Delete everything now** (asks once) | deleted -> start with "The interview was deleted. Nothing from it is kept." |
+| ended | "stopped": nothing kept, no record; "failed": a fault on our side, the credit is returned | start |
+
+Failure copy (the mapping is one function, `failureFor` in `lib/interview-api.ts`):
+
+| Answer | What the person is told | Where they stay |
+|---|---|---|
+| 402 `payment_required` | no credit; buy one | start |
+| 409 `interview_in_progress` | an open interview exists; finish or delete it | consent |
+| 409 `interview_ended` | this interview has ended | result |
+| 409 `not_completed` | the result is not ready | result |
+| 410 `gone` | expired or lost in a restart; the credit is back | start |
+| 422 `reply_invalid` | empty or over 2000 characters | chat, text kept |
+| 429 `rate_limited` | a wait in seconds when the service gives one; **no automatic retry** | where they were |
+| 503 `provider_unavailable` | the model is not responding; the interview is still open; the typed text is kept | chat |
+| 503 `interviews_disabled`, `billing_disabled` | paused for now; no credit is used | where they were |
+| 503 or 504, backend unreachable | the service cannot be reached right now | where they were |
+| 401 | signed out: a link to sign in again | where they were |
+| 403 `consent_required` | accept the current terms first: a link to `/consent` | where they were |
+
+Rules this page keeps:
+
+- **Nothing is stored by the page.** The transcript and the result live in memory. No `localStorage`, `sessionStorage`, cookie, URL or
+  log holds interview text, and a reload empties both (asserted in the browser suite).
+- **The record is read as sentences.** Raw JSON is only a download.
+- **Copy puts the draft text alone on the clipboard**, without its label or the notice. When the clipboard is not available the page
+  says so and asks the person to copy by hand.
+- **The language of the document follows the page's language choice.** The root layout is English, so the page sets `lang` itself.
+- **No third party.** No script, font, analytics or image from another origin (the browser suite checks the requests and the CSP).
+- **Accessible.** One `h1`, the log is a live region (`role="log"`, `aria-live="polite"`), the typing line is a status, every failure is
+  a `role="alert"` next to the control that caused it, and the confirmation of a deletion takes focus. Axe runs on all four steps.
+- **The result has no server copy after it is shown.** The service keeps it for 30 minutes after the interview ends, then wipes it, and
+  "Delete everything now" wipes it at once. The page does not offer to keep anything.
+
+Not on this page, and not invented: a submit to employer signals (that is the existing flow, opt-in, and separate), a "my interviews"
+list, a way to see an earlier transcript, and any score or comparison.
+
 ## Copy rules
 
-- Plain language, one idea per sentence, no marketing. English is the shipped language; every string lives in
-  `web/app/lib/messages/en.ts`, so a Polish catalog is a new file with the same keys, not a refactor. Polish is **not**
-  shipped: a half translation is worse than none.
+- Plain language, one idea per sentence, no marketing. English is the shipped language for the portal; every string lives in
+  `web/app/lib/messages/en.ts`. The interview page is the one exception: Polish and English (`lib/messages/interview.ts`), with the
+  Polish typed against the English keys, so a missing translation is a build error, not a blank. A Polish catalog for the rest of the
+  portal is still not shipped: a half translation is worse than none.
 - The exact semantics sentences (account deletion, receipt deletion, ticket) are catalog entries and are asserted by tests.
 
 ## Accessibility and quality bar
@@ -127,7 +177,7 @@ a colour scale that implies good or bad; any figure computed in the browser or t
 
 ## Ranked backlog
 
-1. Polish catalog, when someone can write and review it properly.
+1. Polish for the rest of the portal, when someone can write and review it properly (the interview page is done, in draft).
 2. Cookie-consent categories, default-deny (identity guide §9): the portal sets only strictly necessary cookies today,
    so there is nothing to consent to; revisit if that changes.
 3. Password reset and email change screens (authservice owns the flows).
