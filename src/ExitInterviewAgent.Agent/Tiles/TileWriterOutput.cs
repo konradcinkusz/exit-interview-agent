@@ -22,6 +22,9 @@ public sealed class TileWriterOutput
         ["what_could_improve"] = TileKind.WhatCouldImprove,
         ["for_the_next_person"] = TileKind.ForTheNextPerson,
         ["short_note"] = TileKind.ShortNote,
+        ["glassdoor"] = TileKind.Glassdoor,
+        ["google_review"] = TileKind.GoogleReview,
+        ["reddit"] = TileKind.Reddit,
     }.ToFrozenDictionary();
 
     public static string SchemaText { get; } = LoadSchema();

@@ -3,7 +3,7 @@ using ExitInterviewAgent.Records;
 namespace ExitInterviewAgent.Agent.Tiles;
 
 /// <summary>
-/// Builds the tile set from the record. The Facts tile is built by code; the others come from the writer, are parsed,
+/// Builds the tile set from the record (and, when given, the masked transcript of the same session). The Facts tile is built by code; the others come from the writer, are parsed,
 /// and pass the guard. A rejected tile is dropped, never edited. If the writer's answer had rejected tiles or was
 /// unusable, the writer is asked ONCE more, given only the codes. A provider failure is not retried.
 /// Never throws for a model failure: the set then holds the Facts tile and the dropped codes. Cancellation propagates.
@@ -12,11 +12,15 @@ public sealed class TileGenerator(ITileWriter writer, ITileGuard guard)
 {
     private static readonly TileKind[] ModelKinds = Enum.GetValues<TileKind>().Where(k => k != TileKind.Facts).ToArray();
 
-    public async Task<TileSet> GenerateAsync(InterviewRecord record, CancellationToken ct)
-    {
-        var facts = guard.Check(record, [FactsTile.Build(record)]);
+    public Task<TileSet> GenerateAsync(InterviewRecord record, CancellationToken ct) => GenerateAsync(new TileInput(record), ct);
 
-        var first = await AttemptAsync(record, [], ct).ConfigureAwait(false);
+    /// <summary>The input may carry the masked transcript of the same session (ADR-0075); the guard and the writer then see it.</summary>
+    public async Task<TileSet> GenerateAsync(TileInput input, CancellationToken ct)
+    {
+        var record = input.Record;
+        var facts = guard.Check(input, [FactsTile.Build(record)]);
+
+        var first = await AttemptAsync(input, [], ct).ConfigureAwait(false);
         var final = first;
         var accepted = new List<Tile>(first.Accepted);
         var dropped = new Dictionary<TileKind, string>();
@@ -24,7 +28,7 @@ public sealed class TileGenerator(ITileWriter writer, ITileGuard guard)
 
         if (first.Codes.Count > 0 && !first.Threw)
         {
-            final = await AttemptAsync(record, first.Codes, ct).ConfigureAwait(false);
+            final = await AttemptAsync(input, first.Codes, ct).ConfigureAwait(false);
             foreach (var t in final.Accepted)
                 if (accepted.All(a => a.Kind != t.Kind)) accepted.Add(t);
             foreach (var d in final.Dropped) dropped[d.Kind] = d.ReasonCode;
@@ -45,12 +49,12 @@ public sealed class TileGenerator(ITileWriter writer, ITileGuard guard)
         return new TileSet(TileSet.CurrentVersion, TileWording.Language(record.Interview.Language), tiles, droppedAll);
     }
 
-    private async Task<Attempt> AttemptAsync(InterviewRecord record, IReadOnlyList<string> previousCodes, CancellationToken ct)
+    private async Task<Attempt> AttemptAsync(TileInput input, IReadOnlyList<string> previousCodes, CancellationToken ct)
     {
         string? text;
         try
         {
-            text = await writer.WriteAsync(record, previousCodes, ct).ConfigureAwait(false);
+            text = await writer.WriteAsync(input, previousCodes, ct).ConfigureAwait(false);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
         {
@@ -59,7 +63,7 @@ public sealed class TileGenerator(ITileWriter writer, ITileGuard guard)
 
         if (!TileWriterOutput.TryParse(text, out var output, out _)) return Attempt.Failed(threw: false);
 
-        var result = guard.Check(record, output!.Tiles);
+        var result = guard.Check(input, output!.Tiles);
         var codes = result.Dropped.Select(d => d.ReasonCode).Distinct().ToArray();
         return new Attempt(result.Accepted, result.Dropped, codes, Unusable: false, Threw: false);
     }
