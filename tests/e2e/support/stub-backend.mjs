@@ -154,10 +154,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 
 // --- Interview contract (plan section 10, docs/architecture/web-app-plan.md) -------------------------------------------------
-// CONTRACT NOTE (keep in sync with section 10). The /api/v1/interviews session routes, /credits and /checkout mirror the contract
-// row by row: 201 start with the opening turn, 402 payment_required without a credit, 409 interview_in_progress and
+// CONTRACT NOTE (keep in sync with section 10). The /api/v1/interviews session routes, /credits, /checkout and the anonymous
+// /api/v1/webhooks/payments mirror the contract row by row: 201 start with the opening turn, 402 payment_required without a credit,
+// 403 email_not_verified, 429 rate_limited (body { error, retryAfter } and Retry-After), 409 interview_in_progress and
 // interview_ended and not_completed, 410 gone, 404 not_found, 422 reply_invalid, 503 interviews_disabled | provider_unavailable |
-// billing_disabled, 204 delete. Errors are problem documents with a lowercase stable `code`. The conversation is a SCRIPT, not a
+// billing_disabled, 400 bad_signature (no Stripe-Signature header; the signature itself is verified by the service's tests),
+// 204 delete. A closing or stop turn comes back with status in_progress; the status turns completed or stopped on the next GET.
+// Checkout sessions are https addresses that the browser suite intercepts; a paid event adds its quantity once per event id. Errors are problem documents with a lowercase stable `code`. The conversation is a SCRIPT, not a
 // model: two interviewer questions after the opening, then the close on the third reply; the word "stop" ends it without a record.
 // The record matches the shape of schemas/exit-interview-record.v1.schema.json as the page reads it; the tiles use the six kinds of
 // the contract and the CLI's notice, verbatim (ExitInterviewAgent.Cli/Tiles/TileRenderer.cs). All of it is synthetic.
@@ -194,7 +197,12 @@ const INTERVIEW_SCRIPT = {
   },
 };
 const INTERVIEW_TENURES = ["lt_6m", "6m_1y", "1y_3y", "3y_5y", "5y_10y", "gt_10y"];
-const interviewState = (a) => (a.interview ??= { credits: 1, session: null, disabled: false, providerDown: false, billingDisabled: false, expireNext: false, checkouts: 0 });
+const INTERVIEW_FLAGS = ["disabled", "providerDown", "billingDisabled", "expireNext", "rateLimited", "replyRateLimited", "emailUnverified"];
+const interviewState = (a) => (a.interview ??= { credits: 1, session: null, ...Object.fromEntries(INTERVIEW_FLAGS.map((f) => [f, false])), checkouts: 0 });
+/** Checkout sessions the stub has opened, by id: the owner's email and the quantity. Shared by every account. */
+const checkoutSessions = new Map();
+/** Payment event ids already applied: a redelivered event adds nothing (ADR-0077, idempotent by provider event id). */
+const processedPaymentEvents = new Set();
 const newInterviewId = () => `int_${randomBytes(12).toString("base64url")}`;
 
 function recordFor(language, interviewId) {
@@ -220,6 +228,36 @@ function tilesFor(language) {
   };
 }
 
+function rateLimited(res, retryAfter) {
+  res.setHeader("Retry-After", String(retryAfter));
+  return json(res, 429, { error: "rate_limited", retryAfter });
+}
+
+/**
+ * The payment webhook as the service exposes it (anonymous, one route). The stub checks only that a signature header is present;
+ * the real signature check and its refusals are tested in the service. A paid checkout adds its quantity once per event id.
+ */
+async function paymentWebhook(req, res) {
+  let event;
+  try {
+    event = JSON.parse((await readBody(req)) || "{}");
+  } catch {
+    return problem(res, 400, "invalid_request");
+  }
+  if (!req.headers["stripe-signature"]) return problem(res, 400, "bad_signature");
+  if (event?.type !== "checkout.session.completed" || event.data?.object?.payment_status !== "paid") {
+    return json(res, 200, { received: true });
+  }
+  const session = checkoutSessions.get(event.data.object.id);
+  if (!session) return json(res, 200, { received: true });
+  if (!processedPaymentEvents.has(event.id)) {
+    processedPaymentEvents.add(event.id);
+    const a = account(session.email);
+    if (a) interviewState(a).credits += session.quantity;
+  }
+  return json(res, 200, { received: true });
+}
+
 async function interviewRoute(req, res, url) {
   const a = await strictBearerAccount(req);
   if (!a) return json(res, 401, { error: "unauthenticated" });
@@ -241,12 +279,16 @@ async function interviewRoute(req, res, url) {
     const q = body?.quantity;
     if (!Number.isInteger(q) || q < 1 || q > 10) return problem(res, 400, "invalid_request");
     st.checkouts += 1;
-    // An https address on a name that does not resolve: the browser suite intercepts the navigation and asserts it happened.
-    return json(res, 200, { url: `https://checkout.example.invalid/session/e2e-${st.checkouts}` });
+    // An https address on a name that does not resolve: the browser suite intercepts the navigation and serves the stub payment page.
+    const sessionId = `cs_e2e_${randomBytes(9).toString("base64url")}`;
+    checkoutSessions.set(sessionId, { email: a.email, quantity: q });
+    return json(res, 200, { url: `https://checkout.example.invalid/session/${sessionId}` });
   }
 
   if (path === "/interviews" && req.method === "POST") {
     if (st.disabled) return problem(res, 503, "interviews_disabled");
+    if (st.emailUnverified) return problem(res, 403, "email_not_verified");
+    if (st.rateLimited) return rateLimited(res, 42);
     if (st.session?.status === "in_progress") return problem(res, 409, "interview_in_progress");
     if (st.credits < 1) return problem(res, 402, "payment_required");
     const language = body?.language;
@@ -265,6 +307,10 @@ async function interviewRoute(req, res, url) {
   if (!s || s.id !== id) return problem(res, 404, "not_found");
 
   if (!action && req.method === "GET") {
+    if (s.finishing) {
+      s.status = s.finishing;
+      s.finishing = null;
+    }
     return json(res, 200, { id, status: s.status, language: s.language, turnCount: s.index + 1, expiresAt: s.expiresAt });
   }
   if (!action && req.method === "DELETE") {
@@ -277,9 +323,10 @@ async function interviewRoute(req, res, url) {
     return json(res, 200, { record: recordFor(s.language, id), tiles: tilesFor(s.language), usage: { modelCalls: 4, tokensEstimated: 5400 } });
   }
   if (action === "reply" && req.method === "POST") {
-    if (s.status !== "in_progress") return problem(res, 409, "interview_ended");
+    if (s.status !== "in_progress" || s.finishing) return problem(res, 409, "interview_ended");
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     if (text.length === 0 || body.text.length > 2000) return problem(res, 422, "reply_invalid");
+    if (st.replyRateLimited) return rateLimited(res, 30);
     if (st.providerDown) return problem(res, 503, "provider_unavailable");
     if (st.expireNext) {
       // A restart lost the session: the next request is gone, and the credit comes back.
@@ -289,16 +336,18 @@ async function interviewRoute(req, res, url) {
       return problem(res, 410, "gone");
     }
     const script = INTERVIEW_SCRIPT[s.language];
+    // Contract (plan §10): the closing and stop turns come back with status still in_progress and no ending; the status turns
+    // completed or stopped on the next GET of the state, once the record and tiles are ready.
     if (/\bstop\b/i.test(text)) {
-      s.status = "stopped";
+      s.finishing = "stopped";
       s.index += 1;
-      return json(res, 200, { status: "stopped", turn: { index: s.index, kind: "stop", text: script.stop } });
+      return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: "stop", text: script.stop }, ending: null });
     }
     s.replies += 1;
     s.index += 1;
     if (s.replies > script.turns.length) {
-      s.status = "completed";
-      return json(res, 200, { status: "completed", turn: { index: s.index, kind: "close", text: script.close }, ending: { reason: "completed" } });
+      s.finishing = "completed";
+      return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: "close", text: script.close }, ending: null });
     }
     return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: s.replies === 1 ? "topic" : "probe", text: script.turns[s.replies - 1] } });
   }
@@ -643,7 +692,7 @@ http.createServer(async (req, res) => {
     if (!a) return json(res, 400, { error: "bad email" });
     const st = interviewState(a);
     if (url.searchParams.has("credits")) st.credits = Number(url.searchParams.get("credits"));
-    for (const flag of ["disabled", "providerDown", "billingDisabled", "expireNext"]) {
+    for (const flag of INTERVIEW_FLAGS) {
       if (url.searchParams.has(flag)) st[flag] = url.searchParams.get(flag) === "1";
     }
     return json(res, 200, { credits: st.credits });
@@ -654,6 +703,7 @@ http.createServer(async (req, res) => {
     const st = interviewState(a);
     return json(res, 200, { credits: st.credits, session: st.session ? { id: st.session.id, status: st.session.status, index: st.session.index } : null });
   }
+  if (url.pathname === "/api/v1/webhooks/payments" && req.method === "POST") return paymentWebhook(req, res);
   if (url.pathname.startsWith("/api/v1/interviews") || url.pathname === "/api/v1/credits" || url.pathname === "/api/v1/checkout") {
     return interviewRoute(req, res, url);
   }

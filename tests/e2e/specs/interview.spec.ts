@@ -133,7 +133,7 @@ test("without a credit the page does not start, and the purchase goes to the pay
     route.fulfill({ status: 200, contentType: "text/html", body: "<p>Checkout stub</p>" }),
   );
   await page.getByRole("button", { name: "Buy one interview" }).click();
-  await page.waitForURL("https://checkout.example.invalid/session/e2e-1");
+  await page.waitForURL(/checkout\.example\.invalid\/session\/cs_e2e_/);
 });
 
 test("a reply the model cannot take keeps the typed text and says the interview is still open", async ({ page, request }) => {

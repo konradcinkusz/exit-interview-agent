@@ -1,0 +1,11 @@
+{
+  "status": "stopped",
+  "turn": {
+    "index": 2,
+    "kind": "stop",
+    "text": "Understood. Nothing is kept."
+  },
+  "ending": {
+    "reason": "consent_withdrawn"
+  }
+}

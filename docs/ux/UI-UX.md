@@ -139,6 +139,7 @@ Failure copy (the mapping is one function, `failureFor` in `lib/interview-api.ts
 | 503 or 504, backend unreachable | the service cannot be reached right now | where they were |
 | 401 | signed out: a link to sign in again | where they were |
 | 403 `consent_required` | accept the current terms first: a link to `/consent` | where they were |
+| 403 `email_not_verified` | the contract answer for an unconfirmed address; **today the page shows the generic copy** (the BFF swallows backend 403s, see the scenarios below) | where they were |
 
 Rules this page keeps:
 
@@ -156,6 +157,29 @@ Rules this page keeps:
 
 Not on this page, and not invented: a submit to employer signals (that is the existing flow, opt-in, and separate), a "my interviews"
 list, a way to see an earlier transcript, and any score or comparison.
+
+## Interview scenarios (end-to-end, W7)
+
+The browser suite runs these against the production build and the stub of the service (`tests/e2e/specs/interview-journey.spec.ts`,
+`interview.spec.ts`). The contract they hold to is plan section 10 and `tests/contracts/*.json`.
+
+| # | Scenario | What the suite asserts |
+|---|---|---|
+| a | No credit, purchase, interview, result, copy, download, delete | 402 closes the start; the payment page is reached; a paid event (sent twice, same id) adds one credit; the closing turn is shown and the page waits for `completed` before the result; "Copy" puts the draft on the clipboard; `tiles.html` has the notice and no script; after deletion the result answers 404 `not_found`; no storage, cookie (HttpOnly included), URL or IndexedDB holds the text; no request leaves the origin except the payment page |
+| b | Consent declined | "Start the interview" stays disabled; **Back** starts nothing, the credit is not used, no interview exists |
+| b2 | Stopped in the chat | the stop line and "nothing is kept, no record" are shown; no result; the credit stays used (the contract: a stopped session keeps its credit) |
+| c | Rate limited (429) on start | "Too many requests. Wait 42 seconds, then try again." from the body's `retryAfter`; no credit used |
+| c | Rate limited (429) on a reply | the typed answer is kept, the interview stays open, the wait is shown |
+| c | Paused (503 `interviews_disabled`) | "Interviews are paused for now. Your credit has not been used." |
+| c | Model unavailable (503 `provider_unavailable`) | the typed text is kept; the interview is still open (existing suite) |
+| c | Unverified email (403 `email_not_verified`) | no interview starts and the credit is kept. **Known defect:** the message shown is "The service cannot be reached right now." (see below) |
+| d | Nothing kept after the visit | covered in (a): storage, cookies, URL, IndexedDB, and the text is absent from all of them |
+| e | Keyboard only | consent box by Space, start by Enter, answer field sends on Enter, Stop and delete opens a dialog with Cancel focused |
+| e | Axe (WCAG 2.0/2.1 A and AA) | the start, consent, chat and result steps, and the no-credit and rate-limited screens, have no violations |
+
+Known defect, recorded and not fixed here: `web/app/lib/upstream.ts` treats every backend 403 as "wrong ingress for this rung" and
+moves to the next candidate, so a real 403 from the service becomes `backend_unavailable`. The fix belongs to the BFF (outside the
+interview files); until then the 403 row above shows the wrong copy. The suite pins that copy with a comment so the fix changes it on purpose.
 
 ## Copy rules
 

@@ -12,22 +12,6 @@ public static class BillingEndpointNames
     public const string PaymentWebhook = "PaymentWebhook";
 }
 
-/// <summary>Request of <c>POST /checkout</c>: how many credits to buy (1..10).</summary>
-public sealed record CheckoutRequest(int Quantity);
-
-/// <summary>Answer of <c>GET /credits</c>: the account's balance, the sum of its ledger rows.</summary>
-public sealed record CreditsResponse(int Balance);
-
-/// <summary>Answer of <c>POST /checkout</c>: the provider-hosted page to send the payer to.</summary>
-public sealed record CheckoutResponse(string Url);
-
-/// <summary>The codes this module adds to the contract (web-app-plan §10); the others are <see cref="InterviewCodes"/>.</summary>
-public static class BillingCodes
-{
-    public const string BillingDisabled = "billing_disabled";
-    public const string BadSignature = "bad_signature";
-}
-
 /// <summary>
 /// The payment routes (web-app-plan §10, ADR-0077). <c>/credits</c> and <c>/checkout</c> sit in the authenticated group; the
 /// webhook is the one anonymous route of this slice, and it is the only place money becomes credits. The rules live in

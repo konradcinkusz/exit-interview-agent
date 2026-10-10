@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { interviewApi, safeCheckoutUrl } from "@/lib/interview-api";
+import type { InterviewStatus } from "@/lib/interview-contract";
 import { interviewCopy, type InterviewCopy } from "@/lib/messages/interview";
 import { ChatPanel } from "./ChatPanel";
 import { ConsentPanel } from "./ConsentPanel";
@@ -9,6 +10,9 @@ import { EndedPanel } from "./EndedPanel";
 import { ResultPanel } from "./ResultPanel";
 import { StartPanel } from "./StartPanel";
 import { initialState, reduce } from "./state";
+
+const SETTLE_ATTEMPTS = 40;
+const SETTLE_DELAY_MS = 500;
 
 // The container: one reducer, the API client, and the effects that must run once per step. Each panel receives the copy of the
 // interview's language and dispatches; none of them holds a secret, a token or a URL with interview content (ADR-0048).
@@ -64,13 +68,33 @@ export function Interview() {
     dispatch({ type: "failed", failure: out.failure });
   }
 
+  /**
+   * A closing or stop turn comes back with the status still `in_progress`: the service makes the record and the tiles after it, and
+   * the status turns `completed` or `stopped` when they are ready (plan §10). Poll the state until then, or the page waits forever.
+   */
+  async function settle(id: string): Promise<InterviewStatus | null> {
+    for (let attempt = 0; attempt < SETTLE_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, SETTLE_DELAY_MS));
+      const out = await interviewApi.state(id);
+      if (!out.ok) return null;
+      if (out.value.status !== "in_progress") return out.value.status;
+    }
+    return null;
+  }
+
   /** Resolves true when the service accepted the reply, so the chat knows whether to keep the typed text. */
   async function send(text: string): Promise<boolean> {
     if (!state.interview) return false;
+    const id = state.interview.id;
     dispatch({ type: "sending", text });
-    const out = await interviewApi.reply(state.interview.id, text);
+    const out = await interviewApi.reply(id, text);
     if (out.ok) {
       dispatch({ type: "replied", reply: out.value });
+      if (out.value.status === "in_progress" && (out.value.turn?.kind === "close" || out.value.turn?.kind === "stop")) {
+        const ended = await settle(id);
+        if (ended === null) dispatch({ type: "failed", failure: { kind: "generic" } });
+        else dispatch({ type: "replied", reply: { status: ended } });
+      }
       return true;
     }
     dispatch({ type: "failed", failure: out.failure });
