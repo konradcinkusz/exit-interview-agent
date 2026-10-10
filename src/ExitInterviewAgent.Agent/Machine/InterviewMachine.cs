@@ -115,6 +115,9 @@ public sealed class InterviewMachine
         if (s.Withdrawal) return Terminate(StopReason.ConsentWithdrawn);
 
         // A short reply that still says something ("słabe", "zwolnili mnie") is an answer, not a refusal to talk: only bare non-answers build the streak.
+        // Asking to finish ("możemy już skończyć?") ends the dialogue politely and keeps the record: it is not a withdrawal and is never answered with another question.
+        if (s.FinishRequest) return Finish(CloseReason.Unresponsive);
+
         TerseStreak = s.Terse && s.Polarity == 0 && !s.Serious ? TerseStreak + 1 : 0;
         if (s.Hostile) HostileCount++;
 

@@ -66,7 +66,7 @@ public static class Prompts
         KIND: {r.Kind}
         TOPIC: {(r.Topic is { } t ? Wire.Name(t) : "none")}
         SEED: {r.Seed}
-        Word the single next {(r.Kind == TurnKind.Topic ? "opening question for the topic" : "turn")} based on SEED. Keep its meaning; do not add content.
+        Word the single next turn. Keep the meaning of the question in SEED. Unless the last interviewee message in the data is only a yes/no consent, begin with ONE short sentence in which you restate, in your own words, what the interviewee said in their LAST message (their problem, their judgement, their situation), then ask the SEED question. Do not copy SEED word for word when the last message gives you something to refer to. Do not add new topics or advice.
         {DataBlock.Render(r.History, nonce)}
         """;
 
@@ -74,7 +74,7 @@ public static class Prompts
         KIND: {r.Kind}
         TOPIC: {(r.Topic is { } t ? Wire.Name(t) : "none")}
         SEED: {r.Seed}
-        Word one follow-up asking for a single concrete example about this topic, based on SEED. If the last reply was very short ("bad", "fine"), ask what exactly was behind it, as a concrete situation or moment.
+        Word one follow-up. Begin with ONE short sentence restating, in your own words, what the interviewee said in their LAST message, then ask for a single concrete situation or moment connected to THAT answer (SEED is only the idea; do not repeat it word for word). If the last reply was very short ("bad", "fine"), ask what exactly was behind it.
         {DataBlock.Render(r.History, nonce)}
         """;
 
@@ -94,7 +94,7 @@ public static class Prompts
         TOPIC: {(r.Topic is { } t ? Wire.Name(t) : "none")}
         SEED: {r.Seed}
         FOCUS: {(r.Focus is { } f ? FocusName(f) : "none")}
-        Word ONE follow-up question about the FOCUS element, based on SEED and on what the interviewee just said. Ask about the situation or what a role did, never a name. Do not suggest an answer.
+        Word ONE follow-up question about the FOCUS element, based on SEED and on what the interviewee just said; begin with ONE short sentence restating the point they just made, in your own words. Ask about the situation or what a role did, never a name. Do not suggest an answer.
         {DataBlock.Render(r.History, nonce)}
         """;
 
