@@ -25,7 +25,8 @@ public sealed record ReplySignals(
     int Polarity,
     bool Serious = false,
     int DeepCovered = 0,
-    bool Short = false);
+    bool Short = false,
+    bool FinishRequest = false);
 
 /// <summary>
 /// Rule-based reading of a reply. Decisions that protect the interviewee (withdrawal, consent) and the shape of the
@@ -61,7 +62,8 @@ public static partial class ReplyAnalyzer
             polarity,
             serious,
             DeepCoverage(maskedReply) | DeepCoverage(folded),
-            IsBrief(words, terse, concrete, Any(Evaluates)));
+            IsBrief(words, terse, concrete, Any(Evaluates)),
+            Any(t => FinishRequestCue().IsMatch(t)));
     }
 
     /// <summary>
@@ -235,7 +237,11 @@ public static partial class ReplyAnalyzer
     /// (the deepening then does not start), and a term it names can fire in a harmless sense. Stems carry a wildcard suffix so
     /// Polish and English inflections are covered; a Polish form the list does not stem to (for example a rare declension) is missed.
     /// </summary>
-    [GeneratedRegex(@"\b(mobbing\w*|bull(y|ied|ying|ies)\w*|harass\w*|molest\w*|discriminat\w*|dyskrymin\w*|threat\w*|gro[źżz]\w*|retaliat\w*|odwet\w*|zemst\w*|wyzysk\w*|exploit\w*|unsafe|niebezpiecz\w*|wage\s+theft|withheld\s+(pay|wages|salary)|nie\s+wyp[łl]ac\w*|niewyp[łl]ac\w*|unpaid\s+(wages|overtime|salary)|upok[oa]r\w*|(?>zwolni\w*)(?!\s+si[ęe]\b)|wyrzuc\w*|fired|laid\s+off|sacked|dismissed|humiliat\w*|wyzywa\w*|obra[żz]a\w*|prze[śs]ladow\w*|persecut\w*|szykan\w*)", Opt, 200)]
+    /// <summary>A request to end the interview early but keep what was said ("możemy już skończyć?", "can we wrap up"): distinct from withdrawal, which discards everything.</summary>
+    [GeneratedRegex(@"\b(mo[żz]emy|mog[ęe]|czy\s+mo[żz]emy|prosz[ęe])\s+(ju[żz]\s+)?(sko[ńn]czy[ćc]|ko[ńn]czy[ćc]|zako[ńn]czy[ćc])|\bsko[ńn]czmy\b|\bwystarczy\s+ju[żz]\b|\bcan\s+we\s+(please\s+)?(finish|wrap\s+up|end|stop)\b|\bcould\s+we\s+(finish|wrap\s+up|end)\b|\blet'?s\s+wrap\s+up\b", Opt, 200)]
+    private static partial Regex FinishRequestCue();
+
+    [GeneratedRegex(@"\b(mobb?ing\w*|gn[ęe]bi\w*|n[ęe]ka\w*|poni[żz]a\w*|poni[żz]y\w*|bull(y|ied|ying|ies)\w*|harass\w*|molest\w*|discriminat\w*|dyskrymin\w*|threat\w*|gro[źżz]\w*|retaliat\w*|odwet\w*|zemst\w*|wyzysk\w*|exploit\w*|unsafe|niebezpiecz\w*|wage\s+theft|withheld\s+(pay|wages|salary)|nie\s+wyp[łl]ac\w*|niewyp[łl]ac\w*|unpaid\s+(wages|overtime|salary)|upok[oa]r\w*|(?>zwolni\w*)(?!\s+si[ęe]\b)|wyrzuc\w*|fired|laid\s+off|sacked|dismissed|humiliat\w*|wyzywa\w*|obra[żz]a\w*|prze[śs]ladow\w*|persecut\w*|szykan\w*)", Opt, 200)]
     private static partial Regex SeriousCue();
 
     [GeneratedRegex(@"[\p{L}'’]+", RegexOptions.CultureInvariant, 200)]
