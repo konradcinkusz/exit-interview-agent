@@ -21,6 +21,21 @@ primary_region = "fra"
   Mcp__Issuer = "https://exit-interview-agent-authservice-dev.fly.dev"
   Mcp__Resource = "https://exit-interview-agent-interview-service-dev.fly.dev/mcp"
 
+  # Hosted interview (web-app-plan §2-§4, ADR-0076..0078). Public values only, equal to the production defaults in
+  # appsettings.Production.json, written here so the posture is visible in `fly config show`. NO secret goes in this file.
+  Interviews__RequireCredit = "true"
+  Interviews__RequireVerifiedEmail = "true"   # fail closed: starts are refused until authservice emits email_verified
+  Interviews__MaxStartsPerDay = "20"
+  Billing__WebhookTolerance = "00:05:00"
+  # Set by the OWNER with `fly secrets set` (flyio/SECRETS.md, docs/runbooks/web-app-deploy.md), never here:
+  #   Interviews__Enabled            the emergency switch; "false" refuses new interviews (kill switch)
+  #   Interviews__Provider           provider id, e.g. "anthropic"; unset = the service answers 503
+  #   Interviews__Model              model id chosen after the W9 real-model run
+  #   <Interviews__ApiKeyEnv value>  the NAME of the variable holding the provider key (default ANTHROPIC_API_KEY); the key is a secret
+  #   Billing__Provider = "stripe", Billing__StripeSecretKey, Billing__StripeWebhookSecret, Billing__StripePriceId
+  #   Billing__PriceMinorUnits, Billing__Currency    price: a decision after W9, no default in code
+  #   Billing__SuccessUrl, Billing__CancelUrl        the public web app's return pages (owner's domain)
+
 [http_service]
   internal_port = 8080
   force_https = true

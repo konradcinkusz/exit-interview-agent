@@ -160,3 +160,15 @@ Against the 2026-10-05 pass: Agent 401 to 826, Cli 130 to 207, Providers 155 to 
 3. Run the mode A conformance suite: the same personas through Claude as host.
 4. A full-stack journey against the AppHost with `Signals:Demo:Mode=Seed` (closes OP-17 and OP-28).
 5. Measure the PII detector on a larger corpus not written by its author.
+
+## 7. Deployment-readiness pass (W10a, 2026-10-10)
+
+What this pass ran, on branch `claude/w10a-deploy-docs` from `main` at `5d38705`. It changed only documentation and the Fly topology files; no code changed.
+
+| Command | Result |
+|---|---|
+| `python3 scripts/check-doc-links.py` | `checked 711 relative links in 120 files`, exit 0 |
+| The `fly.toml` check from the CI job `workflow syntax, doc links, fly.toml` (inline `tomllib` script over `flyio/*.fly.toml`) | 4 files parse; each declares `dockerfile` and `context` or an `image`; the postgres file has no public listener |
+| YAML parse of `.github/workflows/flyio.yml` (PyYAML) | parses |
+
+**Not run in this pass:** `dotnet build`, `dotnet test`, `dotnet format`, `scripts/check-kernel-size.sh`, the eval harness, `pnpm` lint, typecheck, tests and build, the e2e suite, `actionlint` and `gitleaks`. The sandbox has no .NET SDK, and no Node tests were run. The test counts in §1 to §5 are therefore unchanged and still describe the commits they name. No new number about the hosted web app (its tests, its cost or its quality) is measured here; the real-model run is release gate item 18 and is not done.
