@@ -5,6 +5,8 @@ using ExitInterviewAgent.Agent.Mock;
 using ExitInterviewAgent.Agent.Protocol;
 using ExitInterviewAgent.Agent.Roles;
 using ExitInterviewAgent.Agent.Runner;
+using ExitInterviewAgent.Agent.Tiles;
+using ExitInterviewAgent.Cli.Tiles;
 using ExitInterviewAgent.Providers;
 using ExitInterviewAgent.Records;
 using Microsoft.Extensions.AI;
@@ -24,7 +26,7 @@ internal static class InterviewCommand
     }
 
     internal static readonly IReadOnlySet<string> Values = new HashSet<string>(ProviderOptions.ValueFlags) { "--out", "--employer", "--tenure", "--seniority", "--function", "--server", "--save-receipt", "--language" };
-    internal static readonly IReadOnlySet<string> Switches = new HashSet<string> { "--save-transcript", "--yes-i-understand" };
+    internal static readonly IReadOnlySet<string> Switches = new HashSet<string> { "--save-transcript", "--yes-i-understand", "--no-tiles" };
 
     public static async Task<int> RunAsync(string[] args, CliHost host)
     {
@@ -35,6 +37,9 @@ internal static class InterviewCommand
         var saveTranscript = flags.Has("--save-transcript");
         if (saveTranscript && outDir is null) throw new ArgumentException("--save-transcript needs --out <dir>: the transcript is written only where you say.");
         var language = ResolveLanguage(flags["--language"], CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
+        var tiles = !flags.Has("--no-tiles");
+        // Nothing this run would write may already exist: the refusal comes before the interview and before any model call.
+        if (outDir is not null) CheckOutputFolder(outDir, tiles, saveTranscript);
 
         // Checked before the interview, not after: a bad address should not be discovered once the record exists.
         var server = ServerUrl.TryResolve(flags["--server"], host.Env);
@@ -59,7 +64,9 @@ internal static class InterviewCommand
             await host.Out.WriteLineAsync().ConfigureAwait(false);
             await host.Out.WriteLineAsync("Type your answer and press Enter. Ctrl-C or Ctrl-D stops the interview and discards everything.").ConfigureAwait(false);
             var options = new InterviewOptions(employer, context) { Protocol = protocol };
-            var runner = InterviewRunner.Create(model, options);
+            // One budget for the interview and for the tiles that follow it (Y4): the tiles' calls count against the same limits.
+            var meter = new ModelMeter(protocol.Limits);
+            var runner = InterviewRunner.Create(model, options, meter);
 
             InterviewResult result;
             try
@@ -80,7 +87,7 @@ internal static class InterviewCommand
                 return Exit.ProviderFailed;
             }
 
-            return await ReportAsync(result, host, outDir, saveTranscript, provider, settings, server, flags["--save-receipt"]).ConfigureAwait(false);
+            return await ReportAsync(result, host, outDir, saveTranscript, provider, settings, server, flags["--save-receipt"], model, meter, tiles).ConfigureAwait(false);
         }
     }
 
@@ -157,7 +164,7 @@ internal static class InterviewCommand
         return new RecordContext(tenure, seniority, function);
     }
 
-    private static async Task<int> ReportAsync(InterviewResult r, CliHost host, string? outDir, bool saveTranscript, ProviderChatClient? provider, ProviderSettings settings, ServerUrl? server, string? saveReceipt)
+    private static async Task<int> ReportAsync(InterviewResult r, CliHost host, string? outDir, bool saveTranscript, ProviderChatClient? provider, ProviderSettings settings, ServerUrl? server, string? saveReceipt, IChatClient model, ModelMeter meter, bool tiles)
     {
         var o = host.Out;
         await o.WriteLineAsync().ConfigureAwait(false);
@@ -212,6 +219,8 @@ internal static class InterviewCommand
         }
         else if (r.RecordJson is not null) await o.WriteLineAsync("Nothing was written (use --out <dir> to save the record).").ConfigureAwait(false);
 
+        if (tiles) await AutoTilesAsync(r, model, meter, host, outDir).ConfigureAwait(false);
+
         await PrintUsage(host, provider, settings).ConfigureAwait(false);
         if (!r.Submittable || r.RecordJson is null) return code;
 
@@ -227,6 +236,120 @@ internal static class InterviewCommand
         await o.WriteLineAsync($"You can send this record to {server.Display} now. You need a one-time ticket from {SubmitMessages.WebPanelHint}. You can also keep it and submit later with 'exit-interview submit'.").ConfigureAwait(false);
         var submitted = await SubmitFlow.RunAsync(Encoding.UTF8.GetBytes(Pretty(r.RecordJson) + "\n"), host, server, assumeYes: false, saveReceipt).ConfigureAwait(false);
         return submitted is SubmitFlow.Exit.Rejected or SubmitFlow.Exit.NetworkFailure or SubmitFlow.Exit.Cancelled or SubmitFlow.Exit.RecordInvalid ? submitted : code;
+    }
+
+    /// <summary>
+    /// The tiles at the end of an interview (Y4, ADR-0075): the same model and the same budget as the interview, fed the record and the
+    /// PII-masked transcript, guarded like any tiles, shown on the terminal and, with <c>--out</c>, written as new files under <c>tiles/</c>.
+    /// A problem here never changes the interview's result: the reason is printed and the interview still succeeds.
+    /// </summary>
+    internal static async Task AutoTilesAsync(InterviewResult r, IChatClient model, ModelMeter meter, CliHost host, string? outDir)
+    {
+        var o = host.Out;
+        if (r.Outcome != InterviewOutcome.Completed || r.Record is null || r.RecordJson is null)
+        {
+            await o.WriteLineAsync("No tiles: the interview ended without a record.").ConfigureAwait(false);
+            return;
+        }
+        if (r.Validation is not { IsValid: true })
+        {
+            await o.WriteLineAsync("No tiles: the record did not pass validation.").ConfigureAwait(false);
+            return;
+        }
+        if (meter.Exhausted)
+        {
+            await o.WriteLineAsync("No tiles: the model budget of this interview is used up. The interview result stands. 'exit-interview tiles --record <file>' can make them later from a saved record, with a new budget.").ConfigureAwait(false);
+            return;
+        }
+
+        var watch = new ProviderFailureWatch(new ModelTileWriter(new MeteredChatClient(model, meter)));
+        var generator = new TileGenerator(watch, new TileGuard(new PiiGuard()));
+        TileSet set;
+        try
+        {
+            set = await generator.GenerateAsync(new TileInput(r.Record, r.Transcript?.Render()), host.Cancellation).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (host.Cancellation.IsCancellationRequested)
+        {
+            await o.WriteLineAsync("No tiles: cancelled. The interview result stands.").ConfigureAwait(false);
+            return;
+        }
+
+        // The generator never throws for a model failure, so a failure is seen here, and no tiles are shown from it.
+        if (watch.Failure is { } failure)
+        {
+            await o.WriteLineAsync($"No tiles: the model provider failed ({failure.Code}). The interview result stands; 'exit-interview providers ping' tests the provider.").ConfigureAwait(false);
+            return;
+        }
+
+        await o.WriteLineAsync().ConfigureAwait(false);
+        await o.WriteAsync(TileRenderer.ToText(set)).ConfigureAwait(false);
+        if (outDir is not null && !await WriteTileFilesAsync(Path.Combine(outDir, "tiles"), set, host).ConfigureAwait(false)) return;
+    }
+
+    /// <summary>The two tile files, as NEW files (never overwritten), owner-only where the system supports it. False when one could not be created.</summary>
+    private static async Task<bool> WriteTileFilesAsync(string dir, TileSet set, CliHost host)
+    {
+        Directory.CreateDirectory(dir);
+        var wrote = new List<string>();
+        foreach (var (name, content) in new[] { ("tiles.json", TileRenderer.ToJson(set) + "\n"), ("tiles.html", TileRenderer.ToHtml(set)) })
+        {
+            var path = Path.Combine(dir, name);
+            var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
+            if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            try
+            {
+                await using var stream = new FileStream(path, options);
+                await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                await writer.WriteAsync(content).ConfigureAwait(false);
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                await host.Err.WriteLineAsync($"No tiles file was written: {name} already exists and will not be overwritten.").ConfigureAwait(false);
+                return false;
+            }
+            wrote.Add(path);
+        }
+        await host.Out.WriteLineAsync().ConfigureAwait(false);
+        await host.Out.WriteLineAsync("Wrote: " + string.Join(", ", wrote)).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// <c>--out</c> must be a folder that holds none of the files this run would write (<c>record.json</c>, the transcript if asked for, and the
+    /// two tile files unless <c>--no-tiles</c>). Nothing is overwritten, and a second run into the same folder is refused before the interview.
+    /// </summary>
+    private static void CheckOutputFolder(string outDir, bool tiles, bool saveTranscript)
+    {
+        if (File.Exists(outDir)) throw new ArgumentException("--out names a file, not a folder.");
+        var names = new List<string> { "record.json" };
+        if (saveTranscript) names.Add("transcript.txt");
+        if (tiles) names.AddRange([Path.Combine("tiles", "tiles.json"), Path.Combine("tiles", "tiles.html")]);
+        foreach (var name in names)
+            if (File.Exists(Path.Combine(outDir, name))) throw new ArgumentException($"--out: {name} already exists and will not be overwritten. Choose a new folder.");
+    }
+
+    /// <summary>Records that the writer's model call failed, then lets the exception through: the generator decides what to do with it.</summary>
+    private sealed class ProviderFailureWatch(ITileWriter inner) : ITileWriter
+    {
+        public ModelCallFailedException? Failure { get; private set; }
+
+        public Task<string> WriteAsync(InterviewRecord record, IReadOnlyList<string> previousErrorCodes, CancellationToken ct) =>
+            WriteAsync(new TileInput(record), previousErrorCodes, ct);
+
+        /// <summary>Overridden so the masked transcript passes through: the interface default would drop it.</summary>
+        public async Task<string> WriteAsync(TileInput input, IReadOnlyList<string> previousErrorCodes, CancellationToken ct)
+        {
+            try
+            {
+                return await inner.WriteAsync(input, previousErrorCodes, ct).ConfigureAwait(false);
+            }
+            catch (ModelCallFailedException e)
+            {
+                Failure ??= e;
+                throw;
+            }
+        }
     }
 
     private static async Task PrintUsage(CliHost host, ProviderChatClient? provider, ProviderSettings settings)

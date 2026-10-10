@@ -41,6 +41,14 @@ public class InterviewCliTests : IDisposable
         return string.Join('\n', lines) + "\n";
     }
 
+    /// <summary>The same shape as <see cref="Answers"/>, but every topic answer is written in Polish: a Polish interview stays Polish only when the person writes Polish (Y4).</summary>
+    internal static string PolishAnswers()
+    {
+        var lines = new List<string> { "Yes, I consent." };
+        lines.AddRange(Enumerable.Range(1, 16).Select(i => $"Na temat {i} proces trwał 3 tygodnie i nikt nie wyjaśnił dlaczego, bo nie było rozmowy."));
+        return string.Join('\n', lines) + "\n";
+    }
+
     private const string Consent = "Yes, I consent.\n";
 
     private static readonly string[] MockArgs = ["--provider", "mock", "--model", "scripted", "--tenure", "1y_3y", "--employer", "acme-example"];

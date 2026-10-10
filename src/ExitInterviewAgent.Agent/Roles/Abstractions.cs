@@ -19,8 +19,11 @@ public interface IModelFailure
     bool IsFatal { get; }
 }
 
-/// <summary>A request to word one interviewer turn. <see cref="Seed"/> is the protocol's own wording, also the fallback.</summary>
-public sealed record QuestionRequest(TurnKind Kind, Topic? Topic, string Seed, Transcript History, DeepFocus? Focus = null);
+/// <summary>
+/// A request to word one interviewer turn. <see cref="Seed"/> is the protocol's own wording, also the fallback. <see cref="Wording"/> is the
+/// protocol the interview is in at this turn (it changes when the interviewee switches language, Y4); null means the role's own protocol.
+/// </summary>
+public sealed record QuestionRequest(TurnKind Kind, Topic? Topic, string Seed, Transcript History, DeepFocus? Focus = null, InterviewProtocol? Wording = null);
 
 /// <summary>Words the topic questions, redirects and clarifications. Output is checked by <see cref="QuestionGuard"/>.</summary>
 public interface IInterviewer

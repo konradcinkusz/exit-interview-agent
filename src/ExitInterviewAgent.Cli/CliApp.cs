@@ -19,7 +19,7 @@ public static class CliApp
 
         Usage:
           exit-interview interview --provider <p> --model <m> [--base-url <url>] [--api-key-env <NAME>] [--out <dir>] [--employer <ref>]
-                                   [--language pl|en|auto]
+                                   [--language pl|en|auto] [--no-tiles]
                                    [--tenure <band>] [--seniority <band>] [--function <band>] [--save-transcript] [--yes-i-understand]
                                    [--max-tokens <n>] [--timeout-seconds <n>] [--max-retries <n>] [--num-ctx <n>]
                                    [--price-in <per-million>] [--price-out <per-million>] [--max-cost <amount>] [--config <file>]
@@ -40,6 +40,11 @@ public static class CliApp
                     provider is used you are told where the transcript goes and asked to confirm (--yes-i-understand for scripts). The transcript stays
                     in memory; --save-transcript (with --out) writes it. Ctrl-C or Ctrl-D stops and discards everything. Nothing is submitted unless you
                     type the confirmation word after seeing the exact record (only offered when a server address is configured).
+                    --language pl|en|auto: the interview's language (auto: Polish if your system is in Polish, else English). It switches during the
+                    interview when you write in the other language for a sentence or more, or ask for it ("po polsku", "in English"); the next question
+                    follows, and interview.language in the record is the language most of your answers were written in.
+                    Ending with a record also writes draft texts (tiles) with the same provider and the same budget: they are shown below the record, and
+                    with --out written to tiles/tiles.json and tiles/tiles.html. --no-tiles skips them. --out must hold none of the files this run writes.
                     Exit codes: 0 completed, 2 usage or configuration, 3 ended without a record by choice, 4 agent failure, 5 provider failure, 6 not confirmed, 130 cancelled.
         tiles       Draft texts (ADR-0074) built from a validated record: a Facts tile by code and model-written tiles that pass a code-side guard.
                     Only the record is sent to an external provider (never the transcript), after the same typed confirmation as 'interview'
