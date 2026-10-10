@@ -37,6 +37,7 @@ export type FailureKind =
   | "provider_unavailable"
   | "billing_disabled"
   | "consent_required"
+  | "email_not_verified"
   | "unauthenticated"
   | "unavailable"
   | "generic";
@@ -76,7 +77,9 @@ export function failureFor(status: number, body: unknown, retryAfterHeader: stri
     case 402:
       return { kind: "payment_required" };
     case 403:
-      return code === "consent_required" ? { kind: "consent_required" } : { kind: "generic" };
+      if (code === "consent_required") return { kind: "consent_required" };
+      if (code === "email_not_verified") return { kind: "email_not_verified" };
+      return { kind: "generic" };
     case 404:
       return { kind: "not_found" };
     case 409:

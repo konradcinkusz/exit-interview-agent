@@ -121,3 +121,65 @@ describe("redirects between services", () => {
     expect((await answer(true)).status).toBe(502);
   });
 });
+
+describe("a 403 from a candidate (the ladder, FRONTEND-BFF §5)", () => {
+  const problem = (code: string) =>
+    new Response(JSON.stringify({ type: `urn:exit-interview-agent:problem:${code}`, title: code, status: 403, code }), {
+      status: 403,
+      headers: { "content-type": "application/problem+json" },
+    });
+
+  it("passes a problem document with a code to the client, and does not try the next candidate", async () => {
+    fetchMock.mockResolvedValueOnce(problem("email_not_verified"));
+
+    const r = await call(false);
+
+    expect(r).not.toBe("backend_unavailable");
+    if (r === "backend_unavailable") return;
+    expect(r.status).toBe(403);
+    expect(await r.json()).toMatchObject({ code: "email_not_verified" });
+    expect(r.headers.get("cache-control")).toBe("no-store");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a 403 with no problem code as the wrong ingress and moves to the next candidate", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("<html>forbidden</html>", { status: 403, headers: { "content-type": "text/html" } }));
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
+
+    const r = await call(false);
+
+    expect(r).not.toBe("backend_unavailable");
+    if (r === "backend_unavailable") return;
+    expect(r.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not take a JSON body without the problem media type as a service answer", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ code: "email_not_verified" }), { status: 403, headers: { "content-type": "application/json" } }));
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
+
+    const r = await call(false);
+
+    expect(r).not.toBe("backend_unavailable");
+    if (r === "backend_unavailable") return;
+    expect(r.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not take a problem document without a string code as a service answer", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ title: "forbidden" }), { status: 403, headers: { "content-type": "application/problem+json" } }));
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
+
+    const r = await call(false);
+
+    expect(r).not.toBe("backend_unavailable");
+    if (r === "backend_unavailable") return;
+    expect(r.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("answers 503 when every candidate refuses with no problem code", async () => {
+    fetchMock.mockResolvedValue(new Response("nope", { status: 403, headers: { "content-type": "text/plain" } }));
+    expect(await call(false)).toBe("backend_unavailable");
+  });
+});

@@ -131,7 +131,8 @@ Failure copy (the mapping is one function, `failureFor` in `lib/interview-api.ts
 | 409 `interview_in_progress` | an open interview exists; finish or delete it | consent |
 | 409 `interview_ended` | this interview has ended | result |
 | 409 `not_completed` | the result is not ready | result |
-| 410 `gone` | expired or lost in a restart; the credit is back | start |
+| 404 `not_found` | the interview no longer exists (deleted, or unknown after a restart); the same message as 410 | start |
+| 410 `gone` | expired or lost in a restart; the same message as 404 | start |
 | 422 `reply_invalid` | empty or over 2000 characters | chat, text kept |
 | 429 `rate_limited` | a wait in seconds when the service gives one; **no automatic retry** | where they were |
 | 503 `provider_unavailable` | the model is not responding; the interview is still open; the typed text is kept | chat |
@@ -139,7 +140,7 @@ Failure copy (the mapping is one function, `failureFor` in `lib/interview-api.ts
 | 503 or 504, backend unreachable | the service cannot be reached right now | where they were |
 | 401 | signed out: a link to sign in again | where they were |
 | 403 `consent_required` | accept the current terms first: a link to `/consent` | where they were |
-| 403 `email_not_verified` | the contract answer for an unconfirmed address; **today the page shows the generic copy** (the BFF swallows backend 403s, see the scenarios below) | where they were |
+| 403 `email_not_verified` | the address is not confirmed yet: say so without blame, with a link to `/verify-email` | where they were |
 
 Rules this page keeps:
 
@@ -172,14 +173,11 @@ The browser suite runs these against the production build and the stub of the se
 | c | Rate limited (429) on a reply | the typed answer is kept, the interview stays open, the wait is shown |
 | c | Paused (503 `interviews_disabled`) | "Interviews are paused for now. Your credit has not been used." |
 | c | Model unavailable (503 `provider_unavailable`) | the typed text is kept; the interview is still open (existing suite) |
-| c | Unverified email (403 `email_not_verified`) | no interview starts and the credit is kept. **Known defect:** the message shown is "The service cannot be reached right now." (see below) |
+| c | Unverified email (403 `email_not_verified`) | no interview starts and the credit is kept; "To start an interview, confirm your email address in your account settings." with a link to `/verify-email` |
+| c | Lost or deleted session mid-chat (410 or 404) | the same message for both: "This interview no longer exists." The page returns to the start screen, the balance is the service's, and a new interview starts from there (existing suite: 410) |
 | d | Nothing kept after the visit | covered in (a): storage, cookies, URL, IndexedDB, and the text is absent from all of them |
 | e | Keyboard only | consent box by Space, start by Enter, answer field sends on Enter, Stop and delete opens a dialog with Cancel focused |
 | e | Axe (WCAG 2.0/2.1 A and AA) | the start, consent, chat and result steps, and the no-credit and rate-limited screens, have no violations |
-
-Known defect, recorded and not fixed here: `web/app/lib/upstream.ts` treats every backend 403 as "wrong ingress for this rung" and
-moves to the next candidate, so a real 403 from the service becomes `backend_unavailable`. The fix belongs to the BFF (outside the
-interview files); until then the 403 row above shows the wrong copy. The suite pins that copy with a comment so the fix changes it on purpose.
 
 ## Copy rules
 

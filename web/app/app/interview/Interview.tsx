@@ -99,7 +99,7 @@ export function Interview() {
     }
     dispatch({ type: "failed", failure: out.failure });
     // A session the service lost gives its credit back: the balance shown must be the service's, not the page's.
-    if (out.failure.kind === "gone") void loadCredits();
+    if (out.failure.kind === "gone" || out.failure.kind === "not_found") void loadCredits();
     return false;
   }
 

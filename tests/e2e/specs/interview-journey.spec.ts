@@ -200,16 +200,17 @@ test("a paused service says so, and the credit is not used", async ({ page, requ
   expect(await stubState(request, name)).toEqual({ credits: 1, session: null });
 });
 
-// KNOWN DEFECT (BFF, outside W7's files): web/app/lib/upstream.ts skips every backend 403 as "wrong ingress" and falls through the
-// candidate ladder, so the page gets backend_unavailable instead of email_not_verified. The state below is what the contract
-// requires and holds today; the message assertion pins the defect's visible copy and must change with the fix.
+// The service's 403 email_not_verified reaches the page as the service's answer (the BFF passes a problem document with a code
+// through, FRONTEND-BFF §5), and the page says how to fix it: a link to the confirmation page. The copy changed on purpose (ADR-0051).
 test("an unverified email is refused: no interview starts and the credit is kept", async ({ page, request }) => {
   const name = accountName("journey");
   await configure(request, name, "credits=1&emailUnverified=1");
   await openInterview(page, name);
   await consentAndStart(page);
 
-  await expect(alertWith(page, "The service cannot be reached right now.")).toBeVisible();
+  const notice = alertWith(page, "To start an interview, confirm your email address in your account settings.");
+  await expect(notice).toBeVisible();
+  await expect(notice.getByRole("link", { name: "Confirm your email address" })).toHaveAttribute("href", "/verify-email");
   expect(await stubState(request, name)).toEqual({ credits: 1, session: null });
 });
 

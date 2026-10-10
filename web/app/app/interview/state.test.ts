@@ -147,6 +147,20 @@ describe("chat", () => {
     expect(s.lines).toEqual([]);
     expect(s.notice).toEqual({ kind: "gone" });
   });
+
+  it("returns to the start screen when the service says the session is not there (404), as for 410", () => {
+    const s = run(inChat(), { type: "failed", failure: { kind: "not_found" } });
+    expect(s.phase).toBe("start");
+    expect(s.interview).toBeNull();
+    expect(s.lines).toEqual([]);
+    expect(s.notice).toEqual({ kind: "not_found" });
+  });
+
+  it("keeps the person in the chat for an unverified email, with nothing lost", () => {
+    const s = run(inChat(), { type: "sending", text: "Hi." }, { type: "failed", failure: { kind: "email_not_verified" } });
+    expect(s.phase).toBe("chat");
+    expect(s.notice).toEqual({ kind: "email_not_verified" });
+  });
 });
 
 describe("result and deletion", () => {
