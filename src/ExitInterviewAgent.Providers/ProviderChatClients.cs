@@ -32,7 +32,8 @@ public static class ProviderChatClients
                     var http = ProviderHttp.CreateClient(settings.Kind, settings.Resilience, AuthScheme.XApiKey, runtime);
                     // MaxRetries = 0: retries belong to the transport policy. ApiKey is explicit, so no environment or profile credential is resolved.
                     var client = new AnthropicClient { ApiKey = key!, BaseUrl = settings.BaseUrl.AbsoluteUri.TrimEnd('/'), HttpClient = http, MaxRetries = 0, Timeout = sdkTimeout };
-                    return new ProviderChatClient(client.AsIChatClient(settings.Model, 1024), settings, runtime, budget, http);
+                    // Current Claude models reject non-default sampling values with HTTP 400, so none is sent.
+                    return new ProviderChatClient(new SamplingStrippedChatClient(client.AsIChatClient(settings.Model, 1024)), settings, runtime, budget, http);
                 }
             case ProviderKind.OpenAiCompatible:
                 {

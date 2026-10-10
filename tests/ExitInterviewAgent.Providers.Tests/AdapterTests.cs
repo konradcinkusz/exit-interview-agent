@@ -21,6 +21,22 @@ public class AdapterTests
 
     private static ChatOptions Options => new() { Temperature = 0.2f, MaxOutputTokens = 123 };
 
+    [Fact]
+    public async Task The_anthropic_request_carries_no_sampling_parameters_because_current_models_reject_them()
+    {
+        var (client, backend, time) = Build(ProviderKind.Anthropic);
+        var options = new ChatOptions { Temperature = 0.2f, TopP = 0.9f, TopK = 5, MaxOutputTokens = 123 };
+
+        await time.Drive(client.GetResponseAsync(Prompt(), options));
+
+        var body = Assert.Single(backend.Seen).Body;
+        Assert.DoesNotContain("\"temperature\"", body);
+        Assert.DoesNotContain("\"top_p\"", body);
+        Assert.DoesNotContain("\"top_k\"", body);
+        Assert.Contains("123", body);
+        Assert.Equal(0.2f, options.Temperature);
+    }
+
     [Theory]
     [MemberData(nameof(Settings.Kinds), MemberType = typeof(Settings))]
     public async Task A_call_returns_text_usage_and_finish_reason_and_is_not_streamed(ProviderKind kind)
