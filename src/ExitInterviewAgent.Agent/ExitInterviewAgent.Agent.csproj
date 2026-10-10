@@ -12,6 +12,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Protocol\interview-protocol.v1.json" LogicalName="interview-protocol.v1.json" />
     <EmbeddedResource Include="..\..\schemas\extractor-output.v1.schema.json" LogicalName="extractor-output.v1.schema.json" />
+    <EmbeddedResource Include="..\..\schemas\tile-writer-output.v1.schema.json" LogicalName="tile-writer-output.v1.schema.json" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="ExitInterviewAgent.Agent.Tests" />
