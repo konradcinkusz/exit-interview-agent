@@ -1,0 +1,622 @@
+% ============================================================================
+% Część 6 przewodnika: wersja webowa (rozmowa w przeglądarce).
+% Wczytywana przez \input z przewodnik.pl.tex po czesc-5-cwiczenia; zawiera
+% wyłącznie treść od \section.
+%
+% Rodzaj dokumentu: przewodnik, nie artykuł naukowy w rozumieniu standardu
+% (docs/research/00-RESEARCH-DOCUMENTATION.md, „Documents that borrow the house
+% style"). Nie wprowadza żadnego faktu spoza źródeł. Źródła, z których czerpie:
+% docs/architecture/web-app-plan.md (kontrakt §10 i decyzje §9), ADR-0076,
+% ADR-0077, ADR-0078, docs/runbooks/web-app-cost-controls.md, docs/legal/
+% (szkice i CHECKLIST), docs/ux/UI-UX.md, protokół
+% src/ExitInterviewAgent.Agent/Protocol/interview-protocol.pl.v1.json oraz kod
+% w src/ExitInterviewAgent.InterviewService i web/app. Gdzie kod i szkic
+% prawny się rozjeżdżają, rozdział to mówi wprost.
+%
+% Stan, który rozdział opisuje: wersja webowa jest ZAIMPLEMENTOWANA, ale NIE
+% wdrożona, bez przeglądu prawnego i bez przebiegu z prawdziwym modelem (W9).
+% Wszystko, co wymaga tych rzeczy, jest oznaczone jako NOT RUN.
+%
+% Ćwiczenia w części 4 są oparte o komendy uruchomione w sesji pisania
+% (dotnet SDK 10.x z pakietu apt, model testowy „mock”, bez sieci i bez kluczy).
+% Każde wyjście w ramce Verbatim pochodzi z tej sesji; skrócone tylko tam,
+% gdzie widać „...”.
+% ============================================================================
+
+{\sloppy\emergencystretch=4em
+\section{Wersja webowa: rozmowa w przeglądarce}
+\label{sec:webapp}
+
+Wersja webowa przenosi wywiad z terminala do przeglądarki. Dla osoby, która
+nie chce używać terminala, to jedyna droga do rozmowy. Logika rozmowy jest ta
+sama co w CLI: maszyna stanów z protokołu i ten sam prowadzący, a warstwa
+webowa dodaje sesje, konta, kredyty, płatność i limity kosztów. Nie dodaje
+nowych zachowań rozmowy.
+
+\finding{Stan tej części, przeczytaj najpierw.} Wersja webowa jest
+\emph{zaimplementowana}, ale \emph{nie wdrożona}. Nie ma przeglądu prawnego
+(lista pytań dla prawnika ma status NOT REVIEWED przy każdej pozycji). Nie
+przeprowadzono przebiegu z prawdziwym modelem, więc nie wiadomo, jak brzmi
+rozmowa po polsku z prawdziwym dostawcą, ile kosztuje jedna rozmowa ani jaka
+ma być cena. Ten rozdział nie podaje tych liczb. Nie wolno przyjmować
+płatności ani prowadzić rozmowy z prawdziwymi ludźmi przed tymi krokami.
+
+\subsection{Stan poszczególnych zadań}
+
+Plan (\repopath{docs/architecture/web-app-plan.md}, §7) dzieli budowę na zadania
+W1--W10. Poniżej stan według repozytorium, a nie według planu.
+
+\begin{longtable}{@{}p{0.1\linewidth}p{0.52\linewidth}p{0.32\linewidth}@{}}
+\toprule
+Zadanie & Co zawiera & Stan \\
+\midrule
+\endhead
+W1 & ADR-y decyzji webowych (ADR-0076, ADR-0077, ADR-0078) i decyzje w planie &
+     w repozytorium \\
+W2 & Sesje w \texttt{InterviewService} (\texttt{/api/v1/interviews}), pamięć
+     procesu, wygaszanie po 30 min, testy &
+     zaimplementowane \\
+W3 & Księga kredytów, zdarzenia płatności, webhook z podpisem, zwrot kredytu,
+     testy na dostawcy testowym &
+     zaimplementowane; \textbf{test z prawdziwym Stripe: NOT RUN} \\
+W4 & Wyłącznik, limity na konto i adres, bramka e-mail, dzienny limit, metryki
+     bez etykiet &
+     zaimplementowane; \textbf{bramka e-mail blokuje wszystkie starty} (zob.
+     niżej) \\
+W5, W6 & Ścieżka BFF i strona \texttt{/interview} (zgoda, czat, wynik, usunięcie),
+     po polsku i po angielsku &
+     w repozytorium \\
+W7 & Test przeglądarkowy całej drogi na dostawcy testowym &
+     poza zakresem tego rozdziału (zob. \repopath{tests/e2e}) \\
+W8 & Szkice polityki prywatności, regulaminu, tekstu zgody i lista pytań dla
+     prawnika &
+     \textbf{szkice; przegląd prawny: NOT RUN} \\
+W9 & Przebieg z prawdziwym modelem: 10 rozmów po polsku, koszt, jakość, cena &
+     \textbf{NOT RUN} (wymaga klucza i pieniędzy właściciela) \\
+W10 & Wdrożenie na Fly (najpierw staging), limit wydatków w konsoli dostawcy,
+      runbook &
+     \textbf{NOT RUN} (zakaz w AGENTS.md: nic nie jest wdrożone) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Dla byłego pracownika: jak wygląda droga}
+
+Droga składa się z pięciu kroków: konto, kredyt, zgoda, rozmowa i wynik.
+Każdy krok opisuje to, co widać na ekranie, zgodnie z tabelą ekranów w
+\repopath{docs/ux/UI-UX.md}.
+
+\subsubsection{Konto: rejestracja i logowanie}
+
+Konto zakłada się w usłudze tożsamości (authservice) na stronie
+\texttt{/register}. Po rejestracji przychodzi e-mail z linkiem do
+\texttt{/verify-email}. Logowanie działa na \texttt{/login}; jeśli konto ma
+dwuetapowe logowanie, drugi krok przyjmuje kod z aplikacji albo jeden kod
+odzyskiwania. Strona nie widzi tokenu dostępu: trzyma go BFF w ciasteczku sesji.
+
+\uwaga{Bramka e-mail. Konfiguracja domyślnie wymaga zweryfikowanego e-maila
+(\texttt{Interviews:RequireVerifiedEmail=true}), a authservice nie wpisuje
+jeszcze \texttt{email\_\allowbreak{}verified} do tokenu (ADR-0078). Skutek: przy tej
+konfiguracji każdy start rozmowy kończy się odmową \texttt{403
+email\_\allowbreak{}not\_\allowbreak{}verified}. Ta odmowa jest zamierzona: zamknięte ustawienie domyślne.
+Wyłączenie bramki na produkcji „żeby starty działały” jest błędem. Poprawką jest
+zmiana w authservice.}
+
+\subsubsection{Kredyt: ile rozmów i jak je kupić}
+
+Rozmowa zużywa jeden kredyt. Ekran startu pokazuje wybór języka (pierwszy raz
+język przeglądarki, potem wybór osoby), pytanie o czas w firmie (sześć pasm:
+do 6 miesięcy, 6 miesięcy--1 rok, 1--3 lata, 3--5 lat, 5--10 lat, ponad 10 lat),
+liczbę posiadanych kredytów i przycisk \emph{Dalej} (wymaga jednego kredytu).
+Przycisk \emph{Kup jedną rozmowę} przenosi na stronę dostawcy płatności
+(\texttt{POST /api/v1/checkout}, ilość 1--10). Kredyt pojawia się dopiero po
+zdarzeniu płatności od dostawcy, które przychodzi na webhook i jest sprawdzone
+podpisem. Strona sama nie dodaje kredytu.
+
+\uwaga{W tej konfiguracji płatność jest wyłączona. Domyślnie
+\texttt{Billing:Provider} ma wartość \texttt{none}: płatność i webhook odpowiadają
+503 \texttt{billing\_\allowbreak{}disabled}. Cena nie ma wartości domyślnej
+(\texttt{Billing:PriceMinorUnits}); bez niej checkout też odmawia. Cena ma być
+ustawiona po przebiegu W9.}
+
+\subsubsection{Zgoda}
+
+Przed pierwszym pytaniem pojawia się pełny tekst zgody, w języku rozmowy. Mówi,
+że rozmowę prowadzi AI, że wszystko, co wpiszesz, idzie do dostawcy modelu
+(Anthropic), że rozmowa jest trzymana w pamięci serwera i kasowana po zakończeniu,
+że wynik jest czytelny przez 30 minut, że możesz nacisnąć \emph{Zatrzymaj i usuń}
+w każdej chwili, że szkice nie są faktami ani poradą prawną i że usługa nie
+sprawdza zatrudnienia. Dopiero po zaznaczeniu pola i \emph{Zacznij rozmowę}
+zużywa się kredyt. \emph{Wstecz} nie zużywa niczego i niczego nie zapisuje.
+
+\finding{Rozbieżność, którą trzeba zamknąć przed startem.} Szkic zgody
+(\repopath{docs/legal/consent-wording.md}) przewiduje trzy pola: A (AI i odbiorca,
+wymagane), B (regulamin i polityka, wymagane) i C (opcjonalne zgłoszenie do
+sygnałów). W kodzie strony jest \emph{jedno} pole. Pola C w webowej rozmowie
+nie ma, bo ścieżka zgłoszenia z webu nie jest zbudowana (kod mówi o niej
+„later”). Szkic prawny i kod trzeba zgodzić, zanim pojawi się prawdziwy
+użytkownik.
+
+\subsubsection{Rozmowa: co robi prowadzący}
+
+Rozmowa ma sześć tematów, w tej kolejności: \emph{Wdrożenie}, \emph{Zarządzanie},
+\emph{Rozwój}, \emph{Wynagrodzenie a obietnice}, \emph{Kultura}, \emph{Powód
+odejścia}. Prowadzący zadaje po jednym pytaniu z tematu, a każda odpowiedź
+przechodzi przez tę samą kolejność reguł (protokół, pliki \texttt{interview-protocol*.json}).
+Reguły wybierają następny krok, a model tylko formułuje pytania tematów.
+Najważniejsze zachowania:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Pierwsza wiadomość} mówi, że prowadzący jest AI, czym jest zapis,
+        że można przerwać w każdej chwili, i prosi o zgodę. Niejasna odpowiedź
+        na tę prośbę dostaje jedno ponowne pytanie; druga niejasna odpowiedź
+        kończy rozmowę bez zapisu.
+  \item \textbf{Krótka odpowiedź z treścią} (na przykład „słabe”) dostaje jedno
+        dopytanie: „Jaka jedna konkretna sytuacja albo moment najlepiej to
+        ilustruje?”. Krótka odpowiedź nie jest zamykana.
+  \item \textbf{Trzy odpowiedzi z rzędu bez treści} (do trzech słów i bez
+        wyraźnej oceny) kończą rozmowę z zapisem na podstawie tego, co już padło.
+  \item \textbf{Imię osoby} w odpowiedzi nie jest zapisywane: prowadzący raz
+        na temat prosi o opis przez rolę (przełożony, współpracownik) i
+        podaje, że imion nie zapisuje.
+  \item \textbf{Wrogość}: prowadzący uznaje frustrację i nie naciska (bez
+        dopytania i bez przekierowania). Druga taka odpowiedź w całej rozmowie
+        kończy ją z zapisem.
+  \item \textbf{Poważna relacja} (przykład: zwolnienie, mobbing) otwiera
+        pogłębienie. Menu ma pięć kierunków w stałej kolejności: co się
+        wydarzyło, kiedy i jak często, kto i w jakiej roli, co ta osoba
+        zrobiła i jaka była reakcja, jak się to skończyło i jakie to ma
+        znaczenie. Na jeden temat są maksymalnie cztery pogłębienia. Kierunek,
+        który odpowiedź już opisała, jest pomijany.
+  \item \textbf{Sprzeczność} w odpowiedziach dostaje jedno doprecyzowanie na temat.
+  \item \textbf{Prośba o zakończenie} (na przykład „możemy już skończyć?”) to
+        nie wycofanie zgody. Prowadzący kończy grzecznie i \emph{zapisuje}
+        rozmowę. Nie zadaje kolejnego pytania.
+  \item \textbf{Wycofanie zgody} w trakcie rozmowy kończy ją bez zapisu: nic
+        z niej nie zostaje, rekord się nie tworzy, a kredyt \emph{nie wraca}
+        (kontrakt §10: status \texttt{stopped} nie zwraca kredytu).
+  \item \textbf{Limity rozmowy}: najwyżej 60 tur prowadzącego, 90 wywołań modelu
+        i 90 000 szacowanych tokenów (protokół). Po ich wyczerpaniu rozmowa
+        kończy się zapisem.
+\end{itemize}
+
+Każda tura to jedna odpowiedź w osobnym żądaniu. Strona pokazuje wskaźnik
+„prowadzący pisze…”, aż przyjdzie następna tura. Długość odpowiedzi jest
+ograniczona do 2000 znaków; dłuższa jest odrzucana z \texttt{422}, a tekst
+zostaje w polu.
+
+\subsubsection{Zakończenie i \emph{Zatrzymaj i usuń}}
+
+Przycisk \emph{Zatrzymaj i usuń} jest w trakcie rozmowy i w wyniku. Pyta raz, a
+potem wywołuje \texttt{DELETE /api/v1/interviews/\{id\}}, który kasuje rozmowę
+i wynik z pamięci. Kolejny odczyt tej sesji daje 404. Usunięcie \emph{nie}
+zwraca kredytu: wybór był Twój. To samo robi \emph{Usuń wszystko teraz} na
+ekranie wyniku. Rozmowa, która wygasła po 30 minutach bez aktywności, daje
+410 \texttt{gone} przez kolejne 30 minut. Wygaśnięcie bezczynności nie zwraca
+kredytu w obecnym kodzie, bo nie jest błędem usługi (zob. „Ograniczenia” w
+części dla operatora).
+
+\subsubsection{Wynik: rekord i szkice}
+
+Po zakończeniu rozmowy strona pokazuje:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item na górze: zdanie prawne i ostrzeżenie, że to szkice;
+  \item \textbf{rekord} czytany jako zdania, po jednym bloku na temat: ocena,
+        pewność, krótkie cytaty z Twoich słów (imiona zamaskowane). Surowy JSON
+        jest tylko do pobrania;
+  \item \textbf{kafelki} (szkice tekstów do publikacji), każdy z przyciskiem
+        \emph{Kopiuj}: \emph{Glassdoor}, \emph{Opinia Google}, \emph{Reddit},
+        krótka notatka, przegląd i fakty. Kopiowanie wkłada na schowek sam tekst,
+        bez etykiety i bez zdania prawnego. Gdy schowek jest niedostępny, strona
+        mówi to wprost;
+  \item pobieranie: rekord (JSON), kafelki jako \texttt{tiles.html} (budowany
+        w przeglądarce, bez skryptu i bez zasobów sieciowych) i kafelki (JSON);
+  \item \emph{Usuń wszystko teraz}.
+\end{itemize}
+
+Wynik zostaje w pamięci serwera 30 minut po zakończeniu rozmowy, potem znika.
+Strona nie oferuje zachowania go nigdzie indziej. Kafelki są szkicami: nikt ich
+nie publikuje, usługa nie wysyła ich dalej, a publikujesz je sam, na własną
+odpowiedzialność (szkic regulaminu, \repopath{docs/legal/terms.pl.md}).
+
+\subsubsection{Gdy coś się nie uda}
+
+Komunikaty błędów mapuje jedna funkcja (\texttt{failureFor} w
+\repopath{web/app/lib/interview-api.ts}). W skrócie:
+
+\begin{longtable}{@{}p{0.2\linewidth}p{0.5\linewidth}p{0.22\linewidth}@{}}
+\toprule
+Odpowiedź & Co widzisz & Co dalej \\
+\midrule
+\endhead
+402 \texttt{payment\_\allowbreak{}required} & brak kredytu; kup jeden & ekran startu \\
+409 \texttt{interview\_\allowbreak{}in\_\allowbreak{}progress} & masz otwartą rozmowę; dokończ albo usuń & zgoda \\
+410 \texttt{gone} & rozmowa wygasła po 30 min bez aktywności; kredyt nie wraca & start \\
+404 \texttt{not\_found} & po restarcie usługi rozmowa nie istnieje; kredyt nie wraca sam (zob. wyżej) & start \\
+422 \texttt{reply\_\allowbreak{}invalid} & pusta odpowiedź albo ponad 2000 znaków; tekst zostaje & czat \\
+429 \texttt{rate\_\allowbreak{}limited} & za dużo żądań; czekaj, strona nie ponawia sama & tam, gdzie byłeś \\
+503 \texttt{provider\_\allowbreak{}unavailable} & model nie odpowiada; rozmowa trwa, tekst zostaje & czat \\
+503 \texttt{interviews\_\allowbreak{}disabled} & wywiady wstrzymane; kredyt nie jest zużywany & tam, gdzie byłeś \\
+403 \texttt{email\_\allowbreak{}not\_\allowbreak{}verified} & potwierdź adres e-mail (zob. wyżej) & start \\
+\bottomrule
+\end{longtable}
+
+\subsection{Co dzieje się z danymi}
+
+Ta część odpowiada na pytanie, gdzie są dane, i opisuje to, co kod robi, a
+nie to, co planowano. Każda deklaracja w szkicu polityki
+(\repopath{docs/legal/privacy-policy.pl.md}, §3) jest tu zestawiona z tym, co
+faktycznie działa.
+
+\begin{longtable}{@{}p{0.22\linewidth}p{0.36\linewidth}p{0.36\linewidth}@{}}
+\toprule
+Dane & Gdzie są & Jak długo \\
+\midrule
+\endhead
+Tekst rozmowy & tylko w pamięci procesu serwera; wysyłany do dostawcy modelu
+(Anthropic) przy każdej turze & do końca rozmowy albo 30 min bez aktywności \\
+Wynik (rekord, kafelki) & tylko w pamięci procesu; zwracany osobie & 30 min po
+zakończeniu \\
+Sesja (identyfikator, właściciel, status, znaczniki czasu, liczniki tokenów) &
+baza \texttt{interviewdb} & nie ustalono; w szkicu polityki pole ma wartość
+\texttt{[okres, do ustalenia]} \\
+Kredyty & księga kredytów w bazie: wiersze dopisywane, nic nie jest
+nadpisywane; saldo to suma wierszy & według decyzji prawnej (L5, L6) \\
+Zdarzenia płatności & baza, jeden wiersz na identyfikator zdarzenia & jw. \\
+Logi i metryki & bez tekstu rozmowy, bez adresu e-mail, bez identyfikatora
+konta; same liczby & jw. \\
+\bottomrule
+\end{longtable}
+
+Trzy rzeczy, które warto wiedzieć wprost:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Tekst nie trafia do bazy, bo sesje nie mają tam tabeli.} Sesje
+        są w \texttt{InterviewSessionStore} w pamięci procesu. Test
+        \texttt{No\_\allowbreak{}interview\_\allowbreak{}text\_\allowbreak{}reaches\_\allowbreak{}the\_\allowbreak{}logs\_\allowbreak{}or\_\allowbreak{}the\_\allowbreak{}spans} w
+        \texttt{InterviewEndpointTests} wstawia kanarka do odpowiedzi i sprawdza,
+        że nie ma go w logach ani w śladach. Nie ma osobnego testu, który
+        przeszukuje bazę po całej rozmowie, bo tekst tam nie jest zapisywany.
+  \item \textbf{Rozmowa jest u dostawcy modelu.} Usługa wysyła ją do dostawcy
+        modelu (Anthropic) na kluczu serwera. Jak długo dostawca ją trzyma i czy
+        jej używa, zależy od jego warunków dla konta API. Projekt tych warunków
+        nie zweryfikował (L5 w \repopath{docs/legal/CHECKLIST.md}).
+  \item \textbf{Zgłoszenie do sygnałów pracodawców} z rozmowy webowej w tej
+        wersji nie istnieje. Ścieżka CLI i MCP (opt-in) istnieje w innym miejscu
+        repozytorium. Gdy webowe zgłoszenie powstanie, będzie wymagało zgody C
+        i testu, że bez zgody nie trafia nigdzie (CHECKLIST, sekcja C).
+\end{itemize}
+
+\subsection{Dla operatora: architektura}
+
+Rysunek pokazuje przepływ. Przeglądarka nie zna klucza. Klucz do dostawcy modelu
+i sekrety płatności są tylko w zmiennych środowiskowych usługi.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.42\textheight,keepaspectratio]{\dgm{p5-webapp}}
+\caption{Wersja webowa: przeglądarka, BFF, \texttt{InterviewService}, dostawca
+modelu i dostawca płatności. Tekst rozmowy zostaje w pamięci usługi.}
+\label{fig:webapp}
+\end{figure}
+
+Elementy i ich role:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{\texttt{web/app}} (Next.js): strona \texttt{/interview} i ścieżka
+        BFF, która przekazuje żądania do usługi bez klucza. Ciasteczko sesji
+        jest po stronie BFF.
+  \item \textbf{\texttt{ExitInterviewAgent.InterviewService}}: endpointy
+        \texttt{/api/v1/interviews}, \texttt{/credits}, \texttt{/checkout} i
+        \texttt{/webhooks/payments}. Sesja trzyma rozmowę w pamięci, jedno zadanie
+        w tle na sesję. Zasada: jedna sesja otwarta na konto.
+  \item \textbf{\texttt{ExitInterviewAgent.Agent}}: ta sama biblioteka co w CLI,
+        z maszyną stanów i protokołem. Kafelki tworzy ten sam kod co w CLI.
+  \item \textbf{authservice}: logowanie i tokeny RS256 sprawdzane po JWKS; usługa
+        niczego nie podpisuje (AGENTS.md).
+  \item \textbf{PostgreSQL} (\texttt{interviewdb}): identyfikatory, liczniki,
+        księga kredytów, zdarzenia płatności. Schemat przez migracje, nie przez
+        \texttt{EnsureCreated}.
+\end{itemize}
+
+\subsubsection{Ograniczenia architektury, które trzeba znać}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Jedna instancja.} Sesje są w pamięci jednego procesu. Druga
+        instancja ich nie widzi. Wdrożenie (W10) musi mieć jedną repliką albo
+        przenieść sesje do wspólnego stanu.
+  \item \textbf{Restart kasuje rozmowy, a zwrot kredytu nie jest zbudowany.}
+        Otwarte sesje znikają, a następne żądanie dostaje 404 (ADR-0076). Plan
+        (§10) obiecuje, że w tym przypadku kredyt wraca. W kodzie zwrot działa
+        tylko, gdy sesja kończy się jako \texttt{failed} w czasie działania
+        procesu. Nie ma uzgadniania księgi przy starcie, więc kredyt zużyty
+        przed restartem \emph{nie wraca sam}. To luka do zamknięcia przed
+        startem.
+  \item \textbf{Wygaśnięcie bezczynności nie zwraca kredytu.} Sesja wygasła
+        przez 30 minut bez żądania jest czyszczona bez przejścia przez
+        \texttt{failed}, więc zwrot się nie uruchamia. To zgodne z zasadą, że
+        zwrot należy się za błąd usługi, a nie za nieobecność osoby.
+  \item \textbf{Brak strumieniowania.} Każda tura to jedno żądanie. Model odpowiada
+        w kilka sekund; to nie zmierzono na prawdziwym modelu.
+\end{itemize}
+
+\subsection{Dla operatora: bramki kosztów}
+
+Koszt rośnie z liczbą wywołań modelu, więc wersja webowa ma cztery hamulce
+usługi i jeden hamulec po stronie dostawcy. Liczby poniżej są wartościami
+domyślnymi z \repopath{appsettings.json} i są robocze, dopóki W9 nie zmierzy
+kosztu rozmowy.
+
+\begin{longtable}{@{}p{0.2\linewidth}p{0.4\linewidth}p{0.3\linewidth}@{}}
+\toprule
+Hamulec & Ustawienie & Co zwraca \\
+\midrule
+\endhead
+Wyłącznik & \texttt{Interviews\_\allowbreak{}\_\allowbreak{}Enabled=false}; czytany przy każdym starcie &
+503 \texttt{interviews\_\allowbreak{}disabled} \\
+Limity & starty: 5 na konto i 20 na adres na godzinę; odpowiedzi: 30 na konto i
+60 na adres na minutę & 429 \texttt{rate\_\allowbreak{}limited} z \texttt{Retry-After} \\
+Bramka e-mail & \texttt{Interviews\_\allowbreak{}\_\allowbreak{}RequireVerifiedEmail=true} (produkcja) &
+403 \texttt{email\_\allowbreak{}not\_\allowbreak{}verified} \\
+Dzienny limit & \texttt{Interviews\_\allowbreak{}\_\allowbreak{}MaxStartsPerDay=20} (licznik w pamięci,
+zeruje się przy restarcie) & 503 do północy UTC; \texttt{0} odrzuca wszystko \\
+Limit u dostawcy & osobny workspace z miesięcznym limitem wydatków w konsoli
+dostawcy & zatrzymuje rachunek; \textbf{ustawia właściciel, NOT RUN} \\
+\bottomrule
+\end{longtable}
+
+Wyłącznik nie zwraca pieniędzy i nie zatrzymuje trwającej rozmowy. Limit
+wydatków u dostawcy jest jedynym hamulcem rachunku. Dzienny licznik i limity
+działają na żądaniach, więc nie zastąpią limitu wydatków. Pełna procedura
+(wzrost kosztu, wymiana klucza, zapis incydentu) jest w runbooku
+\repopath{docs/runbooks/web-app-cost-controls.md}, § 5.
+
+Metryki nie mają etykiet (żadnego konta, sesji ani adresu). Najważniejsze:
+\texttt{interviews\_\allowbreak{}started}, \texttt{interviews\_\allowbreak{}completed},
+\texttt{interviews\_\allowbreak{}failed}, \texttt{interviews\_\allowbreak{}withdrawn}, \texttt{rate\_\allowbreak{}limited},
+\texttt{rejected\_\allowbreak{}email\_\allowbreak{}unverified}, \texttt{tokens\_\allowbreak{}estimated} i
+\texttt{model\_\allowbreak{}calls}. Średnia z histogramu to suma podzielona przez liczbę próbek.
+Wczesne liczby z kilku rozmów nic nie znaczą.
+
+\subsection{Dla operatora: kredyty i webhook}
+
+Kredyty to księga, nie saldo w tabeli. Trzy reguły egzekwują baza i kod razem
+(\texttt{CreditLedger}, ADR-0077):
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item Zdarzenie płatności dodaje kredyty \emph{raz} (unikalny identyfikator
+        zdarzenia).
+  \item Sesja zużywa kredyt \emph{raz}, a zwrot dla sesji zakończonej jako
+        \texttt{failed} też jest \emph{raz}.
+  \item Kredyt nigdy nie schodzi poniżej zera, nawet przy równoległych żądaniach
+        (na PostgreSQL każdy zapis działa w transakcji SERIALIZABLE z ponowieniem).
+\end{enumerate}
+
+Webhook płatności sprawdza podpis i tolerancję czasu (\texttt{Billing\_\allowbreak{}\_\allowbreak{}WebhookTolerance},
+domyślnie 5 min). Bez ustawionego sekretu odrzuca każde żądanie. Dostawca
+\texttt{fake} to dostawca dla deweloperów i testów: bez sieci i bez pieniędzy,
+ale webhook przechodzi tę samą ścieżkę co produkcyjny. Dostawca \texttt{stripe}
+jest napisany i testowany wyłącznie na atrapie HTTP; \textbf{test z prawdziwym
+Stripe jest NOT RUN}. Karta nie trafia do usługi: płatność odbywa się na stronie
+dostawcy.
+
+\subsection{Dla operatora: co NIE zostało zrobione}
+
+\begin{longtable}{@{}p{0.27\linewidth}p{0.68\linewidth}@{}}
+\toprule
+Pozycja & Stan i skutek \\
+\midrule
+\endhead
+Przegląd prawny & NOT RUN. Lista L1--L11 w \repopath{docs/legal/CHECKLIST.md} ma
+status NOT REVIEWED. Bez przeglądu nie ma płatnej rozmowy. \\
+Test z prawdziwym Stripe & NOT RUN. Atrapa HTTP. Pierwsza prawdziwa płatność
+jest zawsze testem na koncie testowym przed produkcyjnym. \\
+Przebieg z prawdziwym modelem (W9) & NOT RUN. Brak zmierzonego kosztu, jakości
+po polsku i ceny. Dopóki go nie ma, \texttt{Interviews\_\allowbreak{}\_\allowbreak{}Provider} zostaje puste
+albo ustawiony na mock. \\
+Limit wydatków u dostawcy & NOT RUN, decyzja właściciela. Bez niego bramki liczą
+żądania, a nie pieniądze. \\
+Bramka e-mail & blokuje wszystkie starty, dopóki authservice nie dodaje
+\texttt{email\_\allowbreak{}verified} do tokenu (ADR-0078). \\
+Wdrożenie & NOT RUN. Nic nie jest wdrożone, \texttt{flyio/web.fly.toml} istnieje,
+ale nie został uruchomiony. Zakaz w AGENTS.md. \\
+Zgłoszenie do sygnałów z webu & nie zbudowane (zob. wyżej). \\
+Tekst zgody a kod & szkic ma trzy pola, kod jedno (zob. wyżej). \\
+Polska wersja strony prywatności & nie istnieje; \texttt{/privacy} ma
+tylko angielski tekst (CHECKLIST, sekcja B). \\
+\bottomrule
+\end{longtable}
+
+\subsection{Dla operatora: lista kontrolna przed startem}
+
+Każdy punkt ma sprawdzenie, które może wykonać osoba operująca usługą. Punkty
+oznaczone \emph{NOT RUN} nie są wykonane w tym przewodniku.
+
+\begin{enumerate}[leftmargin=*,itemsep=3pt]
+  \item \textbf{Przegląd prawny zapisany w CHECKLIST} (nazwisko i data przy każdej
+        pozycji, RELEASE-GATE pozycja 16). \emph{NOT RUN.}
+  \item \textbf{Teksty polityki i regulaminu} po przeglądzie, z numerem wersji
+        użytym w zgodzie (\texttt{[policy-version]} w szkicu).
+  \item \textbf{Zgoda zgodna z kodem}: decyzja, czy są trzy pola, czy jedno,
+        i test, że starty bez zgody nie zużywają kredytu.
+  \item \textbf{Test prawdziwego Stripe} na koncie testowym, z podpisanym
+        zdarzeniem i sprawdzeniem, że kredyt przychodzi raz. \emph{NOT RUN.}
+  \item \textbf{Przebieg W9} na prawdziwym modelu, z kosztem, jakością i ceną
+        zapisanymi w bramce wydania. \emph{NOT RUN.}
+  \item \textbf{Limit wydatków} w osobnym workspace dostawcy i klucz tylko jako
+        sekret wdrożenia. \emph{NOT RUN, decyzja właściciela.}
+  \item \textbf{Bramka e-mail} odblokowana przez authservice (albo świadoma
+        decyzja o innym mechanizmie).
+  \item \textbf{Jedna replika} usługi webowej, albo przeniesienie sesji do
+        wspólnego stanu.
+  \item \textbf{\texttt{/health}} pokazuje integracje \texttt{interviews} i
+        \texttt{interview-cost-controls} jako gotowe, a \texttt{Interviews\_\allowbreak{}\_\allowbreak{}Enabled}
+        ma wartość, którą właściciel chce.
+  \item \textbf{Wyłącznik sprawdzony}: ustawienie \texttt{false} daje 503, a
+        istniejąca sesja dokańcza się normalnie.
+\end{enumerate}
+
+\subsection{Ćwiczenia: wersja webowa na mocku}
+
+Ćwiczenia używają wyłącznie lokalnych komend, modelu testowego (\texttt{mock})
+i atrapy płatności. Nic nie wychodzi do sieci. Wyjścia są z przebiegów w tej
+sesji. Gdzie komenda się nie wykonała, jest to opisane wprost.
+
+% ----------------------------------------------------------------------------
+% Wyniki ćwiczeń wkleja się z rzeczywistego przebiegu (patrz uwaga w nagłówku).
+% ----------------------------------------------------------------------------
+\subsubsection{Ćwiczenie 1: cała droga webowa na testach usługi}
+
+\textbf{Cel.} Zobaczyć, że zgoda, rozmowa, wynik, kafelki, usunięcie i wygaśnięcie
+działają w usłudze, zanim ktoś otworzy przeglądarkę. Testy startują usługę w
+procesie testowym: pamięć zamiast bazy, model testowy zamiast dostawcy i podpisane
+tokeny testowe zamiast authservice. Nic nie wychodzi do sieci.
+
+\textbf{Czas.} Około 35 sekund budowania i 15 sekund testów (zmierzone).
+
+\textbf{Wymagania.} .NET SDK 10.x, pakiety NuGet przywrócone (\texttt{dotnet restore}).
+
+\textbf{Kroki.} Z katalogu głównego repozytorium:
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+dotnet test tests/ExitInterviewAgent.InterviewService.Tests \
+    --no-restore --filter "FullyQualifiedName~InterviewEndpointTests" -v normal
+\end{Verbatim}
+
+\textbf{Oczekiwane wyjście} (skrócone; to są nazwy testów, które przeszły):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+  Passed ...InterviewEndpointTests.A_polish_interview_runs_from_consent_to_a_result_with_tiles
+  Passed ...InterviewEndpointTests.Another_account_gets_404_for_every_route_of_a_session_it_does_not_own
+  Passed ...InterviewEndpointTests.An_idle_session_expires_30_minutes_after_its_last_request_and_is_410
+  Passed ...InterviewEndpointTests.The_kill_switch_refuses_new_sessions_with_503
+  Passed ...InterviewEndpointTests.A_withdrawn_consent_ends_as_stopped_and_is_not_refunded
+  Passed ...InterviewEndpointTests.A_provider_failure_ends_the_session_as_failed_with_503_and_refunds_the_credit
+  Passed ...InterviewEndpointTests.No_interview_text_reaches_the_logs_or_the_spans
+  ...
+Total tests: 24
+     Passed: 24
+Test Run Successful.
+\end{Verbatim}
+
+\textbf{Jak sprawdzić sukces.} Ostatnia linia to \texttt{Test Run Successful}, a
+\texttt{Passed: 24} zgadza się z \texttt{Total tests: 24}. Test
+\texttt{A\_\allowbreak{}polish\_\allowbreak{}interview\_\allowbreak{}runs\_\allowbreak{}from\_\allowbreak{}consent\_\allowbreak{}to\_\allowbreak{}a\_\allowbreak{}result\_\allowbreak{}with\_\allowbreak{}tiles}
+przechodzi pełną drogę: start po polsku, odpowiedzi, wynik z kafelkami. Test
+\texttt{Another\_\allowbreak{}account\_\allowbreak{}gets\_\allowbreak{}404\_\allowbreak{}\ldots} pokazuje, że cudza sesja to 404.
+
+\textbf{Typowe błędy.} Filtr \texttt{InterviewEndpointTests} obejmuje tylko
+endpointy sesji. Testy kredytów są w ćwiczeniu 2. Bez wcześniejszego
+\texttt{dotnet restore} polecenie z \texttt{--no-restore} zakończy się błędem brakujących pakietów.
+
+\subsubsection{Ćwiczenie 2: kredyty, zakup i webhook na atrapie płatności}
+
+\textbf{Cel.} Zobaczyć regułę „jeden kredyt na jedną rozmowę” i to, że podpisany
+webhook dodaje kredyty raz, nawet przy powtórnej dostawie. Zakup idzie przez
+dostawcę \texttt{fake} (bez sieci i bez pieniędzy), ale ścieżka webhooka jest ta
+sama co w produkcyjnym dostawcy.
+
+\textbf{Czas.} Około 10 sekund (zmierzone).
+
+\textbf{Kroki.}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+dotnet test tests/ExitInterviewAgent.InterviewService.Tests \
+    --no-build --filter "FullyQualifiedName~BillingEndpointTests" -v normal
+dotnet test tests/ExitInterviewAgent.InterviewService.Tests \
+    --no-build --filter "FullyQualifiedName~Billing"
+\end{Verbatim}
+
+\textbf{Oczekiwane wyjście} (skrócone):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+  Passed ...BillingEndpointTests.A_signed_paid_event_adds_its_credits_and_a_redelivery_adds_nothing
+  Passed ...BillingEndpointTests.A_webhook_with_a_wrong_signature_is_refused_and_adds_nothing
+  Passed ...BillingEndpointTests.Starting_an_interview_takes_one_credit_and_withdrawing_it_gives_nothing_back
+  Passed ...BillingEndpointTests.A_session_that_fails_on_the_service_side_returns_its_credit
+  Passed ...BillingEndpointTests.Checkout_with_no_provider_answers_503_billing_disabled
+Total tests: 15
+     Passed: 15
+  ...
+Passed!  - Failed:     0, Passed:    52, Skipped:     3, Total:    55
+\end{Verbatim}
+
+\textbf{Jak sprawdzić sukces.} Pierwsza komenda: 15 z 15. Druga: \texttt{Failed: 0}.
+Trzy pominięte testy to \texttt{PostgresCreditTests}: wymagają działającego
+PostgreSQL, którego w tej sesji nie było. Pominięcia nie są zaliczeniem. Te
+trzy testy (współbieżne zużycie ostatniego kredytu i podwójna dostawa zdarzenia
+na PostgreSQL) są \emph{NOT RUN}.
+
+\textbf{Typowe błędy.} Sekret \texttt{Billing\_\allowbreak{}\_\allowbreak{}FakeWebhookSecret} nieustawiony:
+dostawca \texttt{fake} losuje sekret na proces, więc zewnętrzny webhook nie
+przejdzie podpisu. To zamierzone. Brak \texttt{Billing:PriceMinorUnits} daje 503
+przy zakupie, nawet przy dostawcy \texttt{fake}.
+
+\subsubsection{Ćwiczenie 3: rozmowa z modelem testowym i prośba o zakończenie}
+
+\textbf{Cel.} Zobaczyć, jak prowadzący reaguje na krótką odpowiedź i na prośbę
+„możemy już skończyć?”, na tej samej maszynie stanów co sieciowa wersja. Model
+\texttt{mock} to skryptowany model testowy. Nie rozumie odpowiedzi, więc
+przydziela treść do tematów mechanicznie. Ćwiczenie sprawdza przepływ, a nie
+jakość rozmowy.
+
+\textbf{Czas.} Kilka sekund.
+
+\textbf{Wymagania.} Ćwiczenie 1 (kod zbudowany). Odpowiedzi podano potokiem,
+bo nie ma terminala interaktywnego.
+
+\textbf{Kroki.}
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+printf 'tak\nWdrożenie trwało trzy tygodnie i było dobrze zorganizowane.\nsłabe\nPierwszy miesiąc: nikt nie pokazał mi procesów, sam szukałem dokumentów.\nZarządzanie: przełożony nie dawał informacji zwrotnej przez cały rok.\nNie wiem.\nMożemy już skończyć?\n' \
+  | dotnet run --no-build --project src/ExitInterviewAgent.Cli -- \
+      interview --provider mock --model mock --tenure 1y_3y \
+      --employer acme-example --out ./iv-out --save-transcript
+\end{Verbatim}
+
+\textbf{Oczekiwane wyjście} (skrócone):
+
+\begin{Verbatim}[fontsize=\scriptsize,frame=single,framesep=2mm]
+Scripted mock model: nothing is sent anywhere. It is a test seam that understands nothing, not an interviewer.
+Interviewer: Hello, and thank you for taking the time. ... I am an AI interviewer, not a person. ...
+Interviewer: Let us start with your first weeks. How did you experience joining the company ...
+Interviewer: Dobrze, kontynuujmy po polsku. Jak na co dzień wyglądało kierowanie pracą?
+Interviewer: Jaka jedna konkretna sytuacja albo moment najlepiej to ilustruje?
+Interviewer: Jakie możliwości nauki lub awansu zawodowego były tam dostępne, ...
+Interviewer: Jak wynagrodzenie i świadczenia wyglądały w porównaniu z tym, ...
+Interviewer: Jak można opisać sposób, w jaki ludzie tam ze sobą współpracowali?
+Interviewer: Rozumiem, kończymy tutaj. Dziękuję za czas. Przygotuję zapis wyłącznie na podstawie tego, co już zostało powiedziane.
+
+== Result ==
+outcome: completed (unresponsive)
+...
+"piiMasked": true,
+== Validation ==
+valid: yes, errors: 0
+submittable: yes.
+Wrote: /home/user/iv-out/record.json, /home/user/iv-out/transcript.txt
+...
+Odrzucone: 2 (kody: pii_found)
+Wrote: /home/user/iv-out/tiles/tiles.json, /home/user/iv-out/tiles/tiles.html
+\end{Verbatim}
+
+\textbf{Jak sprawdzić sukces.} Wynik to \texttt{outcome: completed (unresponsive)}.
+Po odpowiedzi „Możemy już skończyć?” nie pojawia się już pytanie, tylko zamknięcie
+z zapisem. To nie jest wycofanie zgody: rekord jest walidowany i zapisany. Krótka
+odpowiedź „słabe” dostała jedno dopytanie („Jaka jedna konkretna sytuacja…”),
+a nie zamknięcie. Walidacja daje \texttt{errors: 0}.
+
+\textbf{Czego ten przebieg nie pokazuje.} Przypisanie tematów jest mechaniczne:
+w rekordzie cytat o zarządzaniu trafił do tematu „Rozwój”, a kafelki są
+zbudowane z tego, co zwrócił model testowy. Nie oceniaj jakości rozmowy po tym przebiegu.
+Prawdziwa jakość po polsku to W9, którego nie wykonano (NOT RUN). Prośba o zakończenie
+nie jest wycofaniem zgody; wycofanie kasuje wszystko i nie zwraca kredytu, co
+sprawdza test \texttt{A\_\allowbreak{}withdrawn\_\allowbreak{}consent\_\allowbreak{}ends\_\allowbreak{}as\_\allowbreak{}stopped\_\allowbreak{}and\_\allowbreak{}is\_\allowbreak{}not\_\allowbreak{}refunded}
+(ćwiczenie 1).
+
+\textbf{Typowe błędy.} Bez \texttt{--no-build} komenda przebuduje projekt. Opcja
+\texttt{--out} wskazuje katalog, nie plik: wyniki trafiły do \texttt{iv-out/record.json}
+i \texttt{transcript.txt}.
+
+
+}
