@@ -62,6 +62,9 @@ public sealed record ProviderSettings
 
     public SecretString? ApiKey { get; init; }
 
+    /// <summary>Anthropic only: sent as the <c>anthropic-workspace-id</c> header, which a key not scoped to a workspace requires.</summary>
+    public string? WorkspaceId { get; init; }
+
     public ResilienceOptions Resilience { get; init; } = new();
 
     public PriceConfig? Prices { get; init; }
@@ -89,6 +92,8 @@ public sealed record ProviderSettings
             throw new ProviderConfigurationException("A model name is required (no control characters, at most 200 characters).");
         BaseUrlPolicy.Validate(BaseUrl.OriginalString, keyed: ApiKey is not null);
         if (Kind == ProviderKind.Anthropic && ApiKey is null) throw new ProviderConfigurationException("The Anthropic provider needs an API key in the environment (ANTHROPIC_API_KEY, or the variable named by --api-key-env).");
+        if (WorkspaceId is { } w && (Kind != ProviderKind.Anthropic || w.Length is 0 or > 100 || !w.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-')))
+            throw new ProviderConfigurationException("The workspace id is only for the Anthropic provider, at most 100 characters of letters, digits, '_' and '-'.");
         Resilience.Validate();
         Prices?.Validate();
         if (MaxTokens is <= 0) throw new ProviderConfigurationException("Max tokens must be positive.");

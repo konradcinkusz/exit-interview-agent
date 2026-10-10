@@ -17,6 +17,12 @@ public static class EnvVars
     public const string MaxCost = "EXIT_INTERVIEW_MAX_COST";
     public const string NumCtx = "EXIT_INTERVIEW_NUM_CTX";
 
+    /// <summary>
+    /// Anthropic's own variable for a key that is not scoped to a workspace: the API then needs the workspace id in the
+    /// <c>anthropic-workspace-id</c> header. An id is not a secret; it is never sent to another provider.
+    /// </summary>
+    public const string AnthropicWorkspaceId = "ANTHROPIC_WORKSPACE_ID";
+
     public static IReadOnlyList<string> Own { get; } =
         [Provider, Model, BaseUrl, ApiKeyEnv, Config, ConfigDir, TimeoutSeconds, MaxRetries, MaxTokens, PriceInput, PriceOutput, MaxCost, NumCtx];
 }

@@ -22,6 +22,30 @@ public class AdapterTests
     private static ChatOptions Options => new() { Temperature = 0.2f, MaxOutputTokens = 123 };
 
     [Fact]
+    public async Task A_workspace_id_is_sent_to_anthropic_as_a_header_and_nowhere_else()
+    {
+        var backend = new FakeBackend(ProviderKind.Anthropic);
+        var time = new ManualTime();
+        var client = ProviderChatClients.Create(Settings.For(ProviderKind.Anthropic) with { WorkspaceId = "wrkspc_01ABC-test" }, new ProviderRuntime { Transport = backend, Time = time, Jitter = () => 0.5 });
+
+        await time.Drive(client.GetResponseAsync(Prompt(), Options));
+
+        var seen = Assert.Single(backend.Seen);
+        Assert.Equal("wrkspc_01ABC-test", seen.Headers["anthropic-workspace-id"]);
+        Assert.DoesNotContain("wrkspc_01ABC-test", seen.Body);
+    }
+
+    [Fact]
+    public async Task Without_a_workspace_id_no_workspace_header_is_sent()
+    {
+        var (client, backend, time) = Build(ProviderKind.Anthropic);
+
+        await time.Drive(client.GetResponseAsync(Prompt(), Options));
+
+        Assert.False(Assert.Single(backend.Seen).Headers.ContainsKey("anthropic-workspace-id"));
+    }
+
+    [Fact]
     public async Task The_anthropic_request_carries_no_sampling_parameters_because_current_models_reject_them()
     {
         var (client, backend, time) = Build(ProviderKind.Anthropic);

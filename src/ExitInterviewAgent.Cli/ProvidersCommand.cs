@@ -40,7 +40,7 @@ internal static class ProvidersCommand
         await o.WriteLineAsync().ConfigureAwait(false);
         await o.WriteLineAsync($"Config file: {configPath} ({(File.Exists(configPath) ? "found" : "not found; optional")})").ConfigureAwait(false);
         await o.WriteLineAsync($"Remembered disclosure confirmations: {store.Count} ({store.Path})").ConfigureAwait(false);
-        await o.WriteLineAsync($"Environment variables read: {string.Join(", ", EnvVars.Own)}, and per provider: {string.Join(", ", ProviderCatalog.All.SelectMany(p => new[] { p.KeyEnvVar, p.BaseUrlEnvVar }).Where(v => v is not null).Distinct())}").ConfigureAwait(false);
+        await o.WriteLineAsync($"Environment variables read: {string.Join(", ", EnvVars.Own)}, and per provider: {string.Join(", ", ProviderCatalog.All.SelectMany(p => new[] { p.KeyEnvVar, p.BaseUrlEnvVar }).Where(v => v is not null).Distinct())}, and {EnvVars.AnthropicWorkspaceId} (Anthropic only, for a key not scoped to a workspace)").ConfigureAwait(false);
 
         await o.WriteLineAsync().ConfigureAwait(false);
         try
