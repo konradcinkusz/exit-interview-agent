@@ -36,6 +36,8 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-27 | A browser may keep Signals answers after sign-out, until the batch ends | Low |
 | OP-28 | The Signals pages have only met the stub | Medium |
 | OP-29 | The double-barrelled check is lexical | Low |
+| OP-30 | Fail-closed over-masking of capitalised topic words is bounded only by a list | Low |
+| OP-31 | Obfuscated-email spellings beyond the bracketed forms are not detected | Low |
 
 ## OP-1. Real employment verification
 
