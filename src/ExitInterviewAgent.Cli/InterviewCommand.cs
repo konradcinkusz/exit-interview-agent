@@ -221,6 +221,7 @@ internal static class InterviewCommand
 
         if (tiles) await AutoTilesAsync(r, model, meter, host, outDir).ConfigureAwait(false);
 
+        await o.WriteLineAsync($"wording: questions_replaced_by_fixed_text={r.Diagnostics.QuestionsRejected} (the model's wording failed a check, or the model could not be reached; 0 means every question was the model's own)").ConfigureAwait(false);
         await PrintUsage(host, provider, settings).ConfigureAwait(false);
         if (!r.Submittable || r.RecordJson is null) return code;
 
