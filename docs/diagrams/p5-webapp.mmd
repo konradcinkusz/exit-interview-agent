@@ -1,0 +1,22 @@
+flowchart TD
+    U["Przeglądarka<br/>(strona Next.js, bez klucza)"]
+    BFF["BFF web/app<br/>(ciasteczko sesji,<br/>bez klucza)"]
+    AUTH["authservice<br/>(logowanie, JWKS RS256)"]
+    subgraph IS["InterviewService /api/v1"]
+        GATES["Bramki: wyłącznik,<br/>e-mail, limity, dzienny limit,<br/>kredyt"]
+        SESS[("Sesje w pamięci<br/>tekst rozmowy i wynik<br/>do 30 min")]
+        AGENT["ExitInterviewAgent.Agent<br/>(maszyna stanów, kafelki)"]
+        DB[("PostgreSQL<br/>identyfikatory, liczniki,<br/>księga kredytów, zdarzenia płatności")]
+    end
+    MODEL["Dostawca modelu<br/>(Anthropic, klucz serwera)"]
+    PAY["Dostawca płatności<br/>(Checkout + webhook z podpisem)"]
+    U -->|"cookie"| BFF
+    BFF -->|"bearer"| IS
+    BFF -.->|"logowanie"| AUTH
+    AUTH -.->|"klucze publiczne"| GATES
+    GATES --> SESS
+    SESS --> AGENT
+    AGENT -->|"rozmowa"| MODEL
+    GATES --> DB
+    U -->|"zakup"| PAY
+    PAY -->|"webhook, idempotentny"| DB

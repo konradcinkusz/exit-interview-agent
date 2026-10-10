@@ -1534,6 +1534,9 @@ Komenda & Co robi & Status w tej sesji \\
 \texttt{... Eval -- run --profile <nazwa> --out report/\allowbreak{}} & raport; prawdziwy model & mock: tak; prawdziwy: \textbf{nie} \\
 \texttt{curl localhost:\allowbreak{}5200/\allowbreak{}health} & stan integracji & uruchomione (usługa samodzielnie) \\
 \texttt{fly secrets set -a <app> K=v --stage} & sekret we wdrożeniu & \textbf{nic nie wdrożono} \\
+\texttt{dotnet test tests/\allowbreak{}ExitInterviewAgent.\allowbreak{}InterviewService.\allowbreak{}Tests --filter "FullyQualifiedName\textasciitilde{}InterviewEndpointTests"} & sesja webowa na mocku: zgoda, rozmowa, wynik, usunięcie (część~6) & uruchomione; 24 zaliczone \\
+\texttt{dotnet test tests/\allowbreak{}ExitInterviewAgent.\allowbreak{}InterviewService.\allowbreak{}Tests --filter "FullyQualifiedName\textasciitilde{}Billing"} & kredyty, zakup na atrapie, webhook (część~6) & uruchomione; 52 zaliczone, 3 pominięte (wymagają PostgreSQL) \\
+\texttt{scripts/\allowbreak{}render-\allowbreak{}diagrams.\allowbreak{}sh p5-webapp} & rysunek architektury webowej (część~6) & uruchomione \\
 \bottomrule
 \end{longtable}
 \end{center}
