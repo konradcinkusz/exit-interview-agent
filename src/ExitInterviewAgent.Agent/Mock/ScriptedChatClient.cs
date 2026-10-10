@@ -31,6 +31,7 @@ public sealed partial class ScriptedChatClient : IChatClient
         {
             "interviewer" or "prober" => Field(user, "SEED") ?? string.Empty,
             "extractor" => Extract(user),
+            "tilewriter" => ScriptedTileResponses.Write(user),
             _ => string.Empty,
         };
 

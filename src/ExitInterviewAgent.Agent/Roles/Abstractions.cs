@@ -5,7 +5,7 @@ using ExitInterviewAgent.Records;
 
 namespace ExitInterviewAgent.Agent.Roles;
 
-public enum Role { Interviewer, Prober, Extractor }
+public enum Role { Interviewer, Prober, Extractor, TileWriter }
 
 /// <summary>
 /// Implemented by an exception a model client throws when it can describe the failure without content: a controlled
