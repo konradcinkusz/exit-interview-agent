@@ -107,6 +107,8 @@ export function reduce(s: State, action: Action): State {
       const base = { ...s, pending: false, starting: false, notice: action.failure };
       switch (action.failure.kind) {
         case "gone":
+        case "not_found":
+          // The service no longer has this interview (410, or 404 after a delete or a restart): the chat is over, a new one can start.
           return { ...base, phase: "start", interview: null, lines: [], result: null };
         case "payment_required":
           return { ...base, phase: "start" };

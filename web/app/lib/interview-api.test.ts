@@ -125,6 +125,8 @@ describe("failureFor: every answer the page must explain", () => {
     ["gateway timeout", 504, { error: "gateway_timeout" }, null, { kind: "unavailable" }],
     ["signed out", 401, { error: "unauthenticated" }, null, { kind: "unauthenticated" }],
     ["terms not accepted", 403, { error: "consent_required" }, null, { kind: "consent_required" }],
+    ["email not confirmed", 403, { type: "urn:exit-interview-agent:problem:email_not_verified", code: "email_not_verified" }, null, { kind: "email_not_verified" }],
+    ["other refusal", 403, { code: "forbidden_other" }, null, { kind: "generic" }],
     ["unknown status", 500, null, null, { kind: "generic" }],
   ];
 

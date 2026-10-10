@@ -150,7 +150,7 @@ test("a reply the model cannot take keeps the typed text and says the interview 
   await expect(answer).toHaveValue("My answer, kept.");
 });
 
-test("a lost session (410) returns to the start screen with the credit given back", async ({ page, request }) => {
+test("a lost session (410) returns to the start screen, and a new interview can start from there", async ({ page, request }) => {
   const name = accountName("interview");
   await configure(request, name, "credits=1");
   await openInterview(page, name);
@@ -158,9 +158,13 @@ test("a lost session (410) returns to the start screen with the credit given bac
 
   await configure(request, name, "expireNext=1");
   await say(page, "Hello.");
-  await expect(alertWith(page, "expired or was lost when the service restarted.")).toContainText("Your credit has been returned.");
+  // The same words for 404 and 410: the interview is no longer there, whatever the reason.
+  await expect(alertWith(page, "This interview no longer exists.")).toContainText("You can start a new one.");
   await expect(page.getByRole("heading", { name: "Exit interview with an AI" })).toBeVisible();
   await expect(page.getByText("Interview credits you have: 1.")).toBeVisible();
+
+  await startInterview(page);
+  await expect(page.getByRole("log", { name: "Conversation" })).toContainText("Hello. I am an AI interviewer.");
 });
 
 test("a second open interview is refused on the consent step, and a reload empties the transcript", async ({ page, request }) => {

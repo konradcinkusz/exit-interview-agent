@@ -29,6 +29,20 @@ export function signalsCacheControl(upstream: string | null): string {
   return `private, max-age=${Math.min(Number(match[1]), MAX_AGE_CEILING)}`;
 }
 
+/**
+ * True when a 403 is the service's answer: an RFC 9457 problem document (`application/problem+json`) that carries a string `code`.
+ * A proxy, a gateway or a wrong ingress answers 403 with other media types or no code, so it stays a reason to try the next rung.
+ */
+export function isServiceRefusal(contentType: string | null, text: string): boolean {
+  if (!contentType?.toLowerCase().startsWith("application/problem+json")) return false;
+  try {
+    const body: unknown = JSON.parse(text);
+    return typeof body === "object" && body !== null && typeof (body as { code?: unknown }).code === "string";
+  } catch {
+    return false;
+  }
+}
+
 export type Upstream = NextResponse | "backend_unavailable";
 
 export interface UpstreamCall {
@@ -58,7 +72,15 @@ export async function callBackend(call: UpstreamCall): Promise<Upstream> {
         console.error(`proxy: ${base} answered ${upstream.status} (redirect between services)`);
         return NextResponse.json({ error: "bad_gateway" }, { status: 502, headers: NO_STORE });
       }
-      if (upstream.status === 403) continue; // wrong ingress for this rung: try the next candidate
+      // A 403 with a problem document and a code is the service's own refusal (for example email_not_verified): it goes to the
+      // client as it is. A 403 without one is the wrong ingress for this rung: the next candidate is tried.
+      if (upstream.status === 403) {
+        const text = await upstream.text();
+        if (!isServiceRefusal(upstream.headers.get("content-type"), text)) continue;
+        const refusal = new Headers(NO_STORE);
+        refusal.set("content-type", "application/problem+json");
+        return new NextResponse(text, { status: 403, headers: refusal });
+      }
       const out = new Headers(NO_STORE);
       for (const name of PASS_HEADERS) {
         const value = upstream.headers.get(name);
