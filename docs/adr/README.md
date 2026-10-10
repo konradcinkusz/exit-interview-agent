@@ -212,6 +212,7 @@ Start with the **Foundation** (0001–0005), then pick your domain:
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0076](0076-web-interview-sessions-in-memory-service-key.md) | Web interview sessions: in memory, service key | accepted | Sessions live in process memory, bound to the account, one open per account, 30-minute idle and result windows, credits behind two seams, the service key from the environment; no interview text in logs or spans |
+| [0078](0078-cost-controls-for-the-hosted-interview.md) | Cost controls for the hosted interview | accepted | Per-account and per-address limits on starts and replies (429, Retry-After), the emergency switch on /health, the verified-email gate (403, fail closed), a global daily start cap (503 to midnight UTC), untagged spend metrics; amends ADR-0014 by keeping a boolean verified flag; production waits on an authservice claim |
 
 
 Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related standards guides, and related ADRs. ADRs are immutable once accepted; amendments are noted in later ADRs or in the brief.
