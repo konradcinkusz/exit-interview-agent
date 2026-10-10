@@ -24,7 +24,8 @@ public sealed record ReplySignals(
     bool InjectionSuspected,
     int Polarity,
     bool Serious = false,
-    int DeepCovered = 0);
+    int DeepCovered = 0,
+    bool Short = false);
 
 /// <summary>
 /// Rule-based reading of a reply. Decisions that protect the interviewee (withdrawal, consent) and the shape of the
@@ -40,20 +41,74 @@ public static partial class ReplyAnalyzer
         ArgumentNullException.ThrowIfNull(maskedReply);
         var words = CountWords(maskedReply);
         var terse = words <= limits.TerseWordLimit;
-        var polarity = Polarity(maskedReply);
+        // Polish typed without diacritics ("zle", "zwolnili mnie", "bylem") is common on a terminal: every cue is read on the text as typed
+        // and on its ASCII fold, so a missing letter cannot hide it.
+        var folded = Fold(maskedReply);
+        bool Any(Func<string, bool> f) => f(maskedReply) || (!ReferenceEquals(folded, maskedReply) && f(folded));
+        var polarity = Polarity(maskedReply, folded);
+        var concrete = Any(t => ConcreteCue().IsMatch(t));
+        var serious = Any(SeriousAccount);
         return new ReplySignals(
             words,
-            IsWithdrawal(maskedReply, words),
-            ConsentOf(maskedReply),
+            Any(t => IsWithdrawal(t, words)),
+            Any(t => ConsentOf(t) == ConsentAnswer.Yes) ? ConsentAnswer.Yes : ConsentOf(maskedReply),
             terse,
-            !terse && words <= 25 && VagueCue().IsMatch(maskedReply) && !ConcreteCue().IsMatch(maskedReply),
-            HostileCue().IsMatch(maskedReply),
+            !terse && words <= 25 && Any(t => VagueCue().IsMatch(t)) && !concrete,
+            Any(t => HostileCue().IsMatch(t)),
             previousPolarity != 0 && polarity != 0 && Math.Sign(previousPolarity) != Math.Sign(polarity),
             namesPerson,
             InjectionCue().IsMatch(maskedReply),
             polarity,
-            SeriousAccount(maskedReply),
-            DeepCoverage(maskedReply));
+            serious,
+            DeepCoverage(maskedReply) | DeepCoverage(folded),
+            IsBrief(words, terse, concrete, Any(Evaluates)));
+    }
+
+    /// <summary>
+    /// A short answer that says something ("bardzo dobrze", "słabe", "bywało różnie") but gives nothing concrete: worth one follow-up.
+    /// A bare non-answer ("nie wiem", "tak") is not: it is let go, and only a streak of those closes the interview.
+    /// </summary>
+    private static bool IsBrief(int words, bool terse, bool concrete, bool evaluates) => words <= 8 && !concrete && (!terse || evaluates);
+
+    /// <summary>A judgement word ("dobrze", "słabe", "terrible"); "nothing" and "never" are in the polarity list but judge nothing.</summary>
+    private static bool Evaluates(string text)
+    {
+        foreach (Match m in PositiveCue().Matches(text)) return true;
+        foreach (Match m in NegativeCue().Matches(text))
+            if (!m.Value.Equals("nothing", StringComparison.OrdinalIgnoreCase) && !m.Value.Equals("never", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    /// <summary>The text with Polish letters replaced by their ASCII base; the same instance when nothing changed.</summary>
+    internal static string Fold(string text)
+    {
+        var changed = false;
+        var chars = text.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            var f = chars[i] switch
+            {
+                'ą' => 'a',
+                'ć' => 'c',
+                'ę' => 'e',
+                'ł' => 'l',
+                'ń' => 'n',
+                'ó' => 'o',
+                'ś' => 's',
+                'ź' or 'ż' => 'z',
+                'Ą' => 'A',
+                'Ć' => 'C',
+                'Ę' => 'E',
+                'Ł' => 'L',
+                'Ń' => 'N',
+                'Ó' => 'O',
+                'Ś' => 'S',
+                'Ź' or 'Ż' => 'Z',
+                var c => c,
+            };
+            if (f != chars[i]) { chars[i] = f; changed = true; }
+        }
+        return changed ? new string(chars) : text;
     }
 
     public static int CountWords(string text)
@@ -123,9 +178,9 @@ public static partial class ReplyAnalyzer
 
     private static bool Withdrew(string text) => WithdrawalCue().IsMatch(text) || PolishEnding().IsMatch(text);
 
-    private static int Polarity(string text)
+    private static int Polarity(string text, string folded)
     {
-        var (pos, neg) = CueCounts(text);
+        var (pos, neg) = CueCounts(ReferenceEquals(text, folded) ? text : text + " " + folded);
         return Math.Sign(pos - neg);
     }
 
@@ -169,10 +224,10 @@ public static partial class ReplyAnalyzer
     [GeneratedRegex(@"\b(ignore|disregard|forget)\s+(all\s+|any\s+|your\s+|the\s+)?(previous|prior|above|earlier)?\s*(instructions|rules|prompt)|system\s+prompt|you\s+are\s+now\b|new\s+instructions|as\s+an?\s+(ai\s+)?(evaluator|judge|grader)|note\s+to\s+(the\s+)?(evaluator|judge|grader|extractor)|set\s+(all\s+)?ratings?|</?\s*(system|data|interview_data)|\bdebug\s+mode\b|zignoruj\w*\s+(wszystkie\s+|poprzednie\s+|swoje\s+|wcze[śs]niejsze\s+)?(instrukcj\w*|zasad\w*|polece\w*)|poprzedni\w*\s+(instrukcj\w*|polece\w*)|nowe\s+instrukcj\w*|jeste[śs]\s+teraz\b|ocen\s+to\s+jako|ustaw\s+(wszystkie\s+)?oceny|prompt\s+systemowy", Opt, 200)]
     private static partial Regex InjectionCue();
 
-    [GeneratedRegex(@"\b(supportive|helpful|great|good|excellent|fair|generous|clear|welcoming|friendly|well\s+organi[sz]ed|respectful|enjoyed|loved|happy\s+with|well\s+paid|opportunit\w+|trusted|inclusive)\b", Opt, 200)]
+    [GeneratedRegex(@"\b(supportive|helpful|great|good|excellent|fair|generous|clear|welcoming|friendly|well\s+organi[sz]ed|respectful|enjoyed|loved|happy\s+with|well\s+paid|opportunit\w+|trusted|inclusive|dobr\w*|[śs]wietn\w*|super|fajn\w*|wspania[łl]\w*|pozytywn\w*|rewelacyjn\w*|przyjazn\w*|uczciw\w*)\b", Opt, 200)]
     private static partial Regex PositiveCue();
 
-    [GeneratedRegex(@"\b(unsupportive|unhelpful|bad|terrible|awful|poor|unfair|stingy|unclear|chaotic|disorgani[sz]ed|disrespectful|toxic|hated|unhappy|underpaid|no\s+support|no\s+help|never|nothing|broken\s+promises?|ignored|micromanag\w+|overworked|burn\w*)\b", Opt, 200)]
+    [GeneratedRegex(@"\b(unsupportive|unhelpful|bad|terrible|awful|poor|unfair|stingy|unclear|chaotic|disorgani[sz]ed|disrespectful|toxic|hated|unhappy|underpaid|no\s+support|no\s+help|never|nothing|broken\s+promises?|ignored|micromanag\w+|overworked|burn\w*|[źz]le|s[łl]ab\w*|fatal\w*|kiepsk\w*|okropn\w*|tragiczn\w*|toksyczn\w*|nieuczciw\w*|niesprawiedliw\w*|chaotyczn\w*|chaos\w*|bez\s+wsparcia|brak\s+\w+|nie\s+by[łl]o|nie\s+ma\w*|za\s+(ma[łl]o|du[żz]o))\b", Opt, 200)]
     private static partial Regex NegativeCue();
 
     /// <summary>
@@ -180,7 +235,7 @@ public static partial class ReplyAnalyzer
     /// (the deepening then does not start), and a term it names can fire in a harmless sense. Stems carry a wildcard suffix so
     /// Polish and English inflections are covered; a Polish form the list does not stem to (for example a rare declension) is missed.
     /// </summary>
-    [GeneratedRegex(@"\b(mobbing\w*|bull(y|ied|ying|ies)\w*|harass\w*|molest\w*|discriminat\w*|dyskrymin\w*|threat\w*|gro[źżz]\w*|retaliat\w*|odwet\w*|zemst\w*|wyzysk\w*|exploit\w*|unsafe|niebezpiecz\w*|wage\s+theft|withheld\s+(pay|wages|salary)|nie\s+wyp[łl]ac\w*|niewyp[łl]ac\w*|unpaid\s+(wages|overtime|salary)|upok[oa]r\w*|humiliat\w*|wyzywa\w*|obra[żz]a\w*|prze[śs]ladow\w*|persecut\w*|szykan\w*)", Opt, 200)]
+    [GeneratedRegex(@"\b(mobbing\w*|bull(y|ied|ying|ies)\w*|harass\w*|molest\w*|discriminat\w*|dyskrymin\w*|threat\w*|gro[źżz]\w*|retaliat\w*|odwet\w*|zemst\w*|wyzysk\w*|exploit\w*|unsafe|niebezpiecz\w*|wage\s+theft|withheld\s+(pay|wages|salary)|nie\s+wyp[łl]ac\w*|niewyp[łl]ac\w*|unpaid\s+(wages|overtime|salary)|upok[oa]r\w*|(?>zwolni\w*)(?!\s+si[ęe]\b)|wyrzuc\w*|fired|laid\s+off|sacked|dismissed|humiliat\w*|wyzywa\w*|obra[żz]a\w*|prze[śs]ladow\w*|persecut\w*|szykan\w*)", Opt, 200)]
     private static partial Regex SeriousCue();
 
     [GeneratedRegex(@"[\p{L}'’]+", RegexOptions.CultureInvariant, 200)]

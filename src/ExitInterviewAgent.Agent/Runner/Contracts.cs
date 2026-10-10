@@ -80,6 +80,9 @@ public sealed record InterviewResult(
     RunDiagnostics Diagnostics)
 {
     /// <summary>At least one topic carries a rating-or-null with quotes. An all-"no data" record says nothing and is not submitted.</summary>
+    /// <summary>Controlled codes (never text) of the last rejected extractor output; empty unless the extraction failed.</summary>
+    public IReadOnlyList<string> ExtractionErrors { get; init; } = [];
+
     public bool HasContent => Record is not null && Record.Topics.Enumerate().Any(t => t.Entry.Status == TopicStatus.Covered);
 
     /// <summary>

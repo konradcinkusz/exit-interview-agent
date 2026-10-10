@@ -44,7 +44,7 @@ public sealed class ModelRecordExtractor(IChatClient client, InterviewProtocol p
             new ChatMessage(ChatRole.System, Prompts.ExtractorSystem(protocol)),
             new ChatMessage(ChatRole.User, Prompts.ExtractorUser(maskedTranscript, previousErrorCodes, ExtractorOutput.SchemaText, DataBlock.NewNonce())),
         };
-        var response = await client.GetResponseAsync(messages, MeteredChatClient.Options(Role.Extractor, 1500, 0f), ct).ConfigureAwait(false);
+        var response = await client.GetResponseAsync(messages, MeteredChatClient.Options(Role.Extractor, 3000, 0f), ct).ConfigureAwait(false);
         return response.Text;
     }
 }

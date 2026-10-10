@@ -183,7 +183,7 @@ internal static class InterviewCommand
         else if (r.Outcome == InterviewOutcome.PiiGuardFailed)
             await o.WriteLineAsync("The personal-data check failed, so nothing may be kept. Nothing was written.").ConfigureAwait(false);
         else if (r.Outcome == InterviewOutcome.ExtractionFailed)
-            await o.WriteLineAsync("The model did not produce a usable record" + (saveTranscript ? "; the transcript is saved below." : ". The transcript was only in memory and is gone; run again with --save-transcript --out <dir> to keep it.")).ConfigureAwait(false);
+            await o.WriteLineAsync($"The model did not produce a usable record (extractor codes: {(r.ExtractionErrors.Count == 0 ? "none" : string.Join(", ", r.ExtractionErrors))})" + (saveTranscript ? "; the transcript is saved below." : ". The transcript was only in memory and is gone; run again with --save-transcript --out <dir> to keep it.")).ConfigureAwait(false);
 
         if (r.RecordJson is not null)
         {

@@ -301,7 +301,7 @@ public sealed class InterviewRunner
         {
             session?.SetTag(Attr.Outcome, "extraction_failed");
             session.Set(Attr.Submittable, false);
-            return new InterviewResult(InterviewOutcome.ExtractionFailed, "extraction_invalid", transcript, null, null, null, Diagnostics(c, aiDisclosed));
+            return new InterviewResult(InterviewOutcome.ExtractionFailed, "extraction_invalid", transcript, null, null, null, Diagnostics(c, aiDisclosed)) { ExtractionErrors = errors };
         }
 
         var elapsed = _options.Clock.GetElapsedTime(started);
