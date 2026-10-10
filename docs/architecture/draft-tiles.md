@@ -66,7 +66,7 @@ Wave 0 (this PR): contract, plan, ADR. Wave 1 tasks are independent and can run 
 | X2 | 1 | Writer role, prompt, parser, schema, scripted mock, generator | `Tiles/TileWriter.cs`, `Tiles/TilePrompts.cs`, `Tiles/TileGenerator.cs`, `Tiles/FactsTile.cs`, `schemas/tile-writer-output.v1.schema.json`, mock additions in `Mock/`, tests in `tests/ExitInterviewAgent.Agent.Tests/Tiles/` | contract | #28 | merged |
 | X3 | 1 | Renderers: text and self-contained HTML | `src/ExitInterviewAgent.Cli/Tiles/TileRenderer.cs`, `tests/ExitInterviewAgent.Cli.Tests/Tiles/` | contract | #27 | merged |
 | X4 | 2 | `tiles` command: flags, disclosure, wiring, `--out`, end-to-end offline test | `src/ExitInterviewAgent.Cli/TilesCommand.cs`, a one-line dispatch in `CliApp.cs`, usage text, `tests/ExitInterviewAgent.Cli.Tests/` | X1, X2, X3 | #29 | merged |
-| X5 | 3 | Docs: this page's status, README, guide exercise, ADR-0074 implementation notes, `RELEASING`/CLI mentions | `docs/`, `README.md`, `docs/papers/` | X4 | this PR | open |
+| X5 | 3 | Docs: this page's status, README, guide exercise, ADR-0074 implementation notes, `RELEASING`/CLI mentions | `docs/`, `README.md`, `docs/papers/` | X4 | #30 | open |
 
 The release `v0.1.0-pre.1` was tagged at `de48f46`, before X4 (#29), so it does **not** contain the `tiles` command. See
 [`docs/release/RELEASING.md`](../release/RELEASING.md).
