@@ -58,9 +58,12 @@ public sealed class EndpointAuthorizationMatrixTests(ServiceFactory factory) : I
     [Fact]
     public void Every_other_endpoint_names_the_policy_for_its_audience()
     {
+        // A route can carry several methods (GET and DELETE on one session), so the matrix is one row per distinct route and policy.
         var matrix = Endpoints()
             .Where(e => e.Metadata.GetMetadata<IAllowAnonymous>() is null && e.Metadata.GetOrderedMetadata<IAuthorizeData>().Count > 0)
-            .ToDictionary(Route, e => string.Join(',', e.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(a => a.Policy)));
+            .Select(e => (Route: Route(e), Policy: string.Join(',', e.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(a => a.Policy))))
+            .Distinct()
+            .ToList();
 
         Assert.NotEmpty(matrix);
         foreach (var (route, policy) in matrix)
