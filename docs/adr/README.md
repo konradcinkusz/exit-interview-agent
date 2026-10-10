@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 67 ADRs** (numbered 0001–0074). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 68 ADRs** (numbered 0001–0075). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -166,13 +166,14 @@ This directory holds all architecture decisions made during the project, indexed
 
 ---
 
-## 15. Documentation, Build Output, Releasing and Tiles (0072–0074)
+## 15. Documentation, Build Output, Releasing, Tiles and Interview v2 (0072–0075)
 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0072](0072-polish-latex-guide-built-on-demand.md) | Polish LaTeX guide to the product, built on demand | accepted | Guide is LaTeX source in `docs/papers/` on the house preamble; PDF is build output from a `workflow_dispatch`-only workflow, never committed; drift from `docs/` accepted |
 | [0073](0073-cli-release-workflow-manual-draft-unsigned.md) | CLI release workflow is manual, draft by default, and unsigned | accepted | `release-cli.yml` builds three self-contained binaries plus SHA-256 sums into a draft GitHub Release; no tag until the owner publishes; unsigned and Windows/macOS unrun, stated in the notes |
 | [0074](0074-draft-tiles-from-the-record.md) | Draft tiles are generated from the record, locally, never from the transcript | accepted | `exit-interview tiles` turns a validated record into neutral draft texts with the user's own provider; model output is untrusted and passes a deterministic guard; hosted paid variant deferred |
+| [0075](0075-polish-responsive-interview-and-platform-tiles.md) | Polish, a responsive interviewer, and platform tiles from the transcript | accepted | Polish protocol and language switch; deterministic serious-account signal starts a bounded deepening phase; Glassdoor, Google and Reddit tiles generated at the end of every interview; amends ADR-0074 on tile input and banned terms |
 
 ---
 
