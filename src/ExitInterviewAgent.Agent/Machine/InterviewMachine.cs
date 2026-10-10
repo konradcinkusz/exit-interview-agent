@@ -41,7 +41,7 @@ public readonly record struct Step(TurnKind Kind, Topic? Topic = null, Preface P
 /// Priority of a reply on a topic, highest first (Y2): withdrawal; the budget and the closing counts (hostile, terse);
 /// hostility, which is acknowledged and released; a name, which is redirected to a role; a serious account or an open
 /// deepening, which asks the next uncovered menu element until <c>MaxDeepProbesPerTopic</c> and then advances (a deepening
-/// does not also clarify or probe); a contradiction, which is clarified once; a vague answer, which gets one example probe;
+/// does not also clarify or probe); a contradiction, which is clarified once; a vague or very short answer that says something, which gets one follow-up (a short answer is asked "what exactly", never closed on);
 /// otherwise the topic advances.
 /// </remarks>
 public sealed class InterviewMachine
@@ -114,7 +114,8 @@ public sealed class InterviewMachine
         var limits = _protocol.Limits;
         if (s.Withdrawal) return Terminate(StopReason.ConsentWithdrawn);
 
-        TerseStreak = s.Terse ? TerseStreak + 1 : 0;
+        // A short reply that still says something ("słabe", "zwolnili mnie") is an answer, not a refusal to talk: only bare non-answers build the streak.
+        TerseStreak = s.Terse && s.Polarity == 0 && !s.Serious ? TerseStreak + 1 : 0;
         if (s.Hostile) HostileCount++;
 
         if (budgetExhausted || InterviewerTurns >= limits.MaxInterviewerTurns) return Finish(CloseReason.BudgetExhausted);
@@ -149,7 +150,7 @@ public sealed class InterviewMachine
             return Issue(new Step(TurnKind.Clarification, topic));
         }
 
-        if (s.Vague && ProbesUsed < limits.MaxProbesPerTopic && Phase != Phase.AwaitingClarification)
+        if ((s.Vague || s.Short) && ProbesUsed < limits.MaxProbesPerTopic && Phase != Phase.AwaitingClarification)
         {
             ProbesUsed++;
             Phase = Phase.AwaitingProbeAnswer;
