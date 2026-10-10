@@ -19,6 +19,7 @@ public static class CliApp
 
         Usage:
           exit-interview interview --provider <p> --model <m> [--base-url <url>] [--api-key-env <NAME>] [--out <dir>] [--employer <ref>]
+                                   [--language pl|en|auto]
                                    [--tenure <band>] [--seniority <band>] [--function <band>] [--save-transcript] [--yes-i-understand]
                                    [--max-tokens <n>] [--timeout-seconds <n>] [--max-retries <n>] [--num-ctx <n>]
                                    [--price-in <per-million>] [--price-out <per-million>] [--max-cost <amount>] [--config <file>]

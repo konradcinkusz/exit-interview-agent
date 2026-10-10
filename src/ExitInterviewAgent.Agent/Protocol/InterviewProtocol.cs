@@ -27,7 +27,8 @@ public sealed record ProtocolLimits(
 public sealed record ProtocolRule(string Id, string Text, string Enforcement);
 
 /// <summary>
-/// The versioned interview protocol, loaded from the embedded <c>interview-protocol.v1.json</c>. Everything a client
+/// The versioned interview protocol, loaded from the embedded <c>interview-protocol.v1.json</c> (English) or <c>interview-protocol.pl.v1.json</c>
+/// (Polish, the same instrument; see <see cref="For"/>). Everything a client
 /// must say verbatim lives here; the model only ever words the six topic questions, the probe, the clarification
 /// and the redirect, and each of those has a fixed fallback below.
 /// </summary>
@@ -76,11 +77,27 @@ public sealed class InterviewProtocol
         Validate();
     }
 
-    /// <summary>The protocol this build ships.</summary>
-    public static InterviewProtocol Current { get; } = Load();
+    private const string EnglishResource = "interview-protocol.v1.json";
+    private const string PolishResource = "interview-protocol.pl.v1.json";
+
+    /// <summary>The protocol this build ships (English).</summary>
+    public static InterviewProtocol Current { get; } = Load(EnglishResource);
+
+    private static InterviewProtocol PolishProtocol { get; } = Load(PolishResource);
+
+    /// <summary>
+    /// The protocol for an interview language: <c>en</c> is <see cref="Current"/>, <c>pl</c> is the Polish wording of the same
+    /// instrument (same topics, limits and rule ids). Any other language is refused rather than guessed.
+    /// </summary>
+    public static InterviewProtocol For(string language) => language switch
+    {
+        "en" => Current,
+        "pl" => PolishProtocol,
+        _ => throw new ArgumentException("The interview language must be 'en' or 'pl'."),
+    };
 
     /// <summary>The exact bytes (as text) of the embedded protocol file, for clients that publish the protocol document itself (MCP resource, T8).</summary>
-    public static string CurrentJson { get; } = ReadResourceText();
+    public static string CurrentJson { get; } = ReadResourceText(EnglishResource);
 
     /// <summary>The same protocol with different bounds, for embedders and tests that need a tiny budget.</summary>
     public InterviewProtocol WithLimits(ProtocolLimits limits) => new(_dto with { Limits = limits });
@@ -95,17 +112,17 @@ public sealed class InterviewProtocol
             throw new InvalidDataException("The opening turn must disclose that the interviewer is an AI.");
     }
 
-    private static string ReadResourceText()
+    private static string ReadResourceText(string resource)
     {
-        using var stream = typeof(InterviewProtocol).Assembly.GetManifestResourceStream("interview-protocol.v1.json")
+        using var stream = typeof(InterviewProtocol).Assembly.GetManifestResourceStream(resource)
             ?? throw new InvalidOperationException("Embedded protocol is missing.");
         using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
         return reader.ReadToEnd();
     }
 
-    private static InterviewProtocol Load()
+    private static InterviewProtocol Load(string resource)
     {
-        using var stream = typeof(InterviewProtocol).Assembly.GetManifestResourceStream("interview-protocol.v1.json")
+        using var stream = typeof(InterviewProtocol).Assembly.GetManifestResourceStream(resource)
             ?? throw new InvalidOperationException("Embedded protocol is missing.");
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
         return new InterviewProtocol(JsonSerializer.Deserialize<Dto>(stream, options) ?? throw new InvalidDataException("Empty protocol."));
