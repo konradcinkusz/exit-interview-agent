@@ -19,6 +19,7 @@ builder.Services.AddSubmissions(builder.Configuration, builder.Environment);
 builder.Services.AddSignalsModule(builder.Configuration, builder.Environment);
 builder.Services.AddInterviewMcp();
 builder.Services.AddInterviewSessions(builder.Configuration);
+builder.Services.AddInterviewCostControls(builder.Configuration);
 
 var app = builder.Build();
 
