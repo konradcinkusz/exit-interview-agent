@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 71 ADRs** (numbered 0001–0071, with gaps at 0015–0016 and 0020–0021).
+**Total: 65 ADRs** (numbered 0001–0072). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -91,7 +91,7 @@ This directory holds all architecture decisions made during the project, indexed
 
 | ID | Title | Status | Summary |
 |---|---|---|---|
-| [0037](0037-eval-harness-architecture.md) | Eval harness architecture | accepted | Layer 1 (deterministic assertions, 12 hard constraints); Layer 2 (LLM judge, not gated); separate test project; 26 scenarios across 6 classes |
+| [0037](0037-eval-harness-architecture.md) | Eval harness architecture | accepted | Layer 1 (deterministic assertions, 12 hard constraints); Layer 2 (LLM judge, not gated); separate test project; 27 scenarios across 6 classes (the count in `evals/scenarios/`; this ADR was written with 26) |
 | [0038](0038-model-profiles-and-provider-registration.md) | Model profiles and provider registration | accepted | Profiles defined per provider (mock, claude, gpt4, ollama); mock runs offline; real profiles require credentials and explicit auth |
 | [0039](0039-layer-2-judge-and-calibration-policy.md) | Layer 2 judge and calibration policy | accepted | Judge scores are advisory until calibrated against human labels; rubric and prompt SHA-256 pinned; skipped when no credential (`skipped:no-credential`) |
 | [0040](0040-baseline-gates-and-regeneration-rule.md) | Baseline gates and regeneration rule | accepted | Layer 1 constraints are gated; metrics must not regress beyond tolerance; baseline in `evals/baseline.json`; regenerate by ADR note |
@@ -166,6 +166,14 @@ This directory holds all architecture decisions made during the project, indexed
 
 ---
 
+## 15. Documentation and Build Output (0072)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0072](0072-polish-latex-guide-built-on-demand.md) | Polish LaTeX guide to the product, built on demand | accepted | Guide is LaTeX source in `docs/papers/` on the house preamble; PDF is build output from a `workflow_dispatch`-only workflow, never committed; drift from `docs/` accepted |
+
+---
+
 ## Legend
 
 - **Accepted:** Adopted as binding architecture or principle
@@ -189,5 +197,6 @@ Start with the **Foundation** (0001–0005), then pick your domain:
 - **Signals aggregation:** 0052–0056
 - **Signals web UI:** 0067–0071
 - **Hardening:** 0062–0063
+- **Documentation and the guide PDF:** 0017, 0072
 
 Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related standards guides, and related ADRs. ADRs are immutable once accepted; amendments are noted in later ADRs or in the brief.
