@@ -1,0 +1,22 @@
+id: hap-003-pl-mobbing-deepened-and-completed
+class: happy
+gate: behaviour
+title: A serious account in Polish is deepened over the whole menu and the interview completes
+why: >-
+  A report of mobbing must not be treated as one more answer: the interview asks the fixed deepening questions (what happened, how often,
+  which roles, the response, how it ended) and then moves on. If the deepening does not start, the account is not followed up; if it does
+  not stop at the limit, the interviewee is interrogated. The record stays valid and the interview ends by its own decision.
+persona: mobbing-pl
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    deep_probes: 4
+  max:
+    deep_probes: 4
+measure: [coverage, lqr]
+spec: [B-01, B-02, C-13]
+rubrics: [R-01]
+origin: designed (Y2)

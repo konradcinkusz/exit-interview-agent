@@ -1,5 +1,5 @@
 {
-  "protocolVersion": "1.1",
+  "protocolVersion": "1.2",
   "language": "pl",
   "opening": "Dzień dobry i dziękuję za poświęcony czas. Zanim zaczniemy, trzy sprawy. Po pierwsze, jestem systemem sztucznej inteligencji (AI) prowadzącym ten wywiad, a nie człowiekiem. Po drugie, przechowywany jest tylko krótki, ustrukturyzowany zapis: ocena oraz kilka własnych zdań Pana/Pani do każdego z sześciu tematów, losowy identyfikator i ogólne przedziały, na przykład długość pracy w firmie. Zapis nie zawiera imion i nie jest powiązany z Pana/Pani kontem. Wszystko, co wygląda na imię lub dane kontaktowe, jest maskowane, zanim zostanie zachowane, a pełna rozmowa nie jest przechowywana. Po trzecie, może Pan/Pani przerwać w każdej chwili, mówiąc mi o tym; jeśli to zrobi, nic z tej rozmowy nie zostanie zachowane. Czy zgadza się Pan/Pani kontynuować? Proszę odpowiedzieć tak lub nie.",
   "consentReask": "Potrzebuję jasnej odpowiedzi, zanim przejdziemy dalej. Czy zgadza się Pan/Pani wziąć udział na opisanych warunkach? Proszę odpowiedzieć tak lub nie albo powiedzieć, jeśli woli Pan/Pani przerwać.",
@@ -10,6 +10,14 @@
   },
   "redirectNames": "Ze względu na prywatność nie zapisuję imion. Jak można opisać, co się wydarzyło, w kategoriach tego, co zostało zrobione, albo w kategoriach roli, na przykład przełożonego lub współpracownika?",
   "probe": "Jaka jedna konkretna sytuacja albo moment najlepiej to ilustruje?",
+  "deepeningReminder": "Może Pan/Pani pominąć dowolne pytanie albo przerwać w każdej chwili, mówiąc mi o tym.",
+  "deepeningSeeds": [
+    "Może Pan/Pani opisać, co się wtedy wydarzyło?",
+    "Jak często to się działo?",
+    "Jakie role były w to zaangażowane, na przykład przełożony albo współpracownik?",
+    "Jak firma zareagowała, gdy to zgłoszono?",
+    "Jak to się skończyło?"
+  ],
   "clarification": "Słyszę to opisane na dwa różne sposoby. Która z tych wersji jest bliższa temu, jak to faktycznie wyglądało, a może było tak i tak, w różnych momentach?",
   "closings": {
     "allTopicsCovered": "To wyczerpuje wszystko, o co chciałem zapytać. Dziękuję za czas i otwartość. Teraz przygotuję krótki zapis, wyłącznie z Pana/Pani własnych słów.",
@@ -27,12 +35,13 @@
   ],
   "limits": {
     "maxProbesPerTopic": 1,
+    "maxDeepProbesPerTopic": 4,
     "maxClarificationsPerTopic": 1,
     "maxRedirectsPerTopic": 1,
     "maxConsentAsks": 2,
-    "maxInterviewerTurns": 40,
-    "maxModelCalls": 60,
-    "maxEstimatedTokens": 60000,
+    "maxInterviewerTurns": 60,
+    "maxModelCalls": 90,
+    "maxEstimatedTokens": 90000,
     "maxReplyChars": 2000,
     "terseWordLimit": 3,
     "terseStreakToClose": 3,
@@ -51,6 +60,7 @@
     { "id": "R09", "text": "Gdy dwie odpowiedzi w tym samym temacie są sprzeczne, zadaje się jedno neutralne pytanie wyjaśniające.", "enforcement": "code" },
     { "id": "R10", "text": "Limity tur, wywołań modelu i tokenów ograniczają wywiad; po ich osiągnięciu wywiad kończy się łagodnie.", "enforcement": "code" },
     { "id": "R11", "text": "Rozmówca małomówny lub wrogo nastawiony jest dziękowany i zwalniany bez presji; prowadzący nigdy nie dyskutuje.", "enforcement": "code" },
-    { "id": "R12", "text": "Cytaty w zapisie są dosłownymi fragmentami zamaskowanej transkrypcji, pochodzącymi z własnych wypowiedzi rozmówcy na dany temat.", "enforcement": "code" }
+    { "id": "R12", "text": "Cytaty w zapisie są dosłownymi fragmentami zamaskowanej transkrypcji, pochodzącymi z własnych wypowiedzi rozmówcy na dany temat.", "enforcement": "code" },
+    { "id": "R13", "text": "Poważna relacja (na przykład mobbing lub molestowanie) jest dopytywana neutralnymi pytaniami o fakty, w liczbie nie większej niż skonfigurowany limit, z ustalonego menu; rozmówca jest raz poinformowany, że może pominąć pytanie lub przerwać.", "enforcement": "code" }
   ]
 }

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1",
+  "id": "mobbing-pl",
+  "title": "Mobbing (Polish)",
+  "description": "Talkative in Polish; reports mobbing by a manager in the management topic, then answers the deepening questions with facts, by role only. Synthetic.",
+  "language": "pl",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "talkative"
+  ],
+  "typing": {
+    "wordsPerMinute": 30,
+    "thinkSeconds": 12
+  },
+  "responses": {
+    "consent": [
+      "Tak, zgadzam się."
+    ],
+    "topics": {
+      "onboarding": [
+        "Pierwszy tydzień był spokojny, dostałem laptop w poniedziałek i dostęp do systemów po dwóch dniach."
+      ],
+      "management": [
+        "Przełożony szykanował mnie przez cały rok, na każdym cotygodniowym spotkaniu zespołu, przy wszystkich."
+      ],
+      "growth": [
+        "Szkolenia były dostępne, ale zgłoszenie kursu w drugim roku zostało bez odpowiedzi przez cztery miesiące."
+      ],
+      "pay_vs_promises": [
+        "Wynagrodzenie zgadzało się z umową, ale przegląd obiecany po sześciu miesiącach odbył się dopiero po trzynastu."
+      ],
+      "culture": [
+        "Ludzie w zespole raczej unikali konfliktów, a nie było jasnych zasad zgłaszania problemów."
+      ],
+      "reason_for_leaving": [
+        "Odszedłem po dziewięciu miesiącach, bo nie mogłem dłużej pracować w takiej atmosferze."
+      ]
+    },
+    "fallback": [
+      "Nie mam nic więcej do dodania w tej sprawie."
+    ],
+    "deepProbes": {
+      "*": [
+        "Na tych spotkaniach krzyczał na mnie i nazywał mnie nieudacznikiem przed resztą zespołu.",
+        "Działo się to co tydzień, od pierwszych miesięcy, przez mniej więcej rok.",
+        "Były to przełożony i jeden z kolegów z zespołu, który się z nim zgadzał.",
+        "Zgłosiłem to do działu HR, ale odpowiedziano mi, że to sprawa między pracownikami i nic nie zostało zrobione."
+      ]
+    }
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "all_topics_covered",
+    "submittable": true,
+    "minProbes": 0
+  }
+}

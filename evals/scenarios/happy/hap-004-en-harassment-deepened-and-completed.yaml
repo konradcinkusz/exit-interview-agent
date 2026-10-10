@@ -1,0 +1,21 @@
+id: hap-004-en-harassment-deepened-and-completed
+class: happy
+gate: behaviour
+title: A serious account in English is deepened over the whole menu and the interview completes
+why: >-
+  The English counterpart of hap-003: the same menu, the same limit, the same end. It shows that the deepening is a property of the
+  protocol and the cue list, not of the Polish wording.
+persona: harassment-en
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    deep_probes: 4
+  max:
+    deep_probes: 4
+measure: [coverage, lqr]
+spec: [B-01, B-02, C-13]
+rubrics: [R-01]
+origin: designed (Y2)

@@ -5,9 +5,9 @@ public sealed record FaultSpec(string Kind, IReadOnlyList<string> Roles, int? Ti
 
 public sealed record ExpectMin(
     int? Probes = null, int? Clarifications = null, int? Redirects = null, int? QuestionsRejected = null,
-    int? NamesMasked = null, int? TopicsCovered = null, int? ExtractionAttempts = null);
+    int? NamesMasked = null, int? TopicsCovered = null, int? ExtractionAttempts = null, int? DeepProbes = null);
 
-public sealed record ExpectMax(int? Probes = null, int? ExtractionAttempts = null);
+public sealed record ExpectMax(int? Probes = null, int? ExtractionAttempts = null, int? DeepProbes = null);
 
 public sealed record ExpectAbsent(IReadOnlyList<string>? Spans = null, IReadOnlyList<string>? Events = null, IReadOnlyList<string>? TurnKinds = null)
 {

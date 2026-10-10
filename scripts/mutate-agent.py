@@ -22,7 +22,7 @@ M=[
  ("M-03","quote-verification-off","src/ExitInterviewAgent.Agent/Roles/RecordAssembler.cs",
   "if (mismatches.Contains(i) || HasNoSubstance(q)","if (HasNoSubstance(q)","the quote step keeps quotes that are not verbatim excerpts of the transcript"),
  ("M-04","withdrawal-ignored","src/ExitInterviewAgent.Agent/Machine/ReplySignals.cs",
-  "WithdrawalCue().IsMatch(text) || (words ?? CountWords(text)) <= 2 && BareStop().IsMatch(text);","false && (words ?? 0) < 0;","ReplyAnalyzer.IsWithdrawal never recognises a withdrawal (mid-interview withdrawals are ignored)"),
+  "Withdrew(text) || (words ?? CountWords(text)) <= 2 && BareStop().IsMatch(text);","false && (words ?? 0) < 0;","ReplyAnalyzer.IsWithdrawal never recognises a withdrawal (mid-interview withdrawals are ignored)"),
  ("M-05","disclosure-event-removed","src/ExitInterviewAgent.Agent/Runner/InterviewRunner.cs",
   "                if (aiDisclosed) session.Event(Ev.DisclosureDelivered);\n","","the runner no longer records that the disclosure was delivered (aiDisclosed is still set)"),
  ("M-06","extractor-schema-check-off","src/ExitInterviewAgent.Agent/Roles/ExtractorOutput.cs",
@@ -39,6 +39,10 @@ M=[
   "s.Vague && ProbesUsed < limits.MaxProbesPerTopic &&","s.Vague && ProbesUsed < 0 &&","the interviewer never asks for a concrete example (the degenerate way to avoid leading questions)"),
  ("M-12","names-not-redirected","src/ExitInterviewAgent.Agent/Roles/Abstractions.cs",
   "public bool NamesPerson => Findings.Any(f => f.Kind == PiiKind.PersonName);","public bool NamesPerson => false;","a masked name no longer triggers the redirect to behaviour and role"),
+ ("M-13","serious-account-does-not-deepen","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
+  "if (s.Serious || _deepening)","if (_deepening)","a serious account never opens the deepening phase (the interviewer moves on as if it were a plain answer)"),
+ ("M-14","deep-probe-limit-removed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
+  "if (DeepProbesUsed < limits.MaxDeepProbesPerTopic && NextFocus(s.DeepCovered) is { } focus)","if (NextFocus(s.DeepCovered) is { } focus)","the deepening is no longer bounded by maxDeepProbesPerTopic (it runs the whole menu)"),
 ]
 only=sys.argv[1:] 
 out=[]

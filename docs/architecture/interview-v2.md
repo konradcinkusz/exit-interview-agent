@@ -1,6 +1,6 @@
 # Interview v2: Polish, a responsive interviewer, and platform tiles
 
-Status: **planned** (ADR-0075). Nothing here is implemented yet; update the status column as each task lands.
+Status: **in progress** (ADR-0075). Y2 (Polish cues and question guard, serious-account signal, deepening, protocol 1.2, eval limits and baseline) is implemented on branch `claude/y2-deepening`; Y1 and Y3 are already on `main`; Y4 and Y5 are not part of this branch.
 
 ## Why
 

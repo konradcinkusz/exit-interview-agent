@@ -133,6 +133,6 @@ public class CliTests
         Assert.Equal(0, (await Run("--help")).Code);
         var (code, output, _) = await Run("--version");
         Assert.Equal(0, code);
-        Assert.Contains("protocol 1.1", output);
+        Assert.Contains("protocol 1.2", output);
     }
 }

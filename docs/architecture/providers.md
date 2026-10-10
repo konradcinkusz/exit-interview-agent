@@ -33,7 +33,7 @@ Precedence, highest first: **flag, environment variable, config file, default.**
 | the key itself | **no flag** | the variable named above | **not allowed in the file** | none |
 | per-attempt timeout | `--timeout-seconds` | `EXIT_INTERVIEW_TIMEOUT_SECONDS` | `timeoutSeconds` | 120 |
 | retries | `--max-retries` | `EXIT_INTERVIEW_MAX_RETRIES` | `maxRetries` | 3 |
-| token budget (graceful; hard ceiling is 2x) | `--max-tokens` | `EXIT_INTERVIEW_MAX_TOKENS` | `maxTokens` | the protocol's 60000 |
+| token budget (graceful; hard ceiling is 2x) | `--max-tokens` | `EXIT_INTERVIEW_MAX_TOKENS` | `maxTokens` | the protocol's 90000 |
 | prices per million tokens (optional) | `--price-in`, `--price-out` | `EXIT_INTERVIEW_PRICE_INPUT_PER_MTOK`, `_OUTPUT_PER_MTOK` | `prices.inputPerMillionTokens`, `.outputPerMillionTokens`, `.currency` | none: cost is "not computed" |
 | cost ceiling (needs prices) | `--max-cost` | `EXIT_INTERVIEW_MAX_COST` | `maxCost` | none |
 | Ollama context window | `--num-ctx` | `EXIT_INTERVIEW_NUM_CTX` | `numCtx` | Ollama's own |

@@ -11,6 +11,7 @@ public sealed record TopicSpec(Topic Topic, string Id, string Title, string Ques
 /// <summary>Numeric bounds of an interview. Every one is enforced by <see cref="Machine.InterviewMachine"/> or the runner.</summary>
 public sealed record ProtocolLimits(
     int MaxProbesPerTopic,
+    int MaxDeepProbesPerTopic,
     int MaxClarificationsPerTopic,
     int MaxRedirectsPerTopic,
     int MaxConsentAsks,
@@ -41,6 +42,10 @@ public sealed class InterviewProtocol
     public string Probe { get; }
     public string Clarification { get; }
     public string RedirectNames { get; }
+    /// <summary>Said once, before the first deepening question of an interview (ADR-0075): that the interviewee may skip or stop.</summary>
+    public string DeepeningReminder { get; }
+    /// <summary>The deepening wording for each <see cref="DeepFocus"/>, index for index (the element order is code).</summary>
+    public IReadOnlyList<string> DeepeningSeeds { get; }
     public string AckWithdrawn { get; }
     public string AckDeclined { get; }
     public string AckFrustration { get; }
@@ -61,6 +66,8 @@ public sealed class InterviewProtocol
         Probe = d.Probe;
         Clarification = d.Clarification;
         RedirectNames = d.RedirectNames;
+        DeepeningReminder = d.DeepeningReminder;
+        DeepeningSeeds = d.DeepeningSeeds;
         AckWithdrawn = d.Acknowledgements.Withdrawn;
         AckDeclined = d.Acknowledgements.Declined;
         AckFrustration = d.Acknowledgements.Frustration;
@@ -110,6 +117,8 @@ public sealed class InterviewProtocol
             throw new InvalidDataException("The protocol must define each of the six topics exactly once.");
         if (!Opening.Contains("AI", StringComparison.Ordinal))
             throw new InvalidDataException("The opening turn must disclose that the interviewer is an AI.");
+        if (DeepeningSeeds.Count != Enum.GetValues<DeepFocus>().Length)
+            throw new InvalidDataException("The protocol must give one deepening question for each element of the deepening menu.");
     }
 
     private static string ReadResourceText(string resource)
@@ -131,7 +140,7 @@ public sealed class InterviewProtocol
     private sealed record Dto(
         string ProtocolVersion, string Language, string Opening, string ConsentReask, Acks Acknowledgements,
         string RedirectNames, string Probe, string Clarification, Closes Closings, List<TopicDto> Topics,
-        ProtocolLimits Limits, List<ProtocolRule> Rules);
+        ProtocolLimits Limits, List<ProtocolRule> Rules, string DeepeningReminder, List<string> DeepeningSeeds);
 
     private sealed record Acks(string Withdrawn, string Declined, string Frustration);
 

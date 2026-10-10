@@ -90,8 +90,8 @@ public class PolishProtocolTests
     /// refused and the fixed probe is used instead. Pinned so that this test fails, and is updated, the day the guard learns Polish.
     /// </summary>
     [Fact]
-    public void The_polish_probe_is_refused_by_the_english_only_example_rule_until_the_guard_has_polish_cues() =>
-        Assert.Equal("probe_without_example", QuestionGuard.Check(Pl.Probe, TurnKind.Probe, Pii).Reason);
+    public void The_polish_probe_passes_the_example_rule_now_that_the_guard_has_polish_cues() =>
+        Assert.Equal("ok", QuestionGuard.Check(Pl.Probe, TurnKind.Probe, Pii).Reason);
 
     [Fact]
     public void For_pl_returns_the_polish_protocol_and_for_en_returns_the_current_english_one_unchanged()
@@ -99,7 +99,7 @@ public class PolishProtocolTests
         Assert.Same(Pl, InterviewProtocol.For("pl"));
         Assert.Same(InterviewProtocol.Current, InterviewProtocol.For("en"));
         Assert.Equal("en", InterviewProtocol.Current.Language);
-        Assert.Equal("1.1", InterviewProtocol.Current.ProtocolVersion);
+        Assert.Equal("1.2", InterviewProtocol.Current.ProtocolVersion);
         Assert.StartsWith("Hello, and thank you", InterviewProtocol.Current.Opening);
     }
 

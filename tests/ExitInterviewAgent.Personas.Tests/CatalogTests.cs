@@ -10,8 +10,9 @@ namespace ExitInterviewAgent.Personas.Tests;
 
 public class CatalogTests
 {
+    /// <summary>The eight personas of the brief, and the three deepening personas added with protocol 1.2 (Y2): Polish mobbing (two) and English harassment.</summary>
     private static readonly string[] ExpectedIds =
-        ["contradictory", "hostile", "names-manager", "prompt-injection", "talkative", "terse", "vague", "withdraws-consent"];
+        ["contradictory", "harassment-en", "hostile", "mobbing-pl", "mobbing-pl-withdraws", "names-manager", "prompt-injection", "talkative", "terse", "vague", "withdraws-consent"];
 
     private static string Raw(string id)
     {
@@ -27,7 +28,7 @@ public class CatalogTests
     }
 
     [Fact]
-    public void The_box_ships_the_eight_personas_of_the_brief() => Assert.Equal(ExpectedIds, PersonaCatalog.All.Select(p => p.Id));
+    public void The_box_ships_the_eight_personas_of_the_brief_and_the_three_deepening_personas() => Assert.Equal(ExpectedIds, PersonaCatalog.All.Select(p => p.Id));
 
     [Fact]
     public void Every_persona_covers_all_six_topics_and_declares_what_a_correct_run_looks_like() =>

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1",
+  "id": "mobbing-pl-withdraws",
+  "title": "Mobbing, withdraws during deepening (Polish)",
+  "description": "Reports mobbing in the management topic, then withdraws consent on the first deepening question. Synthetic.",
+  "language": "pl",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "withdraws_consent"
+  ],
+  "typing": {
+    "wordsPerMinute": 30,
+    "thinkSeconds": 12
+  },
+  "responses": {
+    "consent": [
+      "Tak, zgadzam się."
+    ],
+    "topics": {
+      "onboarding": [
+        "Pierwszy tydzień był spokojny, dostałem laptop w poniedziałek i dostęp do systemów po dwóch dniach."
+      ],
+      "management": [
+        "Przełożony szykanował mnie przez cały rok, na każdym cotygodniowym spotkaniu zespołu, przy wszystkich."
+      ],
+      "growth": [
+        "Szkolenia były dostępne, ale zgłoszenie kursu w drugim roku zostało bez odpowiedzi przez cztery miesiące."
+      ],
+      "pay_vs_promises": [
+        "Wynagrodzenie zgadzało się z umową, ale przegląd obiecany po sześciu miesiącach odbył się dopiero po trzynastu."
+      ],
+      "culture": [
+        "Ludzie w zespole raczej unikali konfliktów, a nie było jasnych zasad zgłaszania problemów."
+      ],
+      "reason_for_leaving": [
+        "Odszedłem po dziewięciu miesiącach, bo nie mogłem dłużej pracować w takiej atmosferze."
+      ]
+    },
+    "fallback": [
+      "Nie mam nic więcej do dodania w tej sprawie."
+    ],
+    "deepProbes": {
+      "*": [
+        "Nie chcę o tym dalej mówić, przerwij, proszę."
+      ]
+    }
+  },
+  "expected": {
+    "outcome": "withdrawn",
+    "endReason": "consent_withdrawn",
+    "submittable": false,
+    "minProbes": 0
+  }
+}

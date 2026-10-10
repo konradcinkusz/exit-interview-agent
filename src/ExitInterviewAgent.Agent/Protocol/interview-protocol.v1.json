@@ -1,5 +1,5 @@
 {
-  "protocolVersion": "1.1",
+  "protocolVersion": "1.2",
   "language": "en",
   "opening": "Hello, and thank you for taking the time. Before we begin, three things. First, I am an AI interviewer, not a person. Second, here is what is stored: only a short structured record with a rating and a few of your own sentences for each of six topics, a random identifier, and broad bands such as how long you worked there. It contains no names and is not linked to your account. Anything you say that looks like a name or contact detail is masked before it is kept, and the full conversation is not stored. Third, you can stop at any moment by telling me, and if you do, nothing from this conversation is kept. Do you agree to continue? Please answer yes or no.",
   "consentReask": "I need a clear answer before we continue. Do you agree to take part, on the terms I described? Please answer yes or no, or tell me if you would like to stop.",
@@ -10,6 +10,14 @@
   },
   "redirectNames": "To protect people's privacy I do not record names. Could you describe what happened in terms of what was done, or in terms of a role such as your manager or a colleague?",
   "probe": "Could you give me one specific example of that, a particular situation or moment?",
+  "deepeningReminder": "You may skip any question, or stop at any moment by telling me.",
+  "deepeningSeeds": [
+    "Could you describe what happened in that situation?",
+    "How often did this happen?",
+    "Which roles were involved, for example your manager or a colleague?",
+    "How did the company respond when this was raised?",
+    "How did this end for you?"
+  ],
   "clarification": "I have heard this described in two different ways. Which is closer to how it was for you, or was it both at different times?",
   "closings": {
     "allTopicsCovered": "That covers everything I wanted to ask. Thank you for your time and for your openness. I will now prepare the short record, using only your own words.",
@@ -27,12 +35,13 @@
   ],
   "limits": {
     "maxProbesPerTopic": 1,
+    "maxDeepProbesPerTopic": 4,
     "maxClarificationsPerTopic": 1,
     "maxRedirectsPerTopic": 1,
     "maxConsentAsks": 2,
-    "maxInterviewerTurns": 40,
-    "maxModelCalls": 60,
-    "maxEstimatedTokens": 60000,
+    "maxInterviewerTurns": 60,
+    "maxModelCalls": 90,
+    "maxEstimatedTokens": 90000,
     "maxReplyChars": 2000,
     "terseWordLimit": 3,
     "terseStreakToClose": 3,
@@ -51,6 +60,7 @@
     { "id": "R09", "text": "When two answers on a topic contradict each other, ask one neutral clarifying question.", "enforcement": "code" },
     { "id": "R10", "text": "Turn, model-call and token budgets bound the interview; reaching one closes it gracefully.", "enforcement": "code" },
     { "id": "R11", "text": "A terse or hostile interviewee is thanked and released without pressure; the interviewer never argues.", "enforcement": "code" },
-    { "id": "R12", "text": "Quotes in the record are verbatim excerpts of the masked transcript, taken from the interviewee's own turns on that topic.", "enforcement": "code" }
+    { "id": "R12", "text": "Quotes in the record are verbatim excerpts of the masked transcript, taken from the interviewee's own turns on that topic.", "enforcement": "code" },
+    { "id": "R13", "text": "A serious account (for example bullying or harassment) is followed up with up to the configured number of neutral, fact-seeking questions from a fixed menu, and the interviewee is told once that they may skip or stop.", "enforcement": "code" }
   ]
 }

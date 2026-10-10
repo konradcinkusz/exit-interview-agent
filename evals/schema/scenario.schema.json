@@ -46,6 +46,7 @@
           "additionalProperties": false,
           "properties": {
             "probes": { "type": "integer", "minimum": 0 },
+            "deep_probes": { "type": "integer", "minimum": 0 },
             "clarifications": { "type": "integer", "minimum": 0 },
             "redirects": { "type": "integer", "minimum": 0 },
             "questions_rejected": { "type": "integer", "minimum": 0 },
@@ -59,6 +60,7 @@
           "additionalProperties": false,
           "properties": {
             "probes": { "type": "integer", "minimum": 0 },
+            "deep_probes": { "type": "integer", "minimum": 0 },
             "extraction_attempts": { "type": "integer", "minimum": 1, "maximum": 2 }
           }
         },

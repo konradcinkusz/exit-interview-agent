@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using ExitInterviewAgent.Agent.Mock;
+using ExitInterviewAgent.Agent.Protocol;
 using ExitInterviewAgent.Agent.Runner;
 using ExitInterviewAgent.Records;
 using Microsoft.Extensions.AI;
@@ -21,6 +22,8 @@ public static class PersonaSession
         var clock = new SimulatedClock();
         var options = new InterviewOptions(persona.Employer.Ref, persona.Context.ToRecordContext())
         {
+            // The persona's language selects the protocol wording (Y2); English personas keep the English protocol.
+            Protocol = InterviewProtocol.For(persona.Language),
             EmployerNames = persona.Employer.Names.ToArray(),
             IdFactory = () => DemoInterviewId(persona.Id, seed),
             Clock = clock,

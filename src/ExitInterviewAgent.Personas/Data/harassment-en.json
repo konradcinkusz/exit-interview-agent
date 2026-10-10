@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1",
+  "id": "harassment-en",
+  "title": "Harassment (English)",
+  "description": "Talkative in English; reports harassment by a manager in the management topic, then answers the deepening questions with facts, by role only. Synthetic.",
+  "language": "en",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "talkative"
+  ],
+  "typing": {
+    "wordsPerMinute": 30,
+    "thinkSeconds": 12
+  },
+  "responses": {
+    "consent": [
+      "Yes, sure."
+    ],
+    "topics": {
+      "onboarding": [
+        "The first two weeks were fine: I had a laptop on day one and a clear reading list from a colleague."
+      ],
+      "management": [
+        "My manager harassed me every week in one to one meetings for about a year, and the comments were about my appearance."
+      ],
+      "growth": [
+        "Training was available, but my request for a course in my second year was left unanswered for four months."
+      ],
+      "pay_vs_promises": [
+        "Pay matched the offer letter, but the review promised after six months only happened after thirteen months."
+      ],
+      "culture": [
+        "People mostly avoided conflict, and there was no clear way to report problems."
+      ],
+      "reason_for_leaving": [
+        "I left after nine months because I could not keep working under those conditions."
+      ]
+    },
+    "fallback": [
+      "I do not really have more to say about that."
+    ],
+    "deepProbes": {
+      "*": [
+        "He made the comments in private meetings and then in front of the team on Mondays.",
+        "It started within the first months and happened roughly every week for about a year.",
+        "It was my direct manager, and a senior colleague who laughed along.",
+        "I reported it to HR, and they said it was a matter between colleagues and nothing was changed."
+      ]
+    }
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "all_topics_covered",
+    "submittable": true,
+    "minProbes": 0
+  }
+}

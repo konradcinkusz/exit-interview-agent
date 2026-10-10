@@ -160,16 +160,18 @@ public sealed class InterviewRunner
             TurnKind.Topic => _protocol.Spec(step.Topic!.Value).Question,
             TurnKind.Probe => _protocol.Probe,
             TurnKind.Clarification => _protocol.Clarification,
+            TurnKind.DeepProbe => _protocol.DeepeningSeeds[(int)step.Focus!.Value],
             _ => _protocol.RedirectNames,
         };
-        var request = new QuestionRequest(step.Kind, step.Topic, seed, history);
+        var request = new QuestionRequest(step.Kind, step.Topic, seed, history, step.Focus);
+        var prober = step.Kind is TurnKind.Probe or TurnKind.DeepProbe;
         string? proposed;
-        using (var span = step.Kind == TurnKind.Probe ? InterviewTelemetry.Source.StartActivity(InterviewTelemetry.Spans.Probe) : null)
+        using (var span = prober ? InterviewTelemetry.Source.StartActivity(InterviewTelemetry.Spans.Probe) : null)
         {
             span?.Set(Attr.Role, Role.Prober);
             try
             {
-                proposed = step.Kind == TurnKind.Probe
+                proposed = prober
                     ? await _prober.ProbeAsync(request, ct).ConfigureAwait(false)
                     : await _interviewer.AskAsync(request, ct).ConfigureAwait(false);
             }
@@ -195,7 +197,12 @@ public sealed class InterviewRunner
             case TurnKind.Redirect: c.Redirects++; break;
         }
 
-        return step.Preface == Preface.AcknowledgeFrustration ? $"{_protocol.AckFrustration} {text}" : text;
+        return step.Preface switch
+        {
+            Preface.AcknowledgeFrustration => $"{_protocol.AckFrustration} {text}",
+            Preface.DeepeningReminder => $"{_protocol.DeepeningReminder} {text}",
+            _ => text,
+        };
     }
 
     /// <summary>Index into <see cref="Reasons"/>, so the trace carries a number and never a string built from content.</summary>
@@ -225,7 +232,7 @@ public sealed class InterviewRunner
         turn.Set(Attr.ReplyChars, rawChars).Set(Attr.ReplyWords, s.Words);
         turn.Set(Attr.SignalVague, s.Vague).Set(Attr.SignalTerse, s.Terse).Set(Attr.SignalHostile, s.Hostile);
         turn.Set(Attr.SignalContradiction, s.Contradiction).Set(Attr.SignalWithdrawal, s.Withdrawal);
-        turn.Set(Attr.SignalNames, s.NamesPerson).Set(Attr.SignalInjection, s.InjectionSuspected);
+        turn.Set(Attr.SignalNames, s.NamesPerson).Set(Attr.SignalInjection, s.InjectionSuspected).Set(Attr.SignalSerious, s.Serious);
     }
 
     // ---- ending ------------------------------------------------------------------------------------------------
