@@ -4,6 +4,8 @@ Status: **approved by the owner, being built in parallel tasks** (section 7). De
 
 ## 1. What it is
 
+**Status (2026-10-10): implemented (W2–W8), NOT deployed.** The Fly files and the deployment runbook are W10a. Open: W7 (e2e), W9 (real-model run and price), W10b, W11 (see the task table in section 7). Nothing is deployed and nothing has been run with a real model.
+
 A hosted version of the interview for people who will not use a terminal: sign in (authservice), pay, talk to the interviewer in a chat page, and at the end read the record and the draft publishable texts (tiles). The interview logic is the existing `ExitInterviewAgent.Agent` library; this plan adds a session API around it, a chat page, payment and cost controls. It adds no new interview behaviour.
 
 Not in scope: publishing anything to Glassdoor, Google or Reddit (the user copies the text), the employer-facing side (signals already exist), a mobile app, the verified-employment check (OP-1 stays a mock; the web app must say so).
@@ -68,18 +70,18 @@ Price: set after W9 from measured cost plus a margin; the figure of $10 in the i
 
 ## 7. Tasks (atomic, in order; each its own PR)
 
-| Task | Content | Depends on |
-|---|---|---|
-| W1 | ADR for the web app (platform key, no stored transcript, credit model) and this plan's decisions | owner decisions |
-| W2 | InterviewService: `/interviews` session endpoints around the agent, in-memory session store with idle timeout, wipe on end, tests (including no text in logs) | W1 |
-| W3 | Credits and payments tables, Stripe Checkout + idempotent webhook, refund rule, tests against a Stripe stub | W2 |
-| W4 | Cost controls: kill switch, per-account and per-IP rate limits, verified-email gate, spend metrics (counts only) | W2 |
-| W5 | BFF routes for the session API (no key, cookies only) | W2 |
-| W6 | Chat page: consent, chat, stop and delete, result page with tiles and copy buttons; Polish and English | W5 |
-| W7 | e2e journey (Playwright, stub provider): pay (stub), interview, result, delete | W3, W6 |
-| W8 | Legal pack: privacy policy, terms, consent wording, legal review recorded in RELEASE-GATE | W1 |
-| W9 | Real-model run: 10 interviews in Polish, measured cost, quality notes, price decision; release gate item 15 updated | W2 |
-| W10 | Deploy to Fly (staging first), spend limit set in the Anthropic console, runbook | W3..W8 |
+| Task | Content | Depends on | PR |
+|---|---|---|---|
+| W1 | ADR for the web app (platform key, no stored transcript, credit model) and this plan's decisions | owner decisions | plan #40 |
+| W2 | InterviewService: `/interviews` session endpoints around the agent, in-memory session store with idle timeout, wipe on end, tests (including no text in logs) | W1 | #44 |
+| W3 | Credits and payments tables, Stripe Checkout + idempotent webhook, refund rule, tests against a Stripe stub | W2 | #46 |
+| W4 | Cost controls: kill switch, per-account and per-IP rate limits, verified-email gate, spend metrics (counts only) | W2 | #45 |
+| W5 | BFF routes for the session API (no key, cookies only) | W2 | #43 (with W6) |
+| W6 | Chat page: consent, chat, stop and delete, result page with tiles and copy buttons; Polish and English | W5 | #43 (with W5) |
+| W7 | e2e journey (Playwright, stub provider): pay (stub), interview, result, delete | W3, W6 | no PR yet |
+| W8 | Legal pack: privacy policy, terms, consent wording, legal review recorded in RELEASE-GATE | W1 | #42 |
+| W9 | Real-model run: 10 interviews in Polish, measured cost, quality notes, price decision; release gate item 15 updated | W2 | not run (owner) |
+| W10 | Deploy to Fly (staging first), spend limit set in the Anthropic console, runbook | W3..W8 | W10a: this PR (files, runbook, status); W10b: no PR yet |
 
 W9 is the gate: if the Polish interview or the tiles are not good with a real model, nothing after it is worth launching.
 
