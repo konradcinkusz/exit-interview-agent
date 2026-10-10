@@ -124,7 +124,7 @@ public static class CliApp
         if (!PersonaCatalog.TryGet(personaId, out var persona)) throw new ArgumentException($"Unknown persona '{personaId}'. Run 'exit-interview personas' to list them.");
 
         var result = await PersonaSession.RunAsync(persona!, seed);
-        var checks = InterviewInvariants.Check(result, InterviewProtocol.Current, persona!.Planted, persona.Employer.Names);
+        var checks = InterviewInvariants.Check(result, InterviewProtocol.For(persona!.Language), persona!.Planted, persona.Employer.Names);
         var report = Render(persona, seed, result, checks);
         await stdout.WriteAsync(report);
 

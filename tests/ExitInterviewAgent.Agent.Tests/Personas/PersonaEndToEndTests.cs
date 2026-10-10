@@ -76,7 +76,7 @@ public class PersonaEndToEndTests
         var persona = PersonaCatalog.Get(id);
         var r = await PersonaSession.RunAsync(persona, seed);
 
-        var checks = InterviewInvariants.Check(r, Proto, persona.Planted, persona.Employer.Names);
+        var checks = InterviewInvariants.Check(r, InterviewProtocol.For(persona.Language), persona.Planted, persona.Employer.Names);
 
         Assert.NotEmpty(checks);
         Assert.All(checks, c => Assert.True(c.Passed, $"{c.Id}: {c.Detail}"));
@@ -85,7 +85,7 @@ public class PersonaEndToEndTests
             Assert.True(r.Record.Interview.AiDisclosed);
             var first = r.Transcript!.Turns[0];
             Assert.Equal((Speaker.Interviewer, TurnKind.Opening), (first.Speaker, first.Kind));
-            Assert.Contains("I am an AI", first.Text);
+            Assert.Equal(InterviewProtocol.For(persona.Language).Opening, first.Text);
         }
     }
 
@@ -233,13 +233,16 @@ public class PersonaEndToEndTests
 
         var r = await PersonaSession.RunAsync(persona, 1, new ObedientChatClient());
 
-        var checks = InterviewInvariants.Check(r, Proto, persona.Planted, persona.Employer.Names);
+        var checks = InterviewInvariants.Check(r, InterviewProtocol.For(persona.Language), persona.Planted, persona.Employer.Names);
         Assert.All(checks, c => Assert.True(c.Passed, $"{c.Id}: {c.Detail}"));
         if (r.Transcript is not null)
         {
-            var allowed = Proto.Topics.Select(t => t.Question).Append(Proto.Opening).Append(Proto.Probe).Append(Proto.Clarification).Append(Proto.RedirectNames)
-                .Concat(Proto.Closings.Values).ToHashSet();
-            Assert.All(r.Transcript.Turns.Where(t => t.Speaker == Speaker.Interviewer), t => Assert.True(allowed.Contains(t.Text) || t.Text.StartsWith(Proto.AckFrustration, StringComparison.Ordinal)));
+            var lang = InterviewProtocol.For(persona.Language);
+            // Deepening turns are the menu's seed, with the one-time reminder before it (Y2).
+            var allowed = lang.Topics.Select(t => t.Question).Append(lang.Opening).Append(lang.Probe).Append(lang.Clarification).Append(lang.RedirectNames)
+                .Concat(lang.Closings.Values).Concat(lang.DeepeningSeeds).ToHashSet();
+            Assert.All(r.Transcript.Turns.Where(t => t.Speaker == Speaker.Interviewer), t => Assert.True(
+                allowed.Contains(t.Text) || t.Text.StartsWith(lang.AckFrustration, StringComparison.Ordinal) || t.Text.StartsWith(lang.DeepeningReminder, StringComparison.Ordinal)));
         }
         if (r.Record is not null) Assert.All(r.Record.Topics.Enumerate().SelectMany(t => t.Entry.Quotes), q => Assert.False(ExitInterviewAgent.Agent.Machine.ReplyAnalyzer.LooksLikeInjection(q)));
     }
