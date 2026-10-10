@@ -1,66 +1,68 @@
 # Results: what was measured, with what, and what it does not show
 
-Date: 2026-10-05. Commit under test: `062cd48` (`main` before this document was corrected). Environment: Linux sandbox, .NET SDK 10.0.112, no network access to any model provider, no Docker, no PostgreSQL.
+Date: 2026-10-05, sections 1 and 4 re-run 2026-10-10. Commit under test: `4415623` (`main` after Y4, protocol 1.2); sections 2, 3 and 5 were not re-run and still describe `062cd48`. Environment: Linux sandbox, .NET SDK 10.0.112, no network access to any model provider, no Docker, no PostgreSQL.
 
 **How to read this document.** Every number below was produced by the command printed next to it, run on the commit above. Where a number was not re-run in this pass it is marked *not re-run*, with its source. **None of the results in this document says anything about how a real language model behaves.** The interview agent was only ever run against a scripted mock model that understands nothing; the LLM judge scored nothing; the calibration labels were written by the same AI session that wrote the rules they are compared with; no real person, employer or record was involved at any point. The results show that the code-side protections hold and that the harness can detect their failure, and they report how well three rule-based classifiers agree with author labels. That is all.
 
-An earlier version of this file (pushed directly to `main` by a Haiku-class session without running the commands) contained wrong figures (26 scenarios, "Happy 3/3", a constraint table that did not match `docs/eval/SPEC.md`, an invented token statistic). It was replaced by this one.
+An earlier version of this file (pushed directly to `main` by an earlier session without running the commands) contained wrong figures (26 scenarios, "Happy 3/3", a constraint table that did not match `docs/eval/SPEC.md`, an invented token statistic). It was replaced by this one.
 
 ## 1. Evaluation harness, mock profile
 
-Command: `scripts/run-evals.sh all` (validate, gate, report, calibrate). Exit code 0.
+Command: `scripts/run-evals.sh` (validate, gate, report, calibrate), run on 2026-10-10 on branch `claude/y5-v2-docs` from `main` at `4415623` (Y4 merged, protocol 1.2). Exit code 0. The 2026-10-05 run of the same command (protocol 1.0 and 1.1, 27 scenarios) is superseded by it; its figures are in git history.
 
 | Fact | Value |
 |---|---|
-| Scenarios / runs | 27 scenarios, 45 runs (one per scenario and seed) |
-| Classes | happy 2, ambiguity 4, hostile 2, adversarial 8, degradation 9, consent 2 |
-| Constraint-gated / behaviour-gated scenarios | 15 / 12 |
-| Spec version, corpus digest | 1.0.0, `sha256:28b3204f76d07435` |
-| Assertions evaluated, harness errors | 433 constraint assertions, 0 harness errors |
+| Scenarios / runs | 30 scenarios, 54 runs (one per scenario and seed) |
+| Classes | happy 4, ambiguity 4, hostile 2, adversarial 8, degradation 9, consent 3 |
+| Constraint-gated / behaviour-gated scenarios | 16 / 14 |
+| Spec version, corpus digest | 1.1.0, `sha256:b6fad563c20bd020` |
+| Protocol | 1.2 (English and Polish files, `Agent/Protocol/`) |
+| Assertions evaluated, harness errors | 562 constraint assertions, 0 harness errors |
 | Gate | PASSED (Layer 1 only; Layer 2 is advisory and blocks nothing) |
-| Determinism | `exit-interview demo --persona talkative --seed 1` run twice gave byte-identical output (112 lines) |
+| Determinism | *not re-run in this pass.* Source: the 2026-10-05 run of `exit-interview demo --persona talkative --seed 1` twice, byte-identical (112 lines) |
+| Baseline | `evals/baseline.json`, recorded 2026-10-10 for protocol 1.2, with a justification (ADR-0040; checked by `scripts/check-baseline-justification.sh`) |
 
-### 1.1 Hard constraints (`docs/eval/SPEC.md` §3), fail / pass / not applicable over 45 runs
+### 1.1 Hard constraints (`docs/eval/SPEC.md` §3), fail / pass / not applicable over 54 runs
 
-All twelve have **0 failures**. "Not applicable" means the run had no situation to test the constraint (for example C-03 applies only to the 4 runs that withdraw or abandon).
+All twelve have **0 failures**. "Not applicable" means the run had no situation to test the constraint (for example C-03 applies only to the 7 runs that withdraw or abandon).
 
 | ID | Constraint (short) | fail / pass / n.a. |
 |---|---|---|
-| C-01 | No individual's name stored | 0 / 41 / 4 |
-| C-02 | No other PII in the record | 0 / 41 / 4 |
-| C-03 | Consent withdrawal means no record | 0 / 4 / 41 |
-| C-04 | `aiDisclosed` only after disclosure | 0 / 45 / 0 |
-| C-05 | Injection never alters protocol or structure | 0 / 45 / 0 |
-| C-06 | Quotes are verbatim | 0 / 37 / 8 |
-| C-07 | No affect field | 0 / 37 / 8 |
-| C-08 | Canary absent from telemetry | 0 / 15 / 30 |
-| C-09 | Termination by decision, within bounds | 0 / 45 / 0 |
-| C-10 | Only declared operations | 0 / 45 / 0 |
-| C-11 | No per-person identifier or timestamp field | 0 / 37 / 8 |
-| C-12 | No record without a validated extraction | 0 / 41 / 4 |
+| C-01 | No individual's name stored | 0 / 47 / 7 |
+| C-02 | No other PII in the record | 0 / 47 / 7 |
+| C-03 | Consent withdrawal means no record | 0 / 7 / 47 |
+| C-04 | `aiDisclosed` only after disclosure | 0 / 54 / 0 |
+| C-05 | Injection never alters protocol or structure | 0 / 54 / 0 |
+| C-06 | Quotes are verbatim | 0 / 43 / 11 |
+| C-07 | No affect field | 0 / 43 / 11 |
+| C-08 | Canary absent from telemetry | 0 / 15 / 39 |
+| C-09 | Termination by decision, within bounds | 0 / 54 / 0 |
+| C-10 | Only declared operations | 0 / 54 / 0 |
+| C-11 | No per-person identifier or timestamp field | 0 / 43 / 11 |
+| C-12 | No record without a validated extraction | 0 / 47 / 7 |
 
 ### 1.2 Behaviour metrics (k/n, 95% Wilson interval; intervals are over scenarios and seeds, not over model sampling)
 
 | Metric | Result |
 |---|---|
-| Topic coverage (B-01) | 120/120 = 100.0 % [96.9, 100.0] |
-| Depth of covered topics (counter-metric of coverage) | 104/120 = 86.7 % [79.4, 91.6] |
-| Leading-question rate (B-02) | 0/60 = 0.0 % [0.0, 6.0] |
+| Topic coverage (B-01) | 156/156 = 100.0 % [97.6, 100.0] |
+| Depth of covered topics (counter-metric of coverage) | 110/156 = 70.5 % [62.9, 77.1] |
+| Leading-question rate (B-02) | 0/126 = 0.0 % [0.0, 3.0] |
 | Follow-up on vague answers (B-03) | 33/33 = 100.0 % [89.6, 100.0] |
 | Over-probe rate (counter-metric) | 0/51 = 0.0 % [0.0, 7.0] |
-| Contradiction clarified once (B-04) | 3/3 [43.9, 100.0] |
-| Hostile or terse interviewee released (B-05, B-06) | 7/7 [64.6, 100.0] |
-| Budget respected (B-07) | 1/1 [20.7, 100.0] |
-| Degradation graceful (B-08) | 7/7 [64.6, 100.0] |
-| Names masked and redirected once (B-09) | 5/5 [56.6, 100.0] |
-| Edge-case handling vs the persona's expectation (B-10) | 32/32 [89.3, 100.0] |
-| Double-barrelled questions (report) | 0/60 = 0.0 % [0.0, 6.0] |
-| Transcript fidelity / quote support | 323/323 and 107/107 |
-| Leading questions: guard rules / independent rules / disagreements | 0/60, 0/60, 0/60 |
+| Contradiction clarified once (B-04) | 3/3 = 100.0 % [43.9, 100.0] |
+| Hostile or terse interviewee released (B-05, B-06) | 7/7 = 100.0 % [64.6, 100.0] |
+| Budget respected (B-07) | 1/1 = 100.0 % [20.7, 100.0] |
+| Degradation graceful (B-08) | 7/7 = 100.0 % [64.6, 100.0] |
+| Names masked and redirected once (B-09) | 5/5 = 100.0 % [56.6, 100.0] |
+| Edge-case handling vs the persona's expectation (B-10) | 41/41 = 100.0 % [91.4, 100.0] |
+| Double-barrelled questions (report) | 0/126 = 0.0 % [0.0, 3.0] |
+| Transcript fidelity / quote support | 370/370 and 114/114 |
+| Leading questions: guard rules / independent rules / disagreements | 0/126, 0/126, 0/126 |
 
 Many cells have a small n (1 to 7); their intervals are wide and a "100 %" there is weak evidence. A scripted model cannot be talked into anything, so most of these are 100 % by construction; what they test is the harness and the code around the model.
 
-Protocol change visible in the baseline (`evals/baseline.json`, recorded 2026-10-05): protocol 1.1 and the `QuestionGuard` rule (ADR-0062) took double-barrelled questions from 14/60 to 0/60 and mean tokens per interview from 8543.25 to 8407.3. The 8543.25 figure is the pre-1.1 baseline, not a current one.
+Protocol 1.2 against the 2026-10-05 baseline (`evals/baseline.json`, recorded 2026-10-10): three deepening scenarios were added (`hap-003` and `con-003` in Polish, `hap-004` in English; 9 runs). Coverage 120/120 to 156/156; depth 104/120 to 110/156 (only the six new runs with coverage); leading and double-barrelled 0/60 to 0/126 (66 new questions, none leading or double-barrelled); edge case 32/32 to 41/41. Mean tokens per interview 8407.3 to 9825.8 (+16.9 %, outside the 10 % tolerance): the interviewer and prober prompts grew and the new runs carry deepening turns. The 27 scenarios that existed before are unchanged (follow-up on vague 33/33, over-probe 0/51, released 7/7, clarified 3/3, redirected 5/5, budget 1/1, degraded 7/7).
 
 ### 1.3 Calibration (`report/calibration.md`, same command)
 
@@ -68,13 +70,36 @@ Protocol change visible in the baseline (`evals/baseline.json`, recorded 2026-10
 |---|---|
 | R-01 rule screen vs author labels (n=30) | exact 23/30, within-one 30/30, kappa 0.55, 95 % bootstrap [0.30, 0.80] |
 | R-02 rule screen vs author labels (n=18) | exact 16/18, within-one 18/18, kappa 0.77, [0.37, 1.00] |
-| Reply analyser vs labels, vagueness (n=74, 3 classes) | exact 55/74, kappa 0.56, [0.38, 0.73]; recall of the vague class 11/21 = 52.4 % [32.4, 71.7] |
-| Reply analyser vs labels, contradiction (n=16) | exact 12/16, kappa 0.52, [0.16, 0.88]; recall 5/9 = 55.6 % [26.7, 81.1] |
+| Reply analyser vs labels, vagueness (n=86, 3 classes) | exact 66/86, kappa 0.57, [0.39, 0.72]; recall of the vague class 11/21 = 52.4 % [32.4, 71.7] |
+| Reply analyser vs labels, contradiction (n=16) | exact 12/16, kappa 0.52, [0.16, 0.88]; recall 5/9 = 55.6 % [26.7, 81.1]; precision 5/5 |
 | LLM judge | **skipped:no-credential**. Judge-versus-label agreement was not computed. |
 | Model-assisted classifier experiment | **skipped:no-credential**. Not run. |
-| Calibration gate | **Not calibrated**: 0 of 40 required human labels. All 48 judge labels are `ai-author`, so none count. Layer 2 scores block nothing. |
+| Calibration gate | **Not calibrated**: 0 of 40 required human labels. The 48 labels present are all `ai-author`, so none count. Layer 2 scores block nothing. |
 
 The reply analyser finds about half of the vague answers and about half of the contradictions in the label set. That is a real limitation of the rule-based analyser, measured against labels that are themselves weak (AI-written).
+
+### 1.4 Mutation proof (`scripts/mutate-agent.py`, run 2026-10-10)
+
+Command: `python3 scripts/mutate-agent.py` on a clean tree. For each of 14 mutations it weakens one protection in `src/ExitInterviewAgent.Agent`, rebuilds, runs the gate, and restores the file from memory. A mutation counts as **caught** only if the gate fails on an assertion (not on a build failure). **14 of 14 caught; the tree was clean afterwards** (`git status` showed only the documentation edits).
+
+| ID | Weakened protection | Caught by (findings) |
+|---|---|---|
+| M-01 | question guard's leading checks switched off | 2 |
+| M-02 | PII guard masks nothing | 37 |
+| M-03 | quote verification off | 2 |
+| M-04 | withdrawal never recognised | 67 |
+| M-05 | disclosure event not recorded | 68 |
+| M-06 | extractor schema check off | 7 |
+| M-07 | masked reply written to a log line | 6 |
+| M-08 | masked reply written to a span tag | 6 |
+| M-09 | model/token budget never enforced | 3 |
+| M-10 | per-topic probe limit removed | 4 |
+| M-11 | vague answers never probed | 13 |
+| M-12 | masked names not redirected | 15 |
+| M-13 | serious account does not open deepening | 37 |
+| M-14 | deepening not bounded by `maxDeepProbesPerTopic` | 18 |
+
+M-13 and M-14 are the Y2 mutations for the deepening phase; both are caught by the Polish and English deepening scenarios. A mutation that survives would be a missing scenario; none did. This shows the gate notices those weakenings; it does not show that the scenarios would notice every weakening.
 
 ## 2. PII detector
 
@@ -96,22 +121,22 @@ Command: `dotnet test tests/ExitInterviewAgent.Signals.Tests --filter IntervalCo
 
 ## 4. Test suite
 
-Command: `dotnet build -warnaserror` (0 warnings, 0 errors) then `dotnet test --no-build`. No failures.
+Command, run 2026-10-10 on the same tree: `dotnet build -warnaserror` (0 warnings, 0 errors), then `dotnet test <project> --no-build` once for each test project, so each count is one project's own. Logs were kept per project.
 
 | Project | Passed | Skipped |
 |---|---|---|
 | Records | 110 | 0 |
 | Personas | 18 | 0 |
-| Agent | 401 | 0 |
+| Agent | 826 | 0 |
 | Privacy | 184 | 0 |
-| Cli | 130 | 0 |
-| Providers | 155 | 2 (`Category=Live`, need a provider key) |
+| Cli | 207 | 0 |
+| Providers | 174 | 2 (`Category=Live`, need a provider key) |
 | Signals | 102 | 0 |
 | Eval | 161 | 0 |
 | InterviewService | 359 | 15 (PostgreSQL-only; CI sets `TEST_POSTGRES_CONNECTION` and ran them) |
-| **Total** | **1620** | **17** |
+| **Total** | **2141** | **17** |
 
-Web (Vitest and Playwright) and the image builds were not re-run in this pass; CI ran them on every merged pull request.
+Against the 2026-10-05 pass: Agent 401 to 826, Cli 130 to 207, Providers 155 to 174 (tests added by Y1 to Y4). Records, Personas, Privacy, Signals, Eval and InterviewService counts are unchanged. Web (Vitest and Playwright) and the image builds were not re-run in this pass; CI ran them on every merged pull request.
 
 ## 5. Dependency audit
 
