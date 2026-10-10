@@ -117,6 +117,8 @@ jobs:
       PUBLISH: ${{ inputs.publish }}
       PRERELEASE: ${{ inputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
+      # This job has no checkout, so gh cannot discover the repository from git.
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -147,9 +149,9 @@ jobs:
         run: |
           set -euo pipefail
           tag="v${VERSION}"
-          if gh release view "$tag" >/dev/null 2>&1; then echo "release $tag already exists"; exit 1; fi
+          if gh release view "$tag" --repo "$GH_REPO" >/dev/null 2>&1; then echo "release $tag already exists"; exit 1; fi
           args=(--target "$GITHUB_SHA" --title "exit-interview $VERSION" --notes-file notes.md)
           [ "$PUBLISH" = "true" ] || args+=(--draft)
           [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
-          gh release create "$tag" "${args[@]}" exit-interview-* SHA256SUMS.txt
+          gh release create "$tag" --repo "$GH_REPO" "${args[@]}" exit-interview-* SHA256SUMS.txt
           { echo "## Release $tag"; echo; [ "$PUBLISH" = "true" ] && echo "Published." || echo "Created as a **draft**: review it under Releases, then publish."; } >> "$GITHUB_STEP_SUMMARY"
