@@ -23,7 +23,7 @@ Related: [cost controls](web-app-cost-controls.md) (the four brakes and the spen
 
 ### 2. Create the apps (examples, not run)
 
-The `flyio.yml` workflow creates missing apps idempotently when a tag is pushed. Until a deployment is decided, you can create them by hand, once:
+The `flyio.yml` workflow creates missing apps idempotently when a tag is pushed. Until a deployment is decided, the guide prefers the pipeline (FLY-IO-DEPLOYMENT §11); the commands below are the documented fallback, run once, and recorded:
 
 ```bash
 fly apps create exit-interview-agent-postgres --org personal
@@ -38,6 +38,8 @@ The database volume is created once, in the region the apps use (`fra`). Do not 
 ### 3. Secrets: what to set, where
 
 Secrets are set with `fly secrets set`, never in a `.toml` file, a commit, a PR, a chat or a document. Set them with `--stage` so the machines restart once, at deploy. Check the names with `fly secrets list` (it shows names and digests only).
+
+> **Deviation from the standard, to close before the first real deployment.** The standards guide (FLY-IO-DEPLOYMENT §9, §11) says secrets and apps are set from the pipeline, not by hand, so environments cannot drift. `flyio.yml` does this for the database, authservice and the interview service's connection string only. The provider key, the Anthropic workspace id, the model, the Stripe keys and the price are **not** in the workflow yet. Until they are, the commands in this section are the one-time manual bootstrap: run them once, record in the release gate that you did, and move the values into the workflow (as GitHub `dev` environment secrets) in a separate change. Do not keep them only in your shell history.
 
 **Interview service** (`exit-interview-agent-interview-service-dev`):
 
@@ -158,7 +160,7 @@ Interview sessions live **in memory** (web-app-plan §3, ADR-0076). A deploy, a 
 
 ### 2. Utworzenie aplikacji (przykłady, nie uruchomione)
 
-Workflow `flyio.yml` tworzy brakujące aplikacje idempotentnie po wypchnięciu taga. Dopóki wdrożenie nie jest zdecydowane, możesz je utworzyć ręcznie, raz:
+Workflow `flyio.yml` tworzy brakujące aplikacje idempotentnie po wypchnięciu taga. Dopóki wdrożenie nie jest zdecydowane, przewodnik woli pipeline (FLY-IO-DEPLOYMENT §11); polecenia poniżej to udokumentowany plan awaryjny, uruchomiony raz i zapisany:
 
 ```bash
 fly apps create exit-interview-agent-postgres --org personal
@@ -173,6 +175,8 @@ Wolumen bazy tworzy się raz, w regionie aplikacji (`fra`). Nie dodawaj drugiej 
 ### 3. Sekrety: co ustawić i gdzie
 
 Sekrety ustawiasz przez `fly secrets set`, nigdy w pliku `.toml`, w commicie, PR, czacie ani dokumencie. Używaj `--stage`, żeby maszyny zrestartowały się raz, przy wdrożeniu. Nazwy sprawdzisz przez `fly secrets list` (pokazuje nazwy i skróty, nie wartości).
+
+> **Odstępstwo od standardu, do zamknięcia przed pierwszym prawdziwym wdrożeniem.** Przewodnik ze standardów (FLY-IO-DEPLOYMENT §9, §11) mówi, że sekrety i aplikacje ustawia się z pipeline, a nie ręcznie, żeby środowiska się nie rozjeżdżały. `flyio.yml` robi to dla bazy, authservice i connection stringu usługi wywiadu. Klucz dostawcy, identyfikator workspace, model, klucze Stripe i cena **nie** są jeszcze w workflow. Do tego czasu polecenia z tej sekcji to jednorazowy ręczny bootstrap: uruchom je raz, zapisz w bramkach wydania, że to zrobiono, i przenieś wartości do workflow (jako sekrety środowiska `dev` w GitHub) osobną zmianą. Nie trzymaj ich tylko w historii powłoki.
 
 **Usługa wywiadu** (`exit-interview-agent-interview-service-dev`):
 
