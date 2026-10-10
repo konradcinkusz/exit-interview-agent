@@ -31,5 +31,7 @@ If a release for the tag already exists the workflow stops. To redo a release, d
 
 ## Using it with your own apps
 
+The `tiles` command (draft texts from a record, [ADR-0074](../adr/0074-draft-tiles-from-the-record.md)) is in releases built after PR #29; `v0.1.0-pre.1`, tagged at `de48f46`, does not have it.
+
 - **With a model of your choice:** `interview --provider anthropic` (your own API key), `--provider openai-compatible` or `--provider ollama` (local). A Claude or GitHub Copilot *subscription* cannot be used as the model backend; this is deliberate (README, "Supported model access").
 - **With the Claude app:** that is the MCP mode, which needs a hosted server; see [`../guides/connect-claude.md`](../guides/connect-claude.md). It cannot talk to a server on your own machine unless that server is reachable from the internet over https.

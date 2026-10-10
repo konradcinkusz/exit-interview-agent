@@ -874,6 +874,43 @@ test end-to-end w \texttt{tests/\allowbreak{}ExitInterviewAgent.\allowbreak{}Int
 Publikowane liczby usuwają rekord dopiero przy następnej aktualizacji
 (sekcja~\ref{sec:sygnaly}).
 
+\subsection{\texttt{tiles}: kafelki z rekordu}
+
+\komenda{tiles --record <plik>} zamienia zwalidowany rekord (plik zapisany przez
+\komenda{interview --out}) w krótkie teksty-propozycje (ADR-0074). Są najwyżej
+sześć kafelków, po jednym na rodzaj: zestawienie ocen zbudowane przez kod oraz teksty
+napisane przez model, które przechodzą strażnika po stronie kodu. Tekst, który nie
+przejdzie, jest \emph{odrzucany i liczony}, nigdy poprawiany; wyjście pokazuje tylko
+kody powodów. Komenda czyta \emph{rekord}, nie transkrypt.
+
+Do zewnętrznego dostawcy rekord wysyłany jest dopiero po wpisaniu \texttt{yes} (jak w
+\komenda{interview}); \texttt{mock} i model lokalny nic nie wysyłają. Nic nie jest
+publikowane. Pliki \texttt{tiles.json} i \texttt{tiles.html} powstają tylko przy
+\texttt{--out} i są zawsze nowe; istniejących plików komenda nie nadpisuje. Kody wyjścia
+z \repopath{src/ExitInterviewAgent.Cli/TilesCommand.cs} (klasa \texttt{Exit}):
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X@{}}
+\toprule
+Kod & \texttt{tiles} \\
+\midrule
+0 & wynik wypisany; odrzucone teksty są liczone, to nie błąd \\
+2 & użycie lub konfiguracja (także brak klucza, brak modelu, istniejący plik w \texttt{--out}) \\
+3 & brak potwierdzenia dostawcy zewnętrznego; nic nie wysłano \\
+4 & rekord nie przeszedł lokalnej kontroli; nic nie wysłano \\
+5 & awaria dostawcy; żadnych kafelków nie zapisano \\
+130 & przerwane (Ctrl-C) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Wyjście tekstowe i HTML zawierają nagłówek, że to propozycje, a program nie weryfikuje
+faktów i nic nie publikuje; wyjście JSON tego nagłówka nie zawiera. Teksty z modelu
+\texttt{mock} są mechaniczne, a z prawdziwym modelem komenda \textbf{nie była
+testowana}: nie wiadomo, jakie teksty by napisała ani ile by kosztowały. Przebieg
+i typowe błędy: ćwiczenie~9 (sekcja~\ref{cw:kafelki}).
+
 \section{Podłączenie Claude przez MCP}
 \label{sec:mcp}
 
@@ -1461,6 +1498,7 @@ Komenda & Co robi & Status w tej sesji \\
 \texttt{exit-\allowbreak{}interview interview --provider anthropic|openai-\allowbreak{}compatible|ollama ...} & prawdziwy wywiad & ujawnienie sprawdzone; sam wywiad \textbf{nieprzetestowany} \\
 \texttt{exit-\allowbreak{}interview submit --record f --server u [--save-\allowbreak{}receipt f] [--yes]} & wysłanie rekordu & podgląd i odmowy sprawdzone; sukces \textbf{nieprzetestowany} \\
 \texttt{exit-\allowbreak{}interview delete-\allowbreak{}receipt --server u} & usunięcie po paragonie & kontrola kodu sprawdzona; 204 \textbf{nieprzetestowane} \\
+\texttt{exit-\allowbreak{}interview tiles --record f [--provider p --model m] [--out d] [--format text|html|json]} & kafelki z rekordu, ADR-0074 & mock i kody 0, 2, 3, 4 sprawdzone; prawdziwy model \textbf{nieprzetestowany} \\
 \texttt{scripts/\allowbreak{}run-\allowbreak{}evals.\allowbreak{}sh [validate|gate|report|calibrate]} & harness offline & uruchomione w całości \\
 \texttt{dotnet run --project src/\allowbreak{}ExitInterviewAgent.\allowbreak{}Eval -- profiles} & dostępne profile & uruchomione \\
 \texttt{... Eval -- run --profile <nazwa> --out report/\allowbreak{}} & raport; prawdziwy model & mock: tak; prawdziwy: \textbf{nie} \\
