@@ -54,6 +54,7 @@ public sealed class PersonaInterviewee : IInterviewee
             TurnKind.Probe => ($"probe:{topic}", ByTopic(r.Probes, topic)),
             TurnKind.Clarification => ($"clarification:{topic}", ByTopic(r.Clarifications, topic)),
             TurnKind.Redirect => ($"redirect:{topic}", ByTopic(r.Redirects, topic)),
+            TurnKind.DeepProbe => ($"deep:{topic}", ByTopic(r.DeepProbes, topic)),
             _ => ("fallback", r.Fallback),
         };
         alternatives ??= r.Fallback;

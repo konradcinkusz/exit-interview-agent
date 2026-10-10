@@ -18,8 +18,9 @@ internal static class Helpers
     /// <summary>Signals for a plain, substantive answer; override what the case is about.</summary>
     public static ReplySignals Signals(
         int words = 30, bool withdrawal = false, ConsentAnswer consent = ConsentAnswer.Yes, bool terse = false, bool vague = false,
-        bool hostile = false, bool contradiction = false, bool names = false, bool injection = false, int polarity = 0) =>
-        new(words, withdrawal, consent, terse, vague, hostile, contradiction, names, injection, polarity);
+        bool hostile = false, bool contradiction = false, bool names = false, bool injection = false, int polarity = 0,
+        bool serious = false, int covered = 0) =>
+        new(words, withdrawal, consent, terse, vague, hostile, contradiction, names, injection, polarity, serious, covered);
 
     public static InterviewMachine Started(out Step first)
     {

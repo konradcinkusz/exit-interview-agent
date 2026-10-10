@@ -79,6 +79,7 @@
         },
         "probes": { "$ref": "#/$defs/byTopic" },
         "clarifications": { "$ref": "#/$defs/byTopic" },
+        "deepProbes": { "$ref": "#/$defs/byTopic" },
         "redirects": { "$ref": "#/$defs/byTopic" },
         "fallback": { "$ref": "#/$defs/alternatives" }
       }

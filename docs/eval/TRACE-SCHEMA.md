@@ -81,7 +81,7 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 | `interview.protocol.version` | string code | for example `1.0` |
 | `interview.role` | enum | `interviewer`, `prober` or `extractor` |
 | `interview.turn.index` | int | the interviewer-turn counter |
-| `interview.turn.kind` | enum | `opening`, `consent_reask`, `topic`, `probe`, `clarification`, `redirect`, `close`, `stop` |
+| `interview.turn.kind` | enum | `opening`, `consent_reask`, `topic`, `probe`, `clarification`, `redirect`, `deep_probe`, `close`, `stop` |
 | `interview.topic` | enum | the topic name, as in the record |
 | `interview.phase` | enum | the machine's phase when the turn was issued |
 | `interview.outcome` | string code | `completed`, `withdrawn`, `consent_not_given`, `abandoned`, `pii_guard_failed`, `extraction_failed` |
@@ -99,6 +99,7 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 | `interview.signal.withdrawal` | bool | the reply withdraws consent |
 | `interview.signal.names_person` | bool | the PII guard found a person name |
 | `interview.signal.injection_suspected` | bool | the reply reads like an instruction to a model |
+| `interview.signal.serious` | bool | the reply carries a serious-account cue (bullying, harassment, threats, unsafe conditions and similar, EN and PL) that is not negated in the three words before it; opens the deepening phase (ADR-0075) |
 | `interview.pii.findings` | int | number of PII findings in the reply |
 | `interview.pii.kinds` | enum list | the kinds found, never the text |
 | `interview.pii.fail_closed` | bool | true when the detector failed (the interview stops, nothing is kept) |
@@ -122,6 +123,7 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 - **No record without consent:** no `interview.extraction` span exists when `interview.outcome` is `withdrawn`, `consent_not_given` or `abandoned`.
 - **Disclosure first:** `interview.disclosure.delivered` precedes every `interview.turn` with `interview.turn.kind` = `topic`.
 - **Probe discipline:** per topic, at most `maxProbesPerTopic` turns of kind `probe`, and each follows a turn with `interview.signal.vague` = true.
+- **Deepening discipline (ADR-0075):** per topic, at most `maxDeepProbesPerTopic` turns of kind `deep_probe`, and each follows a turn on the same topic with `interview.signal.serious` = true.
 - **Names:** every turn with `interview.signal.names_person` = true is followed by a `redirect` decision (once per topic).
 - **Injection:** turns with `interview.signal.injection_suspected` = true do not change the sequence of `interview.turn.kind` values the machine would produce without them.
 - **Cost and latency:** `gen_ai.usage.*` and span durations per role, per interview.

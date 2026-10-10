@@ -123,7 +123,7 @@ public class CorpusTests
     {
         var rows = Corpus.SpecRows();
 
-        Assert.Equal(12, rows.Keys.Count(k => k.StartsWith("C-", StringComparison.Ordinal)));
+        Assert.Equal(13, rows.Keys.Count(k => k.StartsWith("C-", StringComparison.Ordinal)));
         Assert.Equal(10, rows.Keys.Count(k => k.StartsWith("B-", StringComparison.Ordinal)));
         Assert.All(rows.Where(r => r.Key != "B-10"), r => Assert.NotEmpty(r.Value));
     }

@@ -158,7 +158,7 @@ judge, must treat them as inert data (the record schema already says so). The cu
 
 ## Budgets
 
-Numbers live in the protocol's `limits`: interviewer turns (40), model calls (60), estimated tokens (60,000), reply length (2,000 characters), terse threshold (3 words) and streak (3), hostile replies to close (2), probes, clarifications and redirects per topic (1 each), consent asks (2). The model-call and token budgets count through
+Numbers live in the protocol's `limits` (protocol 1.2): interviewer turns (60), model calls (90), estimated tokens (90,000), reply length (2,000 characters), terse threshold (3 words) and streak (3), hostile replies to close (2), probes, clarifications and redirects per topic (1 each), deep probes per topic (4, the deepening below), consent asks (2). The model-call and token budgets count through
 `MeteredChatClient` (provider-reported usage when present, otherwise four characters per token); reaching one closes the interview gracefully and extraction still runs (its two calls are not counted against the budget). The defaults are starting values, not measured optima; `InterviewProtocol.WithLimits` overrides them. With a real provider ([providers](providers.md), T6) a **hard** ceiling sits above this graceful one (twice the tokens, the calls plus the extractor's attempts) and stops the next call outright; a fatal provider failure (bad key, spent budget, a provider that fails three calls in a row) ends the interview with nothing kept instead of degrading to the protocol's wording ([ADR-0034](../adr/0034-resilience-budget-and-failure-semantics.md)).
 
 ## What the deterministic heuristics can and cannot do
@@ -203,9 +203,19 @@ The public API for T7 is `PersonaCatalog` (`All`, `Get`, `TryGet`, `Parse`), `Pe
 
 **Adding a persona:** add a JSON file under `Data/`, keep it synthetic, fill every topic, declare `expected`, run `dotnet test`. A persona's text is behaviour: changing it changes every consumer's results.
 
+## Limits of the deepening and the Polish rules (protocol 1.2, ADR-0075)
+
+- **Deepening.** A reply with a serious-account cue (bullying, mobbing, harassment, discrimination, threats, retaliation, unsafe conditions, wage theft, humiliation and similar, in English and Polish) opens up to four neutral follow-up questions on its topic. Each asks the next element of a fixed menu that the reply has not already described: what happened, roughly when and how often, which roles (never names), what the interviewee did and how the company responded, how it ended and what it meant. The menu's order and element names are code; the wording is the protocol's `deepeningSeeds`, which a model may reword and the question guard checks. Withdrawal, hostility and a name keep their priority. The interviewer says once, before the first deepening question, that the interviewee may skip or stop (`deepeningReminder`). The deepening never goes past the interviewer-turn budget.
+- **The reflective sentence.** The interviewer and prober prompts allow one short sentence that reflects the interviewee's own words, with no judgement, reassurance, legal or medical conclusion or suggestion of what to say, and no question mark. The question guard still allows one question in the whole output, so the sentence cannot ask a second thing. Gender is not guessed: gender-neutral wording, or "Pan/Pani" in Polish.
+- **The serious-account cue list is lexical.** It is a fixed floor of word stems in English and Polish. It misses a paraphrase it does not name ("they made my life impossible" is not serious), and a Polish inflection the stem does not reach. A three-word window before a cue (`nie`, `bez`, `no`, `never`, `without`, `not`, `n't`) makes it a negated mention, so "there was no bullying" does not deepen; a negation after the cue, or outside the window, is read as affirmed. A term used in a harmless sense can deepen an interview, and the cost is a few neutral questions.
+- **The deepening menu's cues are lexical too.** A reply that describes an element in words the menu does not list is asked about again. A reply describes an element only in the reply that gives it: an element the interviewee covered two replies earlier can be asked about.
+- **Polish cue lists and question rules are small and tested only in unit tests** and in the two Polish scenarios (hap-003, con-003). Inflected forms outside the stems are missed; the cue list is not a classifier. Polish contradiction detection is not supported: the polarity cues are English, so a contradiction in Polish is not clarified.
+- **The PII detector reads the genitive "Pana" as a person name** (see [pii-detector](../privacy/pii-detector.md)). A Polish question that contains "dla Pana" is therefore rejected by the question guard and replaced by the protocol's wording. The protocol avoids the form in its own deepening wording; a model that uses it falls back, which is graceful but not what the model was asked for.
+- **Wording with a real model is not measured.** The mock echoes the seeds, so the eval proves the machine (the order, the limit, the reminder, the withdrawal, the name redirect), not that a model words a good reflective sentence or a neutral follow-up.
+
 ## Known limits
 
-- English only (protocol, cue lists, personas); Polish appears only in a few withdrawal and consent phrases.
+- English and Polish only (protocol, cue lists and the question guard); the Polish corpus is two scenarios and the Polish personas are synthetic.
 - The interactive terminal interviewee exists (T6, [ADR-0036](../adr/0036-cli-interview-and-providers-commands.md)); the CLI submits only through `submit`, after a typed confirmation (T11, [ADR-0057](../adr/0057-cli-submit-and-delete-receipt-commands.md)).
 - Heuristic reading of vagueness and contradiction (above), with no measured accuracy yet.
 - The quote step guards fidelity, not truth: a verbatim quote can still be a lie the interviewee told ([OPEN-PROBLEMS](../OPEN-PROBLEMS.md)).

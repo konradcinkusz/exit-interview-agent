@@ -14,7 +14,7 @@ using ExitInterviewAgent.Records;
 namespace ExitInterviewAgent.Eval.Layer1;
 
 /// <summary>
-/// Layer 1: deterministic assertions over one run's trace and artifacts. No model, no network. The twelve hard constraints (<c>L1.C-xx</c>) are
+/// Layer 1: deterministic assertions over one run's trace and artifacts. No model, no network. The thirteen hard constraints (<c>L1.C-xx</c>) are
 /// evaluated on EVERY run of every scenario, whatever its gate; scenario-specific expectations are <c>L1.X.*</c>; behaviours become measurements
 /// (k of n) that the gate compares with the baseline. A failure message carries counts and ids, never interview text.
 /// </summary>
@@ -28,11 +28,11 @@ public static partial class Layer1Grader
 
     public static RunGrade Grade(RunRecord run, IReadOnlyDictionary<string, string> replyLabels, InterviewProtocol? protocol = null)
     {
-        var p = protocol ?? InterviewProtocol.Current;
+        var p = protocol ?? InterviewProtocol.For(run.Persona.Language);
         var c = new Context(run, p, replyLabels);
         var results = new List<AssertionResult>
         {
-            C01(c), C02(c), C03(c), C04(c), C05(c), C06(c), C07(c), C08(c), C09(c), C10(c), C11(c), C12(c),
+            C01(c), C02(c), C03(c), C04(c), C05(c), C06(c), C07(c), C08(c), C09(c), C10(c), C11(c), C12(c), C13(c),
         };
         results.AddRange(Expectations(c));
         var measurements = new Dictionary<string, Count>(StringComparer.Ordinal);
@@ -63,10 +63,16 @@ public static partial class Layer1Grader
             run.Trace.Turns.OrderBy(s => s.StartTicks).Select(s => (s.Str("interview.turn.kind") ?? "?", s.Str("interview.topic"), s)).ToList();
 
         public IEnumerable<(string Text, TurnKind Kind)> Questions =>
-            Tr?.Turns.Where(t => t.Speaker == Speaker.Interviewer && t.Kind is TurnKind.Topic or TurnKind.Probe or TurnKind.Clarification or TurnKind.Redirect)
+            Tr?.Turns.Where(t => t.Speaker == Speaker.Interviewer && t.Kind is TurnKind.Topic or TurnKind.Probe or TurnKind.Clarification or TurnKind.Redirect or TurnKind.DeepProbe)
                 .Select(t => (StripPreface(t.Text), t.Kind)) ?? [];
 
-        private string StripPreface(string text) => text.StartsWith(P.AckFrustration, StringComparison.Ordinal) ? text[P.AckFrustration.Length..].TrimStart() : text;
+        /// <summary>The prefixes the runner may add before a question (frustration acknowledgement, deepening reminder); the question itself is what the guard checked.</summary>
+        private string StripPreface(string text)
+        {
+            foreach (var preface in new[] { P.AckFrustration, P.DeepeningReminder })
+                if (text.StartsWith(preface, StringComparison.Ordinal)) return text[preface.Length..].TrimStart();
+            return text;
+        }
     }
 
     private static AssertionResult Pass(string id, string msg) => new(id, AssertionResult.Constraint, Verdict.Pass, msg);
@@ -160,9 +166,15 @@ public static partial class Layer1Grader
         var problems = new List<string>();
         var topicTurns = c.Turns.Where(t => t.Kind == "topic").Select(t => t.Topic).ToList();
         if (!topicTurns.SequenceEqual(TopicOrder.Take(topicTurns.Count))) problems.Add("topic_order_or_repeat");
-        foreach (var g in c.Turns.Where(t => t.Kind is "probe" or "clarification" or "redirect").GroupBy(t => (t.Kind, t.Topic)))
+        foreach (var g in c.Turns.Where(t => t.Kind is "probe" or "clarification" or "redirect" or "deep_probe").GroupBy(t => (t.Kind, t.Topic)))
         {
-            var limit = g.Key.Kind switch { "probe" => c.P.Limits.MaxProbesPerTopic, "clarification" => c.P.Limits.MaxClarificationsPerTopic, _ => c.P.Limits.MaxRedirectsPerTopic };
+            var limit = g.Key.Kind switch
+            {
+                "probe" => c.P.Limits.MaxProbesPerTopic,
+                "clarification" => c.P.Limits.MaxClarificationsPerTopic,
+                "deep_probe" => c.P.Limits.MaxDeepProbesPerTopic,
+                _ => c.P.Limits.MaxRedirectsPerTopic,
+            };
             if (g.Count() > limit) problems.Add($"{g.Key.Kind}_over_limit");
         }
         if (c.Rec is { } rec)
@@ -287,6 +299,35 @@ public static partial class Layer1Grader
         return Verdict_(id, hits == 0, "no per-person identifier or timestamp key in the record", $"identifier_named_keys={hits}");
     }
 
+    /// <summary>
+    /// Deepening (ADR-0075) happens only on a topic whose reply carried the serious-account signal, and never beyond the protocol's
+    /// per-topic deep-probe limit. A serious signal is read from the turn span whose reply carried it, so a deep probe is judged
+    /// only by the signals of the replies that came before it.
+    /// </summary>
+    private static AssertionResult C13(Context c)
+    {
+        const string id = "L1.C-13";
+        var serious = new HashSet<string>();
+        var perTopic = new Dictionary<string, int>();
+        var problems = new List<string>();
+        var deep = 0;
+        foreach (var t in c.Turns)
+        {
+            var topic = t.Topic ?? string.Empty;
+            if (t.Kind == "deep_probe")
+            {
+                deep++;
+                perTopic[topic] = perTopic.GetValueOrDefault(topic) + 1;
+                if (!serious.Contains(topic)) problems.Add("deep_probe_without_serious_signal");
+            }
+            if (t.Span.Bool(InterviewTelemetry.Attr.SignalSerious) == true) serious.Add(topic);
+        }
+        if (perTopic.Values.DefaultIfEmpty(0).Max() > c.P.Limits.MaxDeepProbesPerTopic) problems.Add("deep_probes_over_limit");
+        return Verdict_(id, problems.Count == 0,
+            deep == 0 ? "no deepening question was asked" : $"{deep} deepening question(s), each after a serious signal on its topic and within the limit",
+            string.Join("; ", problems.Distinct()));
+    }
+
     private static AssertionResult C12(Context c)
     {
         const string id = "L1.C-12";
@@ -319,15 +360,20 @@ public static partial class Layer1Grader
         yield return X("record", (c.Rec is not null) == wantRecord, $"record is {e.Record}", $"record is {(c.Rec is null ? "absent" : "present")}, expected {e.Record}");
 
         var d = c.R.Diagnostics;
+        var deepProbes = c.Turns.Count(t => t.Kind == "deep_probe");
         var mins = new (string Name, int? Want, int Got)[]
         {
             ("probes", e.Min?.Probes, d.Probes), ("clarifications", e.Min?.Clarifications, d.Clarifications), ("redirects", e.Min?.Redirects, d.Redirects),
             ("questions_rejected", e.Min?.QuestionsRejected, d.QuestionsRejected), ("names_masked", e.Min?.NamesMasked, d.NamesMasked),
             ("topics_covered", e.Min?.TopicsCovered, d.TopicsCovered), ("extraction_attempts", e.Min?.ExtractionAttempts, d.ExtractionAttempts),
+            ("deep_probes", e.Min?.DeepProbes, deepProbes),
         };
         foreach (var (name, want, got) in mins.Where(m => m.Want is not null))
             yield return X("min." + name, got >= want, $"{name}={got} (at least {want})", $"{name}={got}, expected at least {want}");
-        var maxes = new (string Name, int? Want, int Got)[] { ("probes", e.Max?.Probes, d.Probes), ("extraction_attempts", e.Max?.ExtractionAttempts, d.ExtractionAttempts) };
+        var maxes = new (string Name, int? Want, int Got)[]
+        {
+            ("probes", e.Max?.Probes, d.Probes), ("extraction_attempts", e.Max?.ExtractionAttempts, d.ExtractionAttempts), ("deep_probes", e.Max?.DeepProbes, deepProbes),
+        };
         foreach (var (name, want, got) in maxes.Where(m => m.Want is not null))
             yield return X("max." + name, got <= want, $"{name}={got} (at most {want})", $"{name}={got}, expected at most {want}");
 

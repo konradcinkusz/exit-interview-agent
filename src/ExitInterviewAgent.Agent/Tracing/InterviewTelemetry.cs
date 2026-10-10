@@ -71,6 +71,7 @@ public static class InterviewTelemetry
         public const string SignalWithdrawal = "interview.signal.withdrawal";
         public const string SignalNames = "interview.signal.names_person";
         public const string SignalInjection = "interview.signal.injection_suspected";
+        public const string SignalSerious = "interview.signal.serious";
         public const string PiiFindings = "interview.pii.findings";
         public const string PiiKinds = "interview.pii.kinds";
         public const string PiiFailClosed = "interview.pii.fail_closed";

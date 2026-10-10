@@ -23,7 +23,9 @@ public sealed record PersonaResponses(
     IReadOnlyDictionary<string, IReadOnlyList<string>>? Probes,
     IReadOnlyDictionary<string, IReadOnlyList<string>>? Clarifications,
     IReadOnlyDictionary<string, IReadOnlyList<string>>? Redirects,
-    IReadOnlyList<string> Fallback);
+    IReadOnlyList<string> Fallback,
+    /// <summary>Answers to the deepening questions (Y2), by topic or "*". Optional: a persona without them answers with the fallback.</summary>
+    IReadOnlyDictionary<string, IReadOnlyList<string>>? DeepProbes = null);
 
 /// <summary>What a correct agent run against this persona looks like. The e2e tests and the eval harness assert it.</summary>
 public sealed record PersonaExpectation(string Outcome, string EndReason, bool Submittable, int MinProbes = 0, int MinRedirects = 0, int MinClarifications = 0);

@@ -39,6 +39,10 @@ M=[
   "s.Vague && ProbesUsed < limits.MaxProbesPerTopic &&","s.Vague && ProbesUsed < 0 &&","the interviewer never asks for a concrete example (the degenerate way to avoid leading questions)"),
  ("M-12","names-not-redirected","src/ExitInterviewAgent.Agent/Roles/Abstractions.cs",
   "public bool NamesPerson => Findings.Any(f => f.Kind == PiiKind.PersonName);","public bool NamesPerson => false;","a masked name no longer triggers the redirect to behaviour and role"),
+ ("M-13","serious-account-does-not-deepen","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
+  "if (s.Serious || _deepening)","if (_deepening)","a serious account never opens the deepening phase (the interviewer moves on as if it were a plain answer)"),
+ ("M-14","deep-probe-limit-removed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
+  "if (DeepProbesUsed < limits.MaxDeepProbesPerTopic && NextFocus(s.DeepCovered) is { } focus)","if (NextFocus(s.DeepCovered) is { } focus)","the deepening is no longer bounded by maxDeepProbesPerTopic (it runs the whole menu)"),
 ]
 only=sys.argv[1:] 
 out=[]

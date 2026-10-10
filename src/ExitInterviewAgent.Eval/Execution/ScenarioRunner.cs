@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ExitInterviewAgent.Agent.Machine;
+using ExitInterviewAgent.Agent.Protocol;
 using ExitInterviewAgent.Agent.Runner;
 using ExitInterviewAgent.Eval.Scenarios;
 using ExitInterviewAgent.Personas;
@@ -61,6 +62,8 @@ public static partial class ScenarioRunner
         var clock = new Agent.Mock.SimulatedClock();
         var options = new InterviewOptions(persona.Employer.Ref, persona.Context.ToRecordContext())
         {
+            // The persona's language selects the protocol: a Polish persona is interviewed with the Polish wording (Y2).
+            Protocol = InterviewProtocol.For(persona.Language),
             EmployerNames = persona.Employer.Names.ToArray(),
             IdFactory = () => PersonaSession.DemoInterviewId(persona.Id, seed),
             Clock = clock,

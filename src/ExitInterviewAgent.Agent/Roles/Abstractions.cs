@@ -20,7 +20,7 @@ public interface IModelFailure
 }
 
 /// <summary>A request to word one interviewer turn. <see cref="Seed"/> is the protocol's own wording, also the fallback.</summary>
-public sealed record QuestionRequest(TurnKind Kind, Topic? Topic, string Seed, Transcript History);
+public sealed record QuestionRequest(TurnKind Kind, Topic? Topic, string Seed, Transcript History, DeepFocus? Focus = null);
 
 /// <summary>Words the topic questions, redirects and clarifications. Output is checked by <see cref="QuestionGuard"/>.</summary>
 public interface IInterviewer

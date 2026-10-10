@@ -237,6 +237,42 @@ replies:
   - text: "Nothing really, it was fine in general."
     label: vague
     rationale: "Evaluation only, no example (5 words)."
+  - text: "Pierwszy tydzień był spokojny, dostałem laptop w poniedziałek i dostęp do systemów po dwóch dniach."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Przełożony szykanował mnie przez cały rok, na każdym cotygodniowym spotkaniu zespołu, przy wszystkich."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Szkolenia były dostępne, ale zgłoszenie kursu w drugim roku zostało bez odpowiedzi przez cztery miesiące."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Wynagrodzenie zgadzało się z umową, ale przegląd obiecany po sześciu miesiącach odbył się dopiero po trzynastu."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Ludzie w zespole raczej unikali konfliktów, a nie było jasnych zasad zgłaszania problemów."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Odszedłem po dziewięciu miesiącach, bo nie mogłem dłużej pracować w takiej atmosferze."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "The first two weeks were fine: I had a laptop on day one and a clear reading list from a colleague."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "My manager harassed me every week in one to one meetings for about a year, and the comments were about my appearance."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Training was available, but my request for a course in my second year was left unanswered for four months."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "Pay matched the offer letter, but the review promised after six months only happened after thirteen months."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "People mostly avoided conflict, and there was no clear way to report problems."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "I left after nine months because I could not keep working under those conditions."
+    label: specific
+    rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
 pairs:
   - earlier: "My manager was great, really good, you know, generally fine."
     later: "Honestly there was no support at all, and decisions were chaotic and unfair, and nobody explained anything."
