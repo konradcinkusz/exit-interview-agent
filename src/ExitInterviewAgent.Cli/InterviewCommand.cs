@@ -218,15 +218,21 @@ internal static class InterviewCommand
     private static async Task PrintUsage(CliHost host, ProviderChatClient? provider, ProviderSettings settings)
     {
         if (provider is null) return;
+        await host.Out.WriteLineAsync().ConfigureAwait(false);
+        await host.Out.WriteLineAsync(UsageLine(provider)).ConfigureAwait(false);
+        _ = settings;
+    }
+
+    /// <summary>The one-line usage summary (calls, tokens, latency, cost or why there is none). Shared with <c>tiles</c>.</summary>
+    internal static string UsageLine(ProviderChatClient provider)
+    {
         var u = provider.Budget.Snapshot();
         var sb = new StringBuilder();
         sb.Append(CultureInfo.InvariantCulture, $"usage: model_calls={u.Calls} tokens_in={u.InputTokens} tokens_out={u.OutputTokens} model_latency={u.TotalLatency.TotalSeconds:F1}s");
         if (u.AnyEstimated) sb.Append(" (some counts estimated: the provider reported none)");
         if (u.Cost is { } cost) sb.Append(CultureInfo.InvariantCulture, $" cost={cost:F4} {u.Currency} (your prices x tokens)");
         else sb.Append(" cost=not computed (no prices configured)");
-        await host.Out.WriteLineAsync().ConfigureAwait(false);
-        await host.Out.WriteLineAsync(sb.ToString()).ConfigureAwait(false);
-        _ = settings;
+        return sb.ToString();
     }
 
     internal static string Pretty(string json)

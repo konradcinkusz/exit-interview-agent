@@ -9,5 +9,6 @@ internal static class CliFlags
         ["submit"] = SubmitCommand.Values.Union(SubmitCommand.Switches).ToHashSet(),
         ["delete-receipt"] = DeleteReceiptCommand.Values.Union(DeleteReceiptCommand.Switches).ToHashSet(),
         ["providers"] = ProviderOptions.ValueFlags,
+        ["tiles"] = TilesCommand.Values.Union(TilesCommand.Switches).ToHashSet(),
     };
 }
