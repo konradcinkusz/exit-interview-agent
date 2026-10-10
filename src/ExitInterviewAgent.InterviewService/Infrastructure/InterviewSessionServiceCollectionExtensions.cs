@@ -17,16 +17,19 @@ public static class InterviewSessionServiceCollectionExtensions
         services.AddSingleton<IInterviewModelFactory, ConfiguredInterviewModelFactory>();
         services.AddSingleton<InterviewSessions>();
         // Interviews:RequireCredit (ADR-0077): true in production, where a start takes one credit from the ledger; false in development and tests.
-        services.AddSingleton<ICreditRefund>(sp => RequiresCredit(sp) ? sp.GetRequiredService<LedgerCreditRefund>() : new NoopCreditRefund());
+        services.AddSingleton<ICreditSettlement>(sp => RequiresCredit(sp) ? sp.GetRequiredService<LedgerCreditSettlement>() : new NoopCreditSettlement());
         services.AddSingleton<ICreditGate>(sp => RequiresCredit(sp) ? sp.GetRequiredService<LedgerCreditGate>() : new AllowAllCreditGate());
         services.AddHostedService<InterviewSweeper>();
+        // The startup sweep (W11): one instance is also the one that runs it, so the test can await the same run the host made.
+        services.AddSingleton<LostSessionSweep>();
+        services.AddHostedService(sp => sp.GetRequiredService<LostSessionSweep>());
 
         // Optional and visible (P8): /health and the startup banner say whether interviews can start, and why not.
         var options = configuration.GetSection(InterviewServiceOptions.SectionName).Get<InterviewServiceOptions>() ?? new InterviewServiceOptions();
         var configured = options.Enabled && !string.IsNullOrWhiteSpace(options.Provider);
         services.AddIntegration("interviews", configured,
             !options.Enabled ? "disabled by Interviews:Enabled (emergency switch): new sessions answer 503"
-            : configured ? $"provider '{options.Provider}': new sessions use it; credits {(options.RequireCredit ? "required (the ledger: one credit per start, refunded on a failed session)" : "not required (development: starts are free)")}"
+            : configured ? $"provider '{options.Provider}': new sessions use it; credits {(options.RequireCredit ? "required (the ledger: one credit per start; a failed or lost session gets its credit back)" : "not required (development: starts are free)")}"
             : "no Interviews:Provider configured: new sessions answer 503");
         return services;
     }

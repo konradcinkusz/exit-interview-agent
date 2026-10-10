@@ -1,4 +1,5 @@
 using ExitInterviewAgent.InterviewService.Interviews;
+using ExitInterviewAgent.InterviewService.Persistence;
 using Microsoft.Extensions.Logging;
 
 namespace ExitInterviewAgent.InterviewService.Billing;
@@ -24,11 +25,12 @@ public sealed class LedgerCreditGate(CreditLedger ledger, ILogger<LedgerCreditGa
 }
 
 /// <summary>
-/// The W2 refund seam (<see cref="ICreditRefund"/>) backed by the ledger: the credit of a session that ended as failed comes back
-/// once. Called by the session once per session; a failure is logged by the caller (type only) and the session still ends.
+/// The settlement seam (<see cref="ICreditSettlement"/>) backed by the ledger (W11): a session's settlement row and, for a failed or
+/// lost session, its refund, in one transaction. Called by the session once when it ends; a failure is logged by the caller
+/// (type only) and the session still ends.
 /// </summary>
-public sealed class LedgerCreditRefund(CreditLedger ledger) : ICreditRefund
+public sealed class LedgerCreditSettlement(CreditLedger ledger) : ICreditSettlement
 {
-    public async ValueTask RefundAsync(string accountId, string sessionId, CancellationToken ct) =>
-        await ledger.RefundAsync(accountId, sessionId, ct).ConfigureAwait(false);
+    public ValueTask<bool> SettleAsync(string accountId, string sessionId, SessionOutcome outcome, CancellationToken ct) =>
+        new(ledger.SettleAsync(accountId, sessionId, outcome, ct));
 }

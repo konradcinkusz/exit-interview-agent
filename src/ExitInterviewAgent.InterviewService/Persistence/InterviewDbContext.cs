@@ -15,6 +15,7 @@ public sealed class InterviewDbContext(DbContextOptions<InterviewDbContext> opti
     public DbSet<TicketRow> SubmissionTickets => Set<TicketRow>();
     public DbSet<CreditEntry> CreditEntries => Set<CreditEntry>();
     public DbSet<PaymentEventRow> PaymentEvents => Set<PaymentEventRow>();
+    public DbSet<SessionSettlementRow> SessionSettlements => Set<SessionSettlementRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -24,11 +25,24 @@ public sealed class InterviewDbContext(DbContextOptions<InterviewDbContext> opti
             e.HasKey(c => c.Id);
             e.Property(c => c.Id).ValueGeneratedNever();
             e.Property(c => c.AccountRef).HasMaxLength(256).IsRequired();
-            e.Property(c => c.Reason).HasConversion<string>().HasMaxLength(16);
+            e.Property(c => c.Reason).HasConversion<string>().HasMaxLength(32);
             e.Property(c => c.Reference).HasMaxLength(128);
+            e.Property(c => c.StartedHour);
             e.HasIndex(c => c.AccountRef);
             // One purchase per payment event, one consume and one refund per session: the database decides a race.
             e.HasIndex(c => new { c.Reason, c.Reference }).IsUnique().HasDatabaseName(CreditReferenceIndex);
+        });
+
+        model.Entity<SessionSettlementRow>(e =>
+        {
+            e.ToTable("SessionSettlements");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Id).ValueGeneratedNever();
+            e.Property(s => s.SessionId).HasMaxLength(64).IsRequired();
+            e.Property(s => s.AccountRef).HasMaxLength(256).IsRequired();
+            e.Property(s => s.Outcome).HasConversion<string>().HasMaxLength(16);
+            // One settlement per session: the first writer decides, a second writer (or a second instance) finds the row (W11).
+            e.HasIndex(s => s.SessionId).IsUnique().HasDatabaseName(SessionSettlementIndex);
         });
 
         model.Entity<PaymentEventRow>(e =>
@@ -96,4 +110,5 @@ public sealed class InterviewDbContext(DbContextOptions<InterviewDbContext> opti
     public const string LedgerTagIndex = "IX_SubmissionLedger_Tag";
     public const string CreditReferenceIndex = "IX_CreditEntries_Reason_Reference";
     public const string PaymentEventIndex = "IX_PaymentEvents_ProviderEventId";
+    public const string SessionSettlementIndex = "IX_SessionSettlements_SessionId";
 }

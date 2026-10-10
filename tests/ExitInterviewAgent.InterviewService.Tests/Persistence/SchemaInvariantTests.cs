@@ -14,15 +14,23 @@ public static class SchemaGolden
         ["SubmissionLedger"] = ["Id", "KeyId", "Tag", "CreatedWeek"],
         ["Receipts"] = ["Id", "CodeHash", "RecordId"],
         ["SubmissionTickets"] = ["Id", "TokenHash", "Sub", "ExpiresAt"],
-        ["CreditEntries"] = ["Id", "AccountRef", "Delta", "Reason", "Reference", "CreatedWeek"],
+        ["CreditEntries"] = ["Id", "AccountRef", "Delta", "Reason", "Reference", "CreatedWeek", "StartedHour"],
         ["PaymentEvents"] = ["Id", "ProviderEventId", "Kind", "AccountRef", "Quantity", "AmountMinorUnits", "Currency", "ReceivedWeek"],
+        ["SessionSettlements"] = ["Id", "SessionId", "AccountRef", "Outcome", "SettledWeek"],
     };
 
-    /// <summary>The only columns that hold an account: the ticket's subject (short-lived) and the credit and payment rows (W3).</summary>
-    public static readonly string[] AccountHolders = ["SubmissionTickets.Sub", "CreditEntries.AccountRef", "PaymentEvents.AccountRef"];
+    /// <summary>The only columns that hold an account: the ticket's subject (short-lived), the credit and payment rows (W3), and the settlement row (W11).</summary>
+    public static readonly string[] AccountHolders = ["SubmissionTickets.Sub", "CreditEntries.AccountRef", "PaymentEvents.AccountRef", "SessionSettlements.AccountRef"];
 
     /// <summary>Columns that hold a value derived from an account subject, or the subject itself.</summary>
-    public static readonly string[] SubjectDerived = ["SubmissionLedger.Tag", "SubmissionLedger.KeyId", "SubmissionTickets.Sub", "CreditEntries.AccountRef", "PaymentEvents.AccountRef"];
+    public static readonly string[] SubjectDerived = ["SubmissionLedger.Tag", "SubmissionLedger.KeyId", "SubmissionTickets.Sub", "CreditEntries.AccountRef", "PaymentEvents.AccountRef", "SessionSettlements.AccountRef"];
+
+    /// <summary>
+    /// The one timestamp in the credit ledger (W11): the hour a consume started, set on consume rows only. It is an hour, not a
+    /// day or a week, because the startup sweep needs to know a session is older than its idle window; the hour is the coarsest
+    /// bucket that keeps that test to within an hour. Its slack is recorded in ADR-0077.
+    /// </summary>
+    public static readonly string[] HourBuckets = ["CreditEntries.StartedHour"];
 
     /// <summary>Columns that identify, or can be joined to, a stored record.</summary>
     public static readonly string[] RecordIdentifying =
@@ -61,7 +69,7 @@ public sealed class SchemaInvariantTests
     public void Only_the_named_tables_hold_an_account_column()
     {
         // Credits and payments belong to an account by definition (W3); the record, receipt and ledger tables stay account-free.
-        Assert.Equal(["CreditEntries.AccountRef", "PaymentEvents.AccountRef", "SubmissionTickets.Sub"], SchemaGolden.AccountHolders.Order().ToArray());
+        Assert.Equal(["CreditEntries.AccountRef", "PaymentEvents.AccountRef", "SessionSettlements.AccountRef", "SubmissionTickets.Sub"], SchemaGolden.AccountHolders.Order().ToArray());
     }
 
     [Fact]
@@ -97,7 +105,8 @@ public sealed class SchemaInvariantTests
     {
         var known = SchemaGolden.SubjectDerived.Concat(SchemaGolden.RecordIdentifying)
             .Concat(["SubmissionLedger.Id", "SubmissionLedger.CreatedWeek", "SubmissionTickets.Id", "SubmissionTickets.TokenHash", "SubmissionTickets.ExpiresAt"])
-            .Concat(["CreditEntries.Id", "CreditEntries.Delta", "CreditEntries.Reason", "CreditEntries.Reference", "CreditEntries.CreatedWeek"])
+            .Concat(["CreditEntries.Id", "CreditEntries.Delta", "CreditEntries.Reason", "CreditEntries.Reference", "CreditEntries.CreatedWeek", "CreditEntries.StartedHour"])
+            .Concat(["SessionSettlements.Id", "SessionSettlements.SessionId", "SessionSettlements.Outcome", "SessionSettlements.SettledWeek"])
             .Concat(["PaymentEvents.Id", "PaymentEvents.ProviderEventId", "PaymentEvents.Kind", "PaymentEvents.Quantity", "PaymentEvents.AmountMinorUnits", "PaymentEvents.Currency", "PaymentEvents.ReceivedWeek"]);
 
         var all = SchemaGolden.Columns.SelectMany(t => t.Value.Select(c => $"{t.Key}.{c}"));
@@ -154,7 +163,7 @@ public sealed class SchemaInvariantTests
             var type = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
             if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
             {
-                Assert.Equal(("SubmissionTickets", "ExpiresAt"), (table, property.GetColumnName()));
+                Assert.Contains($"{table}.{property.GetColumnName()}", new[] { "SubmissionTickets.ExpiresAt" }.Concat(SchemaGolden.HourBuckets));
             }
         }
         Assert.Equal(typeof(DateOnly), Model().FindEntityType(typeof(RecordRow))!.FindProperty(nameof(RecordRow.CreatedWeek))!.ClrType);

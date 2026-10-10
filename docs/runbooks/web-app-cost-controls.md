@@ -85,6 +85,12 @@ Work through these in order. Stop as soon as the cost is under control.
 
 No interview text, no account identifier, no address and no key appears in a metric, a log line or this runbook. If you find one in a log, treat it as a bug and report it; do not paste the line anywhere.
 
+### 7. Sessions lost at a restart (credits returned by the startup sweep)
+
+Sessions live in memory, so a restart ends every open interview. Each one's credit was spent when it started; the startup sweep returns it. Each start of the service runs a sweep that settles every credit with no settlement row, that started more than 95 minutes before it (a 30-minute idle window, a 5-minute margin, and up to an hour of rounding, because a start is recorded to its hour), and that this process does not hold. Each is returned with the reason `RefundLostSession` and its settlement is written as `lost`. Count them with `interviews_lost_refunded` (no labels). A restart does not return a credit of a session started within that window: the first start after the window does.
+
+What to do: after a restart, read the counter. A high number means many interviews were open when the process stopped (a deploy at a busy hour, or a crash); compare it with `interviews_started` and `interviews_failed` for the same period before you act. Do not edit the ledger by hand: the sweep is idempotent, and a manual row would break the one-settlement-per-session rule. To check one session, the settlement row is the only record; its session id is never in a log line.
+
 ---
 
 ## Polski
@@ -165,3 +171,9 @@ Przejdź po kolei. Zatrzymaj się, gdy koszt jest pod kontrolą.
 ### 6. Czego usługa nigdy nie zapisuje ani nie loguje
 
 Żaden tekst rozmowy, identyfikator konta, adres ani klucz nie pojawia się w metryce, w linii logu ani w tym runbooku. Jeśli znajdziesz któryś w logu, traktuj to jako błąd i zgłoś; nie wklejaj tej linii nigdzie.
+
+### 7. Sesje przerwane restartem (kredyty zwracane przez sweep przy starcie)
+
+Sesje żyją w pamięci, więc restart kończy wszystkie otwarte rozmowy. Kredyt każdej z nich został zużyty przy starcie; sweep przy starcie usługi go zwraca. Przy każdym starcie usługi sweep rozlicza wszystkie kredyty bez wiersza rozliczenia, rozpoczęte więcej niż 95 minut przed tym startem (okno bezczynności 30 minut, margines 5 minut i do godziny zaokrąglenia, bo start zapisywany jest z dokładnością do godziny), których proces nie trzyma. Każdy zwracany jest z powodem `RefundLostSession`, a jego rozliczenie zapisywane jest jako `lost`. Liczbę mierz metryką `interviews_lost_refunded` (bez etykiet). Kredyt sesji rozpoczętej w tym oknie nie wraca przy tym restarcie, tylko przy pierwszym starcie po jego upływie.
+
+Co zrobić: po restarcie odczytaj licznik. Duża liczba oznacza, że w chwili zatrzymania było otwartych wiele rozmów (wdrożenie w godzinie szczytu albo awaria); porównaj ją z `interviews_started` i `interviews_failed` z tego samego okresu, zanim cokolwiek zrobisz. Nie edytuj ręcznie ledgera: sweep jest idempotentny, a ręczny wiersz złamałby regułę jednego rozliczenia na sesję. Rozliczenie sesji to jedyny ślad; jej identyfikator nigdy nie trafia do linii logu.

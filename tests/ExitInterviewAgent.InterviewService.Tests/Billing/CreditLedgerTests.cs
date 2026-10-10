@@ -1,4 +1,5 @@
 using ExitInterviewAgent.InterviewService.Billing;
+using ExitInterviewAgent.InterviewService.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ExitInterviewAgent.InterviewService.Tests.Billing;
@@ -8,6 +9,7 @@ namespace ExitInterviewAgent.InterviewService.Tests.Billing;
 /// a failed session gives it back once, and parallel requests cannot spend the last credit twice. The PostgreSQL run of the same
 /// races, with the database's own unique indexes, is in <see cref="PostgresCreditTests"/>.
 /// </summary>
+[Collection(BillingCollection.Name)]
 public sealed class CreditLedgerTests : IDisposable
 {
     private readonly BillingHost _host = new();
@@ -64,16 +66,16 @@ public sealed class CreditLedgerTests : IDisposable
     }
 
     [Fact]
-    public async Task A_refund_returns_the_credit_once_and_only_for_a_session_that_consumed_one()
+    public async Task A_failed_session_returns_the_credit_once_and_only_for_a_session_that_consumed_one()
     {
         var ledger = await LedgerAsync();
         var account = BillingTestIds.Account();
         await ledger.RecordPurchaseAsync(Purchase(BillingTestIds.EventId(), account, 1), CancellationToken.None);
         Assert.True(await ledger.ConsumeAsync(account, "sess-r", CancellationToken.None));
 
-        await ledger.RefundAsync(account, "sess-r", CancellationToken.None);
-        await ledger.RefundAsync(account, "sess-r", CancellationToken.None);
-        await ledger.RefundAsync(account, "sess-never-consumed", CancellationToken.None);
+        await ledger.SettleAsync(account, "sess-r", SessionOutcome.Failed, CancellationToken.None);
+        await ledger.SettleAsync(account, "sess-r", SessionOutcome.Failed, CancellationToken.None);
+        await ledger.SettleAsync(account, "sess-never-consumed", SessionOutcome.Failed, CancellationToken.None);
 
         Assert.Equal(1, await ledger.BalanceAsync(account, CancellationToken.None));
     }

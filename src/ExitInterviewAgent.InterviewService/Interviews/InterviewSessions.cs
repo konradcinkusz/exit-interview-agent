@@ -6,6 +6,7 @@ using ExitInterviewAgent.Agent.Runner;
 using ExitInterviewAgent.Agent.Tiles;
 using ExitInterviewAgent.Contracts;
 using ExitInterviewAgent.InterviewService.Interviews.CostControls;
+using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.Records;
 using Microsoft.Extensions.Options;
 
@@ -20,14 +21,14 @@ public readonly record struct Api<T>(T? Value, int Status, string? Code)
 
 /// <summary>
 /// The session API (web-app-plan §10): start, reply, state, result, delete. It owns the rules the endpoints must not repeat:
-/// ownership, the one open session, the credit, the refund of a failed session, and the end of a background interview.
-/// Nothing here logs or traces interview text (ADR-0076).
+/// ownership, the one open session, the credit, the settlement of every session when it ends (W11: a failed session's credit comes
+/// back in the same write), and the end of a background interview. Nothing here logs or traces interview text (ADR-0076).
 /// </summary>
 public sealed class InterviewSessions(
     InterviewSessionStore store,
     IInterviewModelFactory models,
     ICreditGate credits,
-    ICreditRefund refunds,
+    ICreditSettlement settlements,
     IOptionsMonitor<InterviewServiceOptions> options,
     TimeProvider clock,
     CostMetrics metrics,
@@ -111,13 +112,39 @@ public sealed class InterviewSessions(
         return Api<InterviewResultResponse>.Ok(200, session.Result);
     }
 
-    /// <summary>Withdraws the session and wipes it. No refund: the person chose this.</summary>
-    public bool Delete(string owner, string id)
+    /// <summary>
+    /// Withdraws the session and wipes it. No refund: the person chose this, and the withdrawal is its settlement (W11). A session
+    /// that had already finished was settled when it finished, so deleting it writes nothing.
+    /// </summary>
+    public async Task<bool> DeleteAsync(string owner, string id, CancellationToken ct)
     {
         var open = store.Find(owner, id, out var session) == SessionLookup.Found && session is { IsTerminal: false };
         var removed = store.Remove(owner, id);
-        if (removed && open) metrics.Withdrawn();
+        if (removed && open)
+        {
+            metrics.Withdrawn();
+            await SettleQuietlyAsync(owner, id, SessionOutcome.Withdrawn).ConfigureAwait(false);
+        }
         return removed;
+    }
+
+    /// <summary>
+    /// Settles the sessions that expiry wiped since the last call (the sweeper calls this every 30 seconds). An expired session that
+    /// had finished is settled with its own outcome again: the write is idempotent, so this retries a settlement that failed; an
+    /// expired open one (the person went away) is settled as stopped, which keeps its credit, as it did before W11.
+    /// </summary>
+    public async Task SettleEndedAsync()
+    {
+        foreach (var session in store.TakeEnded())
+        {
+            var outcome = session.Status switch
+            {
+                SessionStatus.Completed => SessionOutcome.Completed,
+                SessionStatus.Failed => SessionOutcome.Failed,
+                _ => SessionOutcome.Stopped,
+            };
+            await SettleQuietlyAsync(session.Owner, session.Id, outcome).ConfigureAwait(false);
+        }
     }
 
     private SessionLookup Lookup(string owner, string id, out InterviewSession? session) => store.Find(owner, id, out session);
@@ -201,7 +228,10 @@ public sealed class InterviewSessions(
         }
     }
 
-    /// <summary>The first ending wins. A failed session returns its credit once; a stopped or completed one keeps it.</summary>
+    /// <summary>
+    /// The first ending wins. The session is settled once with its outcome: a failed session's credit comes back in that same write;
+    /// a completed or stopped one keeps it.
+    /// </summary>
     private async Task EndAsync(InterviewSession session, SessionStatus status, string reason, InterviewResultResponse? payload)
     {
         if (!session.Finish(status, reason, payload, clock.GetUtcNow())) return;
@@ -212,19 +242,29 @@ public sealed class InterviewSessions(
             case SessionStatus.Failed: metrics.Failed(); break;
             case SessionStatus.Stopped: metrics.Withdrawn(); break;
         }
-        if (status == SessionStatus.Failed && !session.Refunded)
+        await SettleQuietlyAsync(session.Owner, session.Id, status switch
         {
-            session.Refunded = true;
-            try
-            {
-                await refunds.RefundAsync(session.Owner, session.Id, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                logger.LogError("Credit refund failed: {ExceptionType}", e.GetType().Name);
-            }
-        }
+            SessionStatus.Completed => SessionOutcome.Completed,
+            SessionStatus.Failed => SessionOutcome.Failed,
+            _ => SessionOutcome.Stopped,
+        }).ConfigureAwait(false);
         session.Cancel();
+    }
+
+    /// <summary>
+    /// Writes the settlement. A failure is logged by type only and does not stop the session from ending: the sweep settles the
+    /// session at the next start (its credit then comes back as lost), so the person is never charged for a failed write.
+    /// </summary>
+    private async Task SettleQuietlyAsync(string owner, string id, SessionOutcome outcome)
+    {
+        try
+        {
+            await settlements.SettleAsync(owner, id, outcome, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Session settlement failed: {ExceptionType}", e.GetType().Name);
+        }
     }
 
     private async Task<InterviewTiles> BuildTilesAsync(InterviewSession session, InterviewResult result, InterviewModel model, ModelMeter meter)

@@ -13,6 +13,7 @@ namespace ExitInterviewAgent.InterviewService.Tests.Billing;
 /// The W3 endpoints over HTTP (web-app-plan §10): the balance, checkout, the anonymous signed webhook, and the credit gate on
 /// starting an interview (402 without a credit, one credit consumed, a failed session refunded, a withdrawn one not).
 /// </summary>
+[Collection(BillingCollection.Name)]
 public sealed class BillingEndpointTests : IDisposable
 {
     private readonly BillingHost _host = new();

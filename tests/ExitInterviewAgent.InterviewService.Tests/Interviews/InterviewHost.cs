@@ -4,6 +4,7 @@ using ExitInterviewAgent.Agent.Roles;
 using ExitInterviewAgent.Contracts;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.InterviewService.Interviews;
+using ExitInterviewAgent.InterviewService.Persistence;
 using ExitInterviewAgent.InterviewService.Tests.Support;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -27,7 +28,7 @@ public sealed class InterviewHost : WebApplicationFactory<Program>
 
     public FakeClock Clock { get; } = new(new DateTimeOffset(2026, 10, 10, 9, 0, 0, TimeSpan.Zero));
     public CaptureLoggerProvider Logs { get; } = new();
-    public RecordingRefund Refunds { get; } = new();
+    public RecordingSettlement Settlements { get; } = new();
 
     /// <summary>Settings applied before the host builds. The default is the scripted mock in Polish-capable mode.</summary>
     public Dictionary<string, string?> Settings { get; } = new()
@@ -58,7 +59,7 @@ public sealed class InterviewHost : WebApplicationFactory<Program>
                 services.PostConfigure<JwtBearerOptions>(scheme, o => o.TokenValidationParameters.IssuerSigningKey = key);
             }
             services.AddSingleton<TimeProvider>(Clock);
-            services.AddSingleton<ICreditRefund>(Refunds);
+            services.AddSingleton<ICreditSettlement>(Settlements);
             services.AddLogging(l => l.AddProvider(Logs));
             if (ModelOverride is { } model)
             {
@@ -82,17 +83,17 @@ public sealed class InterviewHost : WebApplicationFactory<Program>
         base.Dispose(disposing);
     }
 
-    /// <summary>Records the refunds the sessions ask for, by session id.</summary>
-    public sealed class RecordingRefund : ICreditRefund
+    /// <summary>Records the settlements the sessions ask for, by session id and outcome.</summary>
+    public sealed class RecordingSettlement : ICreditSettlement
     {
-        private readonly List<string> _sessions = [];
+        private readonly List<(string Session, SessionOutcome Outcome)> _settled = [];
 
-        public IReadOnlyList<string> Sessions { get { lock (_sessions) return [.. _sessions]; } }
+        public IReadOnlyList<(string Session, SessionOutcome Outcome)> Settled { get { lock (_settled) return [.. _settled]; } }
 
-        public ValueTask RefundAsync(string accountId, string sessionId, CancellationToken ct)
+        public ValueTask<bool> SettleAsync(string accountId, string sessionId, SessionOutcome outcome, CancellationToken ct)
         {
-            lock (_sessions) _sessions.Add(sessionId);
-            return ValueTask.CompletedTask;
+            lock (_settled) _settled.Add((sessionId, outcome));
+            return ValueTask.FromResult(true);
         }
     }
 

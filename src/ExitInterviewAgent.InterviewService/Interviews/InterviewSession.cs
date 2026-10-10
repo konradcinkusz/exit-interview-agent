@@ -42,7 +42,6 @@ public sealed class InterviewSession(string id, string owner, string language, T
     public InterviewTurn? FinalTurn { get; private set; }
     public bool AwaitingReply { get; private set; }
     public bool FinalDelivered { get; private set; }
-    public bool Refunded { get; set; }
 
     public bool IsTerminal => Status is SessionStatus.Completed or SessionStatus.Stopped or SessionStatus.Failed;
 

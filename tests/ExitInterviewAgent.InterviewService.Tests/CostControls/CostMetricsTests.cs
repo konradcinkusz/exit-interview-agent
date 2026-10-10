@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ExitInterviewAgent.InterviewService.Interviews.CostControls;
+using ExitInterviewAgent.InterviewService.Tests.Billing;
 using ExitInterviewAgent.InterviewService.Tests.Interviews;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,6 +14,7 @@ namespace ExitInterviewAgent.InterviewService.Tests.CostControls;
 /// W4 (web-app-plan §2, ADR-0078): the spend metrics are counts and sums only. Each test listens to THIS host's meter, so
 /// parallel tests do not see each other. Every measurement must carry no tags at all: no account, no session, no content.
 /// </summary>
+[Collection(BillingCollection.Name)]
 public sealed class CostMetricsTests
 {
     private static readonly string[] Polish =
