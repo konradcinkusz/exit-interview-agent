@@ -165,7 +165,9 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
         web.WithEnvironment("MCP_RESOURCE_URL", mcpResource);
     }
 
-    var authority = $"http://localhost:{AuthservicePort}";
+    // The endpoint reference, not a literal 5100: the test host gives authservice a dynamic host port (ADR-0081), and a literal
+    // address left the web app calling a port nothing listened on. In a developer's run the reference resolves to 5100 as before.
+    var authority = authservice.GetEndpoint("http");
     interviewService
         .WithEnvironment("Jwt__Authority", authority)
         .WaitFor(authservice);
