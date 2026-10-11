@@ -4,6 +4,7 @@ import {
   callRefresh,
   deleteAccount,
   describeIdentityFailure,
+  describeIdentityStatus,
   fetchConsentStatus,
   fetchConsentVersions,
   fetchExport,
@@ -223,5 +224,22 @@ describe("failure logging (ADR-0081)", () => {
     expect(describeIdentityFailure(new Error("x"), { ...cfg, url: "not a url" })).toBe(
       "identity call failed: name=Error cause=none endpoint=unparsable",
     );
+  });
+});
+
+describe("status logging (ADR-0081)", () => {
+  it("logs a redirect's status and the host and port it points to, never its path", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const redirect = new Response(null, { status: 307, headers: { location: "https://localhost:5100/api/v1/auth/consents/versions?x=1" } });
+      expect(await fetchConsentVersions({ ...cfg, url: "http://localhost:5100" }, fetchOf(redirect))).toBeNull();
+      expect(spy).toHaveBeenCalledWith("identity answered status=307 location=localhost:5100");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("logs a bare error status without a target", () => {
+    expect(describeIdentityStatus(new Response(null, { status: 404 }), cfg)).toBe("identity answered status=404");
   });
 });

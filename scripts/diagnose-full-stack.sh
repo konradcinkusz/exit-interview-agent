@@ -65,6 +65,9 @@ for url in http://127.0.0.1:5100/health/ready http://localhost:5100/health/ready
   say "-- $url"
   timeout 15 curl -sv -m 5 -o /dev/null "$url" >> "$report" 2>&1
 done
+say "-- full answer headers, as the web app asks for them (curl -si, body first 200 bytes)"
+timeout 15 curl -si -m 5 -H 'Accept: application/json' http://127.0.0.1:5100/api/v1/auth/consents/versions 2>&1 | head -c 1500 >> "$report"
+say ""
 
 section "Node fetch with the web app's Node, AbortSignal.timeout(5000)"
 cat > "$out/probe.js" <<'EOF'
@@ -82,7 +85,7 @@ const urls = [
     try {
       const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(5000) });
       await response.text();
-      console.log(url, "status", response.status, Date.now() - started, "ms");
+      console.log(url, "status", response.status, "ok", response.ok, "location", response.headers.get("location"), Date.now() - started, "ms");
     } catch (e) {
       console.log(url, "error", e.name, "cause", e.cause?.code ?? "none", Date.now() - started, "ms");
     }

@@ -217,13 +217,35 @@ export async function fetchConsentVersions(cfg: AuthConfig, fetchImpl: Fetch = f
       redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!upstream.ok) return null;
+    if (!upstream.ok) {
+      console.error(describeIdentityStatus(upstream, cfg));
+      return null;
+    }
     const b = (await upstream.json()) as { terms?: unknown; privacy?: unknown };
     return typeof b.terms === "string" && typeof b.privacy === "string" ? { terms: b.terms, privacy: b.privacy } : null;
   } catch (error) {
     console.error(describeIdentityFailure(error, cfg));
     return null;
   }
+}
+
+/**
+ * One line for the server log when authservice answers without success: its status and, for a redirect, the host and port
+ * it points to. Never the path, a body or a header other than Location (the redirect is the finding, not its target's path).
+ */
+export function describeIdentityStatus(upstream: Response, cfg: AuthConfig): string {
+  const location = upstream.headers.get("location");
+  let target = "";
+  if (location) {
+    let host = "unparsable";
+    try {
+      host = new URL(location, cfg.url ?? "").host;
+    } catch {
+      // Keep the placeholder.
+    }
+    target = ` location=${host}`;
+  }
+  return `identity answered status=${upstream.status}${target}`;
 }
 
 /**
