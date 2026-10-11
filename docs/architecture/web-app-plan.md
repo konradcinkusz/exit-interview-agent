@@ -80,7 +80,7 @@ Price: set after W9 from measured cost plus a margin; the figure of $10 in the i
 | W6 | Chat page: consent, chat, stop and delete, result page with tiles and copy buttons; Polish and English | W5 | #43 (with W5) |
 | W7 | e2e journey (Playwright, stub provider): pay (stub), interview, result, delete | W3, W6 | no PR yet |
 | W8 | Legal pack: privacy policy, terms, consent wording, legal review recorded in RELEASE-GATE | W1 | #42 |
-| W9 | Real-model run: 10 interviews in Polish, measured cost, quality notes, price decision; release gate item 15 updated | W2 | not run (owner) |
+| W9 | Real-model run: 10 interviews in Polish, measured cost, quality notes, price decision; release gate item 15 updated | W2 | protocol and tools ready ([`docs/eval/w9`](../eval/w9/README.md), `scripts/w9-run.sh`); not run (owner: needs the key) |
 | W10 | Deploy to Fly (staging first), spend limit set in the Anthropic console, runbook | W3..W8 | W10a: this PR (files, runbook, status); W10b: no PR yet |
 
 W9 is the gate: if the Polish interview or the tiles are not good with a real model, nothing after it is worth launching.
