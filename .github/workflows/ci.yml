@@ -179,6 +179,57 @@ jobs:
           path: tests/e2e/playwright-report
           retention-days: 7
 
+  full-stack:
+    name: full stack (Aspire)
+    # The AppHost starts PostgreSQL, pgAdmin and authservice (v0.3.4) as containers, interview-service and the web app, and the
+    # journeys run through the BFF (tests/ExitInterviewAgent.AppHost.Tests, ADR-0081). A GitHub-hosted runner has the Docker daemon.
+    runs-on: ubuntu-latest
+    # The test's own start budget is 12 minutes on a cold runner, so the job cap is above it.
+    timeout-minutes: 30
+    env:
+      # The web app runs as the production build (next start), not next dev: a cold dev compile is slow and is not what CI measures.
+      Web__Script: start
+      # The full-stack tests are enabled here only. Elsewhere the same tests are skipped and reported as NOT RUN.
+      FULL_STACK_TESTS: "1"
+      FULL_STACK_LOG_DIR: ${{ github.workspace }}/resource-logs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: npm install -g pnpm@12.9.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Build the web artifact (the test starts it with next start)
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Run the full-stack journeys
+        run: dotnet test tests/ExitInterviewAgent.AppHost.Tests -c Release
+      - name: Container logs (on failure)
+        if: failure()
+        run: |
+          mkdir -p "$FULL_STACK_LOG_DIR/containers"
+          docker ps -a --format '{{.Names}}' | while read -r name; do
+            docker logs "$name" > "$FULL_STACK_LOG_DIR/containers/$name.log" 2>&1 || true
+          done
+          # The artifact may not be readable from every place (ADR-0081): the tail of each container's log goes to the job log too.
+          for file in "$FULL_STACK_LOG_DIR"/containers/*.log; do
+            echo "===== $(basename "$file") (last 60 lines) ====="
+            tail -n 60 "$file" || true
+          done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: full-stack-resource-logs
+          path: resource-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
   images:
     name: images build and answer their health endpoint on the declared port
     runs-on: ubuntu-latest

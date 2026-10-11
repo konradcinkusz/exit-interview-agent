@@ -217,12 +217,52 @@ export async function fetchConsentVersions(cfg: AuthConfig, fetchImpl: Fetch = f
       redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!upstream.ok) return null;
+    if (!upstream.ok) {
+      console.error(describeIdentityStatus(upstream, cfg));
+      return null;
+    }
     const b = (await upstream.json()) as { terms?: unknown; privacy?: unknown };
     return typeof b.terms === "string" && typeof b.privacy === "string" ? { terms: b.terms, privacy: b.privacy } : null;
-  } catch {
+  } catch (error) {
+    console.error(describeIdentityFailure(error, cfg));
     return null;
   }
+}
+
+/**
+ * One line for the server log when authservice answers without success: its status and, for a redirect, the host and port
+ * it points to. Never the path, a body or a header other than Location (the redirect is the finding, not its target's path).
+ */
+export function describeIdentityStatus(upstream: Response, cfg: AuthConfig): string {
+  const location = upstream.headers.get("location");
+  let target = "";
+  if (location) {
+    let host = "unparsable";
+    try {
+      host = new URL(location, cfg.url ?? "").host;
+    } catch {
+      // Keep the placeholder.
+    }
+    target = ` location=${host}`;
+  }
+  return `identity answered status=${upstream.status}${target}`;
+}
+
+/**
+ * One line for the server log when a call to authservice fails before it answers: the error's name, the cause code Node
+ * reports for a failed fetch, and the host and port. Never the path, a header, a body, a token or an email (brief §6).
+ */
+export function describeIdentityFailure(error: unknown, cfg: AuthConfig): string {
+  const e = error as { name?: unknown; cause?: { code?: unknown } } | null;
+  const name = typeof e?.name === "string" ? e.name : typeof error;
+  const code = typeof e?.cause?.code === "string" ? e.cause.code : "none";
+  let endpoint = "unparsable";
+  try {
+    endpoint = new URL(cfg.url ?? "").host;
+  } catch {
+    // Keep the placeholder: a bad configured address is itself the finding.
+  }
+  return `identity call failed: name=${name} cause=${code} endpoint=${endpoint}`;
 }
 
 export type RegisterOutcome =

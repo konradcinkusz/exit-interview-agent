@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authConfig, identityConfigured } from "@/lib/runtime-config";
-import { fetchConsentStatus } from "@/lib/identity";
+import { describeIdentityFailure, describeIdentityStatus, fetchConsentStatus } from "@/lib/identity";
 import { clearTwoFactorChallenge, setTwoFactorChallenge } from "@/lib/session";
 import { establishSession } from "@/lib/session-flow";
 
@@ -35,14 +35,18 @@ export async function POST(request: Request) {
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  } catch (error) {
+    console.error(describeIdentityFailure(error, cfg));
     return NextResponse.json({ error: "identity_unreachable" }, { status: 502 });
   }
 
   if (upstream.status === 401) return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
   if (upstream.status === 403) return NextResponse.json({ error: "email_not_verified" }, { status: 403 });
   if (upstream.status === 429) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
-  if (!upstream.ok) return NextResponse.json({ error: "identity_error" }, { status: 502 });
+  if (!upstream.ok) {
+    console.error(describeIdentityStatus(upstream, cfg));
+    return NextResponse.json({ error: "identity_error" }, { status: 502 });
+  }
 
   const data = (await upstream.json().catch(() => null)) as
     | { accessToken?: string; refreshToken?: string; expiresIn?: number; requiresTwoFactor?: boolean; challengeToken?: string }

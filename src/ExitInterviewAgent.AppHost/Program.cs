@@ -61,7 +61,6 @@ var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewS
     .WithEnvironment("Interviews__RequireVerifiedEmail", "false")
     .WithEnvironment("Interviews__Provider", interviewsProvider)
     .WithEnvironment("Interviews__Model", interviewsModel)
-    .WithEnvironment("Interviews__ApiKeyEnv", "ANTHROPIC_API_KEY") // the NAME of the variable below, never the key
     .WithEnvironment("Interviews__RequireCredit", requireCredit)  // false: starts are free. true: a start needs a credit (grant one with POST /api/v1/dev/grant-credits).
     .WithEnvironment("Billing__Provider", "fake")
     .WithEnvironment("Billing__PriceMinorUnits", billingPrice)
@@ -72,6 +71,9 @@ var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewS
     .WithHttpHealthCheck("/health");
 if (hasKey)
 {
+    // The NAME of the variable, never the key. Set only with a key: the provider resolver requires a named key variable to be
+    // set, so a name without a key refuses even the offline mock (every start answered 503 interviews_disabled, ADR-0081).
+    interviewService.WithEnvironment("Interviews__ApiKeyEnv", "ANTHROPIC_API_KEY");
     interviewService.WithEnvironment("ANTHROPIC_API_KEY", builder.AddParameter("anthropic-api-key", anthropicKey!.Trim(), secret: true));
 }
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Parameters:anthropic-workspace-id"]))
@@ -80,7 +82,10 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Parameters:anthropic-works
     interviewService.WithEnvironment("ANTHROPIC_WORKSPACE_ID", builder.AddParameter("anthropic-workspace-id", builder.Configuration["Parameters:anthropic-workspace-id"]!.Trim()));
 }
 
-var web = builder.AddJavaScriptApp("web", "../../web/app", "dev")
+// Relative to the AppHost project, not the working directory. The script is `dev` for a developer; the full-stack test sets
+// Web:Script=start after a production build, because a first `next dev` compile is slow and not what a CI run should measure (ADR-0081).
+var webScript = string.IsNullOrWhiteSpace(builder.Configuration["Web:Script"]) ? "dev" : builder.Configuration["Web:Script"]!.Trim();
+var web = builder.AddJavaScriptApp("web", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../../web/app")), webScript)
     .WithPnpm()
     .WithHttpEndpoint(port: WebPort, env: "PORT")
     .WithReference(interviewService)
@@ -162,7 +167,9 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
         web.WithEnvironment("MCP_RESOURCE_URL", mcpResource);
     }
 
-    var authority = $"http://localhost:{AuthservicePort}";
+    // The endpoint reference, not a literal 5100: the test host gives authservice a dynamic host port (ADR-0081), and a literal
+    // address left the web app calling a port nothing listened on. In a developer's run the reference resolves to 5100 as before.
+    var authority = authservice.GetEndpoint("http");
     interviewService
         .WithEnvironment("Jwt__Authority", authority)
         .WaitFor(authservice);

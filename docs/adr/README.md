@@ -234,3 +234,9 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0080](0080-interview-service-runs-as-a-single-instance.md) | Interview service runs as a single instance (in-memory sessions) | accepted | One machine, never stopped by the proxy (`auto_stop_machines = false`), `immediate` deploy strategy, migrations after the listener starts, 1 GB memory (not measured), public URLs for service-to-service calls and `.internal` only for Postgres; enforced by `scripts/check-fly.py` and its negative tests |
+
+## 20. Full-stack test of the AppHost (0081)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0081](0081-full-stack-test-of-the-apphost.md) | Full-stack test of the AppHost: Aspire test host, Docker in CI, skipped without it | accepted | One fixture starts the composition (PostgreSQL, pgAdmin, authservice v0.3.4, interview-service, the production web build); scenarios: resources up, registration and BFF sign-in, a web interview end to end and deleted, the credit gate, the database's tables and no interview text; skipped and reported as NOT RUN without Docker or FULL_STACK_TESTS=1; its own CI job |
