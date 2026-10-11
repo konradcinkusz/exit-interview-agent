@@ -61,7 +61,6 @@ var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewS
     .WithEnvironment("Interviews__RequireVerifiedEmail", "false")
     .WithEnvironment("Interviews__Provider", interviewsProvider)
     .WithEnvironment("Interviews__Model", interviewsModel)
-    .WithEnvironment("Interviews__ApiKeyEnv", "ANTHROPIC_API_KEY") // the NAME of the variable below, never the key
     .WithEnvironment("Interviews__RequireCredit", requireCredit)  // false: starts are free. true: a start needs a credit (grant one with POST /api/v1/dev/grant-credits).
     .WithEnvironment("Billing__Provider", "fake")
     .WithEnvironment("Billing__PriceMinorUnits", billingPrice)
@@ -72,6 +71,9 @@ var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewS
     .WithHttpHealthCheck("/health");
 if (hasKey)
 {
+    // The NAME of the variable, never the key. Set only with a key: the provider resolver requires a named key variable to be
+    // set, so a name without a key refuses even the offline mock (every start answered 503 interviews_disabled, ADR-0081).
+    interviewService.WithEnvironment("Interviews__ApiKeyEnv", "ANTHROPIC_API_KEY");
     interviewService.WithEnvironment("ANTHROPIC_API_KEY", builder.AddParameter("anthropic-api-key", anthropicKey!.Trim(), secret: true));
 }
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Parameters:anthropic-workspace-id"]))
