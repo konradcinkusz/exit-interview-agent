@@ -4,36 +4,55 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { MAX_REPLY_CHARS } from "@/lib/interview-contract";
 import type { InterviewCopy } from "@/lib/messages/interview";
 import type { InterviewFailure } from "@/lib/interview-api";
+import { ConfirmDialog } from "../_components/ConfirmDialog";
+import { BrandMark, Icon } from "../_components/Icon";
 import styles from "./interview.module.css";
 import { Notice } from "./Notice";
-import type { State } from "./state";
+import { TOPIC_TOTAL, canFinish, topicNumber, type State } from "./state";
+import { useCountdown } from "./useCountdown";
 
 interface Props {
   copy: InterviewCopy;
   state: State;
   /** Resolves true when the reply was accepted; false keeps the typed text for another try. */
   onSend: (text: string) => Promise<boolean>;
+  /** Asks the interviewer to finish now (the record is kept). */
+  onFinish: () => Promise<boolean>;
   onDelete: () => Promise<void>;
   notice: InterviewFailure | null;
 }
 
+/** Failures after which the typed answer is still here and sending it again is the way on. */
+const RETRYABLE = new Set(["provider_unavailable", "unavailable", "generic", "rate_limited"]);
+
 /**
- * The chat: the transcript in a live log, one answer box, Enter to send (Shift+Enter for a new line), a "typing" line while the
- * interviewer answers, and the one control that ends and wipes everything. The transcript lives in this component's state only.
+ * The chat: where the conversation is (topic n of about six), the transcript in a live log, one answer box with Send as the only
+ * primary action (Enter sends, Shift+Enter is a new line), and two ways out that do different things: "Finish interview" keeps the
+ * record, "Stop and delete" wipes everything after a confirmation dialog. The transcript lives in memory only.
  */
-export function ChatPanel({ copy, state, onSend, onDelete, notice }: Props) {
+export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: Props) {
   const [text, setText] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const cancel = useRef<HTMLButtonElement>(null);
   const answer = useRef<HTMLTextAreaElement>(null);
+  const log = useRef<HTMLDivElement>(null);
 
+  const composer = useRef<HTMLFormElement>(null);
+
+  // The newest message is always in view: the log scrolls itself to the bottom when a line or the typing indicator arrives, and
+  // the page brings the composer to its own place, so the sticky composer never sits on top of the newest message.
   useEffect(() => {
-    if (confirming) cancel.current?.focus();
-  }, [confirming]);
+    const el = log.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    composer.current?.scrollIntoView({ block: "nearest" });
+  }, [state.lines.length, state.pending]);
+  const waitLeft = useCountdown(notice?.kind === "rate_limited" ? notice.retryAfter : undefined, notice);
 
   const trimmed = text.trim();
   const tooLong = text.length > MAX_REPLY_CHARS;
-  const canSend = trimmed.length > 0 && !tooLong && !state.pending;
+  const waiting = waitLeft > 0;
+  const canSend = trimmed.length > 0 && !tooLong && !state.pending && !waiting;
+  const topic = topicNumber(state.lines);
+  const finishable = canFinish(state) && !waiting;
 
   async function submit() {
     if (!canSend) return;
@@ -55,18 +74,39 @@ export function ChatPanel({ copy, state, onSend, onDelete, notice }: Props) {
   return (
     <section aria-labelledby="chat-heading">
       <h2 id="chat-heading" className={styles.visuallyHidden}>{copy.chatTitle}</h2>
-      {/* A div, not a list: role="log" replaces the list semantics of an ol, and the lines are not list items for assistive tech. */}
-      <div className={styles.log} role="log" aria-live="polite" aria-label={copy.conversation}>
-        {state.lines.map((line) => (
-          <p key={line.id} className={line.from === "you" ? `${styles.line} ${styles.you}` : styles.line}>
-            <span className={styles.visuallyHidden}>{line.from === "you" ? `${copy.you}: ` : `${copy.interviewer}: `}</span>
-            {line.text}
-          </p>
-        ))}
-      </div>
-      <p role="status" className="muted">{state.pending ? copy.interviewerTyping : ""}</p>
+      <p className={styles.progress} data-testid="chat-progress">
+        {topic === 0 ? copy.progressIntro : copy.progress(topic, TOPIC_TOTAL)}
+      </p>
+      <div className={styles.chat}>
+        {/* A div, not a list: role="log" replaces the list semantics of an ol, and the lines are not list items for assistive tech.
+            Focusable, because it scrolls: a keyboard user must be able to reach and scroll an earlier question (WCAG 2.1.1). */}
+        <div ref={log} className={styles.log} role="log" aria-live="polite" aria-label={copy.conversation} lang={state.language} tabIndex={0}>
+          {state.lines.map((line) => (
+            <div key={line.id} className={line.from === "you" ? `${styles.row} ${styles.rowYou}` : styles.row}>
+              <span className={styles.avatar} aria-hidden="true">
+                {line.from === "you" ? <Icon name="user" size={18} /> : <BrandMark size={32} />}
+              </span>
+              <p className={line.from === "you" ? `${styles.line} ${styles.you}` : styles.line}>
+                <span className={styles.who}>
+                  {line.from === "you" ? copy.you : copy.interviewer}
+                  <span className={styles.visuallyHidden}>: </span>
+                </span>
+                {line.text}
+              </p>
+            </div>
+          ))}
+          {state.pending ? (
+            <div className={styles.row} aria-hidden="true">
+              <span className={styles.avatar}><BrandMark size={32} /></span>
+              <p className={`${styles.line} ${styles.dots}`}><span /><span /><span /></p>
+            </div>
+          ) : null}
+        </div>
+        <p role="status" className={styles.typing}>{state.pending ? copy.interviewerTyping : ""}</p>
 
       <form
+        ref={composer}
+        className={styles.composer}
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
@@ -78,33 +118,56 @@ export function ChatPanel({ copy, state, onSend, onDelete, notice }: Props) {
           ref={answer}
           rows={3}
           value={text}
+          lang={state.language}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           aria-describedby="reply-hint reply-count"
           aria-invalid={tooLong}
         />
-        <p id="reply-hint" className="muted">{copy.replyHint}</p>
-        <p id="reply-count" className={tooLong ? "notice warn" : "muted"}>{copy.charCount(text.length, MAX_REPLY_CHARS)}</p>
+        <div className={styles.replyMeta}>
+          <p id="reply-hint" className="hint">{copy.replyHint}</p>
+          <p id="reply-count" className={tooLong ? styles.countOver : "hint"}>{copy.charCount(text.length, MAX_REPLY_CHARS)}</p>
+        </div>
+        <Notice failure={notice} copy={copy} waitLeft={waitLeft} />
         <div className="actions">
-          <button type="submit" disabled={!canSend}>{copy.send}</button>
+          <button type="submit" className="primary" disabled={!canSend}>
+            {notice && RETRYABLE.has(notice.kind) && trimmed.length > 0 ? copy.sendAgain : copy.send}
+            <Icon name="arrow" size={18} />
+          </button>
         </div>
       </form>
+      </div>
 
-      <Notice failure={notice} copy={copy} />
+      <div className={styles.endActions}>
+        <div>
+          <button type="button" className="secondary" disabled={!finishable} aria-describedby="finish-hint" onClick={() => void onFinish()}>
+            <Icon name="flag" size={18} />
+            {copy.finish}
+          </button>
+          <p id="finish-hint" className="hint">{copy.finishHint}</p>
+        </div>
+        <div>
+          <button type="button" className="danger-outline" aria-describedby="stop-hint" onClick={() => setConfirming(true)}>
+            <Icon name="trash" size={18} />
+            {copy.stopAndDelete}
+          </button>
+          <p id="stop-hint" className="hint">{copy.stopHint}</p>
+        </div>
+      </div>
 
-      {confirming ? (
-        <div role="group" aria-labelledby="delete-question" className="notice warn">
-          <p id="delete-question" role="alert">{copy.deleteConfirm}</p>
-          <div className="actions">
-            <button type="button" className="danger" onClick={() => void onDelete()}>{copy.deleteYes}</button>
-            <button type="button" className="secondary" ref={cancel} onClick={() => setConfirming(false)}>{copy.cancel}</button>
-          </div>
-        </div>
-      ) : (
-        <div className="actions">
-          <button type="button" className="danger" onClick={() => setConfirming(true)}>{copy.stopAndDelete}</button>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title={copy.deleteTitle}
+        body={copy.deleteConfirm}
+        confirmLabel={copy.deleteYes}
+        cancelLabel={copy.cancel}
+        onConfirm={() => {
+          setConfirming(false);
+          void onDelete();
+        }}
+        onCancel={() => setConfirming(false)}
+        testId="delete-dialog"
+      />
     </section>
   );
 }

@@ -20,6 +20,16 @@ export const pl: Messages = {
     signIn: "Zaloguj się",
     signOut: "Wyloguj się",
   },
+  journey: {
+    label: "Twoje postępy",
+    done: "zrobione",
+    current: "bieżący krok",
+    steps: [
+      { title: "Logowanie", text: "Użyj adresu e-mail albo załóż konto w minutę." },
+      { title: "Rozmowa", text: "Wybierz język, przeczytaj, co dzieje się z Twoimi słowami, i porozmawiaj z asystentem AI." },
+      { title: "Twój zapis", text: "Przeczytaj zapis i szkice tekstów, skopiuj albo zapisz to, czego potrzebujesz, a resztę usuń." },
+    ],
+  },
   language: {
     label: "Język",
     switchTo: "English",
@@ -41,19 +51,24 @@ export const pl: Messages = {
       "skopiować, zmienić albo wyrzucić.",
     start: "Rozpocznij rozmowę",
     startNote: "Najpierw się zalogujesz albo założysz konto, jeśli jeszcze go nie masz.",
-    keptTitle: "Co jest przechowywane, a co nie",
-    kept:
-      "Twoje konto to adres e-mail, hasło i zaakceptowane warunki. Rozmowa trafia do firmy Anthropic, która dostarcza model AI, " +
-      "żeby mógł odpowiadać; ta strona trzyma ją tylko w pamięci, dopóki rozmowa trwa. Po zakończeniu zapis i szkice są " +
-      "dostępne przez 30 minut, potem są usuwane. Możesz usunąć wszystko wcześniej.",
-    keptLink: "Zasady prywatności",
-    stepsTitle: "Jak to działa",
-    steps: [
-      "Zaloguj się albo załóż konto, podając adres e-mail.",
-      "Wybierz język i czas zatrudnienia, a potem przeczytaj, co dzieje się z Twoimi słowami.",
-      "Porozmawiaj z asystentem AI w czacie. Możesz przerwać w każdej chwili.",
-      "Przeczytaj zapis i szkice tekstów, skopiuj albo pobierz to, czego potrzebujesz, a resztę usuń.",
+    eyebrow: "Rozmowa wyjściowa · po polsku lub po angielsku",
+    trustTitle: "Co się dzieje z Twoimi słowami",
+    trust: [
+      {
+        title: "Dokąd trafiają",
+        text: "Wszystko, co wpiszesz, trafia do firmy Anthropic, która dostarcza model AI, żeby mógł odpowiadać. Ta strona trzyma rozmowę tylko w pamięci, dopóki rozmowa trwa.",
+      },
+      {
+        title: "Co jest przechowywane",
+        text: "Twoje konto: adres e-mail, hasło i zaakceptowane warunki. Zapis i szkice są dostępne przez 30 minut po zakończeniu rozmowy, potem są usuwane.",
+      },
+      {
+        title: "O czym decydujesz",
+        text: "Możesz przerwać w każdej chwili i usunąć wszystko wcześniej niż po 30 minutach. Ta strona niczego, co powiesz, nie publikuje: szkice są Twoje, możesz ich użyć albo je wyrzucić.",
+      },
     ],
+    keptLink: "Wszystkie zasady prywatności",
+    journeyTitle: "Jak to działa",
     notTitle: "Czym to nie jest",
     not: [
       "To nie jest portal z opiniami: ta strona niczego, co powiesz, nie publikuje.",

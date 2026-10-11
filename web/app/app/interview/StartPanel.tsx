@@ -11,39 +11,67 @@ interface Props {
   copy: InterviewCopy;
   onBuy: () => Promise<void>;
   onRetryCredits: () => Promise<void>;
+  devHints: boolean;
 }
 
-/** The first screen: language, tenure, the credits the person has, and the way to get one. Continue needs a credit. */
-export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits }: Props) {
+/**
+ * The first screen: language, time at the company, and one status line that says whether an interview is ready. Continue is the
+ * primary action when there is a credit; without one it stays disabled and says why, and buying becomes the next step.
+ */
+export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits, devHints }: Props) {
   const [buying, setBuying] = useState(false);
   const balance = state.credits.kind === "ok" ? state.credits.balance : null;
   const canContinue = balance !== null && balance > 0;
-
-  let creditLine: string;
-  if (state.credits.kind === "loading") creditLine = copy.loadingCredits;
-  else if (state.credits.kind === "failed") creditLine = failureText({ kind: state.credits.failure }, copy);
-  else creditLine = balance !== null && balance > 0 ? copy.credits(balance) : copy.noCredit;
+  const noCredit = balance === 0;
 
   return (
     <section aria-labelledby="start-heading">
       <h2 id="start-heading" className={styles.visuallyHidden}>{copy.startSection}</h2>
-      <p>{copy.lead}</p>
-      <p className="muted">{copy.notAService}</p>
+      <p className="lead">{copy.lead}</p>
+      <p className="hint">{copy.notAService}</p>
+
+      <div
+        className={`${styles.status} ${canContinue ? styles.statusReady : noCredit ? styles.statusEmpty : ""}`}
+        role="status"
+        id="credit-status"
+        data-testid="credit-status"
+      >
+        {state.credits.kind === "loading" ? <p>{copy.loadingCredits}</p> : null}
+        {state.credits.kind === "failed" ? <p>{failureText({ kind: state.credits.failure }, copy)}</p> : null}
+        {canContinue ? (
+          <>
+            <p className={styles.statusTitle}>{copy.ready(balance)}</p>
+            <p>{copy.readyDetail}</p>
+          </>
+        ) : null}
+        {noCredit ? (
+          <>
+            <p className={styles.statusTitle}>{copy.noCredit}</p>
+            <p>{copy.noCreditDetail}</p>
+          </>
+        ) : null}
+      </div>
+      {state.credits.kind === "failed" ? (
+        <button type="button" className="secondary" onClick={() => void onRetryCredits()}>{copy.retry}</button>
+      ) : null}
+      {noCredit && devHints ? <p className="dev-hints" data-testid="dev-no-credit">{copy.devNoCredit}</p> : null}
 
       <fieldset>
         <legend>{copy.language}</legend>
-        {(["en", "pl"] as const).map((language) => (
-          <label key={language} className="check">
-            <input
-              type="radio"
-              name="language"
-              value={language}
-              checked={state.language === language}
-              onChange={() => dispatch({ type: "language", language })}
-            />
-            {copy.languageNames[language]}
-          </label>
-        ))}
+        <div className={styles.choices}>
+          {(["pl", "en"] as const).map((language) => (
+            <label key={language} className="check" lang={language}>
+              <input
+                type="radio"
+                name="language"
+                value={language}
+                checked={state.language === language}
+                onChange={() => dispatch({ type: "language", language })}
+              />
+              {copy.languageNames[language]}
+            </label>
+          ))}
+        </div>
       </fieldset>
 
       <label htmlFor="tenure">{copy.tenureLabel}</label>
@@ -55,22 +83,21 @@ export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits }: Pro
         ))}
       </select>
 
-      <p role="status" className="muted">{creditLine}</p>
-      {state.credits.kind === "failed" ? (
-        <p>
-          <button type="button" className="secondary" onClick={() => void onRetryCredits()}>{copy.retry}</button>
-        </p>
-      ) : null}
-
       <Notice failure={state.notice} copy={copy} />
 
       <div className="actions">
-        <button type="button" onClick={() => dispatch({ type: "toConsent" })} disabled={!canContinue}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => dispatch({ type: "toConsent" })}
+          disabled={!canContinue}
+          aria-describedby={!canContinue && state.credits.kind !== "loading" ? "continue-why" : undefined}
+        >
           {copy.continue}
         </button>
         <button
           type="button"
-          className={canContinue ? "secondary" : undefined}
+          className={noCredit ? "primary" : "secondary"}
           disabled={buying}
           aria-describedby="buy-note"
           onClick={async () => {
@@ -82,7 +109,8 @@ export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits }: Pro
           {buying ? copy.buying : copy.buy}
         </button>
       </div>
-      <p id="buy-note" className="muted">{copy.buyNote}</p>
+      {!canContinue && state.credits.kind !== "loading" ? <p id="continue-why" className="hint">{copy.continueNeedsCredit}</p> : null}
+      <p id="buy-note" className="hint">{copy.buyNote}</p>
     </section>
   );
 }

@@ -45,7 +45,7 @@ describe("tilesToHtml", () => {
   it("shows the legal notice and the dropped count", () => {
     const html = tilesToHtml(tiles, "en");
     expect(html).toContain("These are draft texts, not facts. This is not legal advice.");
-    expect(html).toContain("Texts left out: 1.");
+    expect(html).toContain("1 draft text was left out because it failed an automatic check");
   });
 
   it("uses the interview language for labels and the page language", () => {

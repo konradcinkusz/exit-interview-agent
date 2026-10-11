@@ -22,6 +22,16 @@ export const en = {
     signIn: "Sign in",
     signOut: "Sign out",
   },
+  journey: {
+    label: "Your progress",
+    done: "done",
+    current: "current step",
+    steps: [
+      { title: "Sign in", text: "Use your email address, or create an account in a minute." },
+      { title: "Interview", text: "Choose the language, read what happens to your words, then talk with the AI interviewer." },
+      { title: "Your record", text: "Read the record and the draft texts, copy or save what you want, delete the rest." },
+    ],
+  },
   language: {
     label: "Language",
     // The switch names the OTHER language, in that language, so a person who cannot read the current one still finds it.
@@ -43,19 +53,24 @@ export const en = {
       "or English. At the end you get a short record of what you said and draft texts you can copy, change or throw away.",
     start: "Start your interview",
     startNote: "You sign in first, or create an account if you do not have one yet.",
-    keptTitle: "What is kept, and what is not",
-    kept:
-      "Your account is your email address and password, and the terms you accepted. The conversation is sent to Anthropic, the " +
-      "company behind the AI model, so it can reply; this site keeps it only in memory while the interview runs. When the " +
-      "interview ends, your record and drafts stay readable for 30 minutes and are then wiped. You can delete everything sooner.",
-    keptLink: "The privacy facts",
-    stepsTitle: "How it works",
-    steps: [
-      "Sign in, or create an account with your email address.",
-      "Choose the language and how long you worked there, then read what happens to your words.",
-      "Talk with the AI interviewer in the chat. Stop whenever you want.",
-      "Read your record and the draft texts, copy or download what you want, and delete the rest.",
+    eyebrow: "Exit interview · Polski or English",
+    trustTitle: "What happens to your words",
+    trust: [
+      {
+        title: "Where they go",
+        text: "Everything you type is sent to Anthropic, the company behind the AI model, so it can reply. This site holds the conversation only in memory while the interview runs.",
+      },
+      {
+        title: "What is kept",
+        text: "Your account: your email address, password and the terms you accepted. Your record and drafts stay readable for 30 minutes after the interview ends, then they are wiped.",
+      },
+      {
+        title: "What you decide",
+        text: "You can stop at any time and delete everything, sooner than 30 minutes. Nothing you say is published by this site: the drafts are yours to use or throw away.",
+      },
     ],
+    keptLink: "All the privacy facts",
+    journeyTitle: "How it works",
     notTitle: "What this is not",
     not: [
       "Not a review site: nothing you say is published by this site.",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialState, reduce, type State } from "./state";
+import { canFinish, initialState, reduce, topicNumber, type State } from "./state";
 
 // The page is a small state machine. These tests pin its transitions, in particular the failure statuses (402, 409, 410, 429,
 // 503) that must send the person somewhere sensible, and that deleting empties everything the page holds.
@@ -188,5 +188,53 @@ describe("result and deletion", () => {
     const s = run(completed(), { type: "resultFailed", failure: { kind: "not_completed" } });
     expect(s.notice).toEqual({ kind: "not_completed" });
     expect(s.result).toBeNull();
+  });
+});
+
+describe("redesign (phase 2): what the page derives from its state", () => {
+  const chatting = () => run(initialState(), { type: "credits", balance: 1 }, { type: "toConsent" }, { type: "starting" }, { type: "started", started });
+
+  it("a 402 at the start shows a balance of 0 at once, so the line never says 1 next to 'no credit'", () => {
+    const s = run(initialState(), { type: "credits", balance: 1 }, { type: "toConsent" }, { type: "failed", failure: { kind: "payment_required" } });
+    expect(s.phase).toBe("start");
+    expect(s.credits).toEqual({ kind: "ok", balance: 0 });
+  });
+
+  it("offers Finish only after a topic question, and not while a reply is pending", () => {
+    let s = chatting();
+    expect(canFinish(s)).toBe(false); // the opening: the interviewer has not asked a topic question yet
+    s = run(s, { type: "sending", text: "Yes." });
+    expect(canFinish(s)).toBe(false);
+    s = run(s, { type: "replied", reply: { status: "in_progress", turn: { index: 1, kind: "topic", text: "How was onboarding?" } } });
+    expect(canFinish(s)).toBe(true);
+    s = run(s, { type: "sending", text: "Fine." });
+    expect(canFinish(s)).toBe(false);
+  });
+
+  it("counts the topic questions for the progress line", () => {
+    let s = chatting();
+    expect(topicNumber(s.lines)).toBe(0);
+    s = run(
+      s,
+      { type: "sending", text: "Yes." },
+      { type: "replied", reply: { status: "in_progress", turn: { index: 1, kind: "topic", text: "Onboarding?" } } },
+      { type: "sending", text: "Chaotic." },
+      { type: "replied", reply: { status: "in_progress", turn: { index: 2, kind: "probe", text: "An example?" } } },
+      { type: "sending", text: "The first week." },
+      { type: "replied", reply: { status: "in_progress", turn: { index: 3, kind: "topic", text: "Your manager?" } } },
+    );
+    expect(topicNumber(s.lines)).toBe(2);
+  });
+
+  it("remembers when the interview completed, to say until when the result stays readable", () => {
+    const s = run(chatting(), { type: "replied", reply: { status: "completed" }, at: 1_700_000_000_000 });
+    expect(s.phase).toBe("result");
+    expect(s.endedAt).toBe(1_700_000_000_000);
+  });
+
+  it("the deletion notice is shown once: going on to a new consent clears it", () => {
+    const s = run(chatting(), { type: "deleted" });
+    expect(s.deleted).toBe(true);
+    expect(run(s, { type: "toConsent" }).deleted).toBe(false);
   });
 });

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { InterviewFailure } from "@/lib/interview-api";
 import { TOPIC_KEYS, type InterviewRecord, type InterviewResult, type RecordTopic, type Tile, type TopicKey } from "@/lib/interview-contract";
-import type { InterviewCopy } from "@/lib/messages/interview";
+import { interviewCopy, type InterviewCopy } from "@/lib/messages/interview";
+import { ConfirmDialog } from "../_components/ConfirmDialog";
+import { Icon } from "../_components/Icon";
 import { tileCopyText, tileLabel, tilesToHtml, tilesToJson } from "@/lib/interview-render";
 import { downloadText } from "./download";
 import styles from "./interview.module.css";
@@ -18,17 +20,15 @@ interface Props {
   onRetry: () => void;
 }
 
+const RESULT_LIFETIME_MS = 30 * 60_000;
+
 /**
- * The result: the legal notice first, the record as text (never as raw JSON), one card per draft text with a copy button, the two
+ * The result: when it is wiped, one warning (the service's legal notice, under "drafts, not facts"), the record as text (never as raw JSON), one card per draft text with a copy button, the two
  * downloads, and the delete. The result is held in this component's memory and nowhere else; a reload empties it.
  */
 export function ResultPanel({ copy, state, onDelete, notice, onRetry }: Props) {
   const result = state.result;
   const [confirming, setConfirming] = useState(false);
-  const cancel = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (confirming) cancel.current?.focus();
-  }, [confirming]);
 
   if (!result) {
     return (
@@ -47,57 +47,88 @@ export function ResultPanel({ copy, state, onDelete, notice, onRetry }: Props) {
   }
 
   const language = state.language;
+  // The service wipes the result 30 minutes after the interview ended. The page knows when it saw the end, so it can name a time.
+  const until = state.endedAt === null ? null : new Date(state.endedAt + RESULT_LIFETIME_MS);
+  const untilText = until ? until.toLocaleTimeString(copy === interviewCopy.pl ? "pl-PL" : "en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
   return (
     <section aria-labelledby="result-heading">
       <h2 id="result-heading" tabIndex={-1}>{copy.resultTitle}</h2>
-      <p role="status">{copy.endedCompleted}</p>
-      <p className="notice legal" role="note" data-testid="tiles-notice">{result.tiles.notice}</p>
-      <p className="notice warn">{copy.draftWarning}</p>
+      <div className={`card ${styles.summary}`} data-testid="result-summary">
+        <span className={styles.summaryIcon}><Icon name="check" size={22} /></span>
+        <div>
+          <p role="status" className={styles.summaryTitle}>{copy.endedCompleted}</p>
+          <p className={styles.summaryLine}>
+            <Icon name="clock" size={18} />
+            <span>{untilText ? copy.keptUntil(untilText) : copy.keptFor}</span>
+          </p>
+          <p className="hint">{copy.creditUsed}</p>
+        </div>
+      </div>
+
+      <section className={`notice warn ${styles.warning}`} aria-labelledby="warning-heading" data-testid="result-warning">
+        <Icon name="alert" size={22} className={styles.warningIcon} />
+        <div>
+          <h3 id="warning-heading" className={styles.noticeTitle}>{copy.warningTitle}</h3>
+          <p data-testid="tiles-notice" lang={language}>{result.tiles.notice}</p>
+        </div>
+      </section>
 
       <RecordView copy={copy} result={result} />
 
       <h3>{copy.tilesTitle}</h3>
       <TilesView copy={copy} language={language} result={result} />
 
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => downloadText("exit-interview-record.json", JSON.stringify(result.record, null, 2) + "\n", "application/json")}
-        >
-          {copy.downloadRecord}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => downloadText("tiles.html", tilesToHtml(result.tiles, language), "text/html")}
-        >
-          {copy.downloadTiles}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => downloadText("tiles.json", tilesToJson(result.tiles), "application/json")}
-        >
-          {copy.downloadJson}
+      <div className={styles.resultActions}>
+      <details className={styles.save} data-testid="save">
+        <summary className="button primary">
+          <Icon name="download" size={18} />
+          {copy.save}
+        </summary>
+        <p className="hint">{copy.saveHint}</p>
+        <div className={styles.saveOptions}>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => downloadText("exit-interview-record.json", JSON.stringify(result.record, null, 2) + "\n", "application/json")}
+          >
+            {copy.downloadRecord}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => downloadText("tiles.html", tilesToHtml(result.tiles, language), "text/html")}
+          >
+            {copy.downloadTiles}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => downloadText("tiles.json", tilesToJson(result.tiles), "application/json")}
+          >
+            {copy.downloadJson}
+          </button>
+        </div>
+      </details>
+        <button type="button" className="danger-outline" onClick={() => setConfirming(true)}>
+          <Icon name="trash" size={18} />
+          {copy.deleteAll}
         </button>
       </div>
 
       <Notice failure={notice} copy={copy} />
-
-      {confirming ? (
-        <div role="group" aria-labelledby="delete-all-question" className="notice warn">
-          <p id="delete-all-question" role="alert">{copy.deleteAllConfirm}</p>
-          <div className="actions">
-            <button type="button" className="danger" onClick={() => void onDelete()}>{copy.deleteYes}</button>
-            <button type="button" className="secondary" ref={cancel} onClick={() => setConfirming(false)}>{copy.cancel}</button>
-          </div>
-        </div>
-      ) : (
-        <div className="actions">
-          <button type="button" className="danger" onClick={() => setConfirming(true)}>{copy.deleteAll}</button>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title={copy.deleteTitle}
+        body={copy.deleteAllConfirm}
+        confirmLabel={copy.deleteYes}
+        cancelLabel={copy.cancel}
+        onConfirm={() => {
+          setConfirming(false);
+          void onDelete();
+        }}
+        onCancel={() => setConfirming(false)}
+        testId="delete-dialog"
+      />
     </section>
   );
 }
@@ -109,11 +140,12 @@ function lookup(map: Record<string, string>, key: string): string {
 /** The record in plain sentences: the facts about the interview, then each topic with its rating and its quotes. */
 function RecordView({ copy, result }: { copy: InterviewCopy; result: InterviewResult }) {
   const record: InterviewRecord = result.record;
+  const notDiscussed = TOPIC_KEYS.filter((key) => record.topics[key].status === "no_data");
   return (
     <section aria-labelledby="record-heading">
       <h3 id="record-heading">{copy.recordTitle}</h3>
-      <p className="muted">{copy.recordIntro}</p>
-      <dl className="facts">
+      <p className="hint">{copy.recordIntro}</p>
+      <dl className={styles.facts}>
         <div>
           <dt>{copy.recordFacts.language}</dt>
           <dd>{lookup(copy.languageNames, record.interview.language)}</dd>
@@ -135,9 +167,14 @@ function RecordView({ copy, result }: { copy: InterviewCopy; result: InterviewRe
           <dd>{lookup(copy.tenure, record.context.tenureBand)}</dd>
         </div>
       </dl>
-      {TOPIC_KEYS.map((key: TopicKey) => (
-        <TopicView key={key} copy={copy} title={copy.topics[key]} topic={record.topics[key]} />
-      ))}
+      <div className={styles.topics}>
+        {TOPIC_KEYS.filter((key) => record.topics[key].status !== "no_data").map((key: TopicKey) => (
+          <TopicView key={key} copy={copy} title={copy.topics[key]} topic={record.topics[key]} />
+        ))}
+      </div>
+      {notDiscussed.length > 0 ? (
+        <p className="hint" data-testid="not-discussed">{copy.notDiscussedLine(notDiscussed.map((key) => copy.topics[key]).join(", "))}</p>
+      ) : null}
     </section>
   );
 }
@@ -145,20 +182,27 @@ function RecordView({ copy, result }: { copy: InterviewCopy; result: InterviewRe
 function TopicView({ copy, title, topic }: { copy: InterviewCopy; title: string; topic: RecordTopic }) {
   const rating = topic.rating === null ? copy.noRating : copy.rating(topic.rating);
   return (
-    <section>
+    <section className={styles.topic}>
       <h4>{title}</h4>
       {topic.status === "no_data" ? (
-        <p className="muted">{copy.notDiscussed}</p>
+        <p className="hint">{copy.notDiscussed}</p>
       ) : (
         <>
-          <p>
-            {rating}
-            {topic.confidence ? ` · ${copy.confidence[topic.confidence]}` : ""}
+          <p className={styles.rating}>
+            {topic.rating !== null ? (
+              <span className={styles.meter} aria-hidden="true">
+                {[1, 2, 3, 4, 5].map((n) => <span key={n} className={n <= (topic.rating ?? 0) ? styles.on : undefined} />)}
+              </span>
+            ) : null}
+            <span>
+              {rating}
+              {topic.confidence ? ` · ${copy.confidence[topic.confidence]}` : ""}
+            </span>
           </p>
           {topic.quotes.length > 0 ? (
             <>
-              <p className="muted">{copy.quotes}</p>
-              <ul className="plain">
+              <p className="hint">{copy.quotes}</p>
+              <ul className={styles.quotes}>
                 {topic.quotes.map((quote, i) => (
                   <li key={`${i}-${quote}`}>&ldquo;{quote}&rdquo;</li>
                 ))}
@@ -175,19 +219,21 @@ function TilesView({ copy, language, result }: { copy: InterviewCopy; language: 
   if (result.tiles.items.length === 0) return <p>{copy.tilesEmpty}</p>;
   return (
     <>
-      <ul className={styles.tiles}>
+      <ul className={styles.tiles} lang={language}>
         {result.tiles.items.map((tile: Tile, i: number) => {
           const label = tileLabel(tile.kind, language);
           return (
             <li key={`${i}-${tile.kind}`} className={tile.kind === "reddit" ? `${styles.tile} ${styles.wide}` : styles.tile}>
-              <h4>{label}</h4>
+              <div className={styles.tileHead}>
+                <h4>{label}</h4>
+                <TileCopy copy={copy} label={label} text={tileCopyText(tile)} />
+              </div>
               <p className={styles.text}>{tile.text}</p>
-              <TileCopy copy={copy} label={label} text={tileCopyText(tile)} />
             </li>
           );
         })}
       </ul>
-      {result.tiles.dropped.length > 0 ? <p className="muted">{copy.dropped(result.tiles.dropped.length)}</p> : null}
+      {result.tiles.dropped.length > 0 ? <p className="hint" data-testid="tiles-dropped">{copy.dropped(result.tiles.dropped.length)}</p> : null}
     </>
   );
 }
@@ -204,13 +250,14 @@ function TileCopy({ copy, label, text }: { copy: InterviewCopy; label: string; t
     }
   }
   return (
-    <div>
-      <button type="button" className="secondary" aria-label={`${copy.copy}: ${label}`} onClick={() => void copyText()}>
-        {copy.copy}
-      </button>{" "}
-      <span role="status" className="muted">
+    <div className={styles.copy}>
+      <span role="status" className="hint-inline">
         {state === "done" ? copy.copied : state === "failed" ? copy.copyFailed : ""}
       </span>
+      <button type="button" className="secondary small" aria-label={`${copy.copy}: ${label}`} onClick={() => void copyText()}>
+        <Icon name={state === "done" ? "check" : "copy"} size={16} />
+        {copy.copy}
+      </button>
     </div>
   );
 }

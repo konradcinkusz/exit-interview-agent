@@ -9,7 +9,8 @@ import { ConsentPanel } from "./ConsentPanel";
 import { EndedPanel } from "./EndedPanel";
 import { ResultPanel } from "./ResultPanel";
 import { StartPanel } from "./StartPanel";
-import { useLocale } from "../_components/I18n";
+import { useLocale, useMessages } from "../_components/I18n";
+import { Stepper } from "../_components/Stepper";
 import { initialState, reduce } from "./state";
 
 const SETTLE_ATTEMPTS = 40;
@@ -18,20 +19,18 @@ const SETTLE_DELAY_MS = 500;
 // The container: one reducer, the API client, and the effects that must run once per step. Each panel receives the copy of the
 // interview's language and dispatches; none of them holds a secret, a token or a URL with interview content (ADR-0048).
 
-export function Interview() {
+export function Interview({ devHints = false }: { devHints?: boolean }) {
   const [state, dispatch] = useReducer(reduce, undefined, initialState);
-  const copy: InterviewCopy = interviewCopy[state.language];
+  // The page speaks the portal's language (the header's switch, else the browser's). The interview's own language starts the same
+  // and can be changed on the start screen; the conversation and the drafts carry their own `lang`.
+  const siteLocale = useLocale();
+  const copy: InterviewCopy = interviewCopy[siteLocale];
+  const journey = useMessages().journey;
   const resultRequested = useRef(false);
 
-  // The interview's language starts as the portal's (the language switch, else the browser's), and then follows the person's
-  // choice on the start screen. The document's `lang` follows it, so a Polish interview is read with a Polish voice.
-  const siteLocale = useLocale();
   useEffect(() => {
     dispatch({ type: "language", language: siteLocale });
   }, [siteLocale]);
-  useEffect(() => {
-    document.documentElement.lang = state.language;
-  }, [state.language]);
 
   const loadCredits = useCallback(async () => {
     const out = await interviewApi.credits();
@@ -68,6 +67,8 @@ export function Interview() {
       return;
     }
     dispatch({ type: "failed", failure: out.failure });
+    // Whatever the failure, the balance shown next to it must be the service's (a stale "1" beside "no credit" is a contradiction).
+    void loadCredits();
   }
 
   /**
@@ -91,11 +92,11 @@ export function Interview() {
     dispatch({ type: "sending", text });
     const out = await interviewApi.reply(id, text);
     if (out.ok) {
-      dispatch({ type: "replied", reply: out.value });
+      dispatch({ type: "replied", reply: out.value, at: Date.now() });
       if (out.value.status === "in_progress" && (out.value.turn?.kind === "close" || out.value.turn?.kind === "stop")) {
         const ended = await settle(id);
         if (ended === null) dispatch({ type: "failed", failure: { kind: "generic" } });
-        else dispatch({ type: "replied", reply: { status: ended } });
+        else dispatch({ type: "replied", reply: { status: ended }, at: Date.now() });
       }
       return true;
     }
@@ -127,22 +128,32 @@ export function Interview() {
     if (url) window.location.assign(url);
   }
 
+  /** "Finish interview": asks the interviewer, in the interview's language, to finish now. The interviewer closes and keeps the record. */
+  async function finish(): Promise<boolean> {
+    return send(interviewCopy[state.language].finishMessage);
+  }
+
+  const balance = state.credits.kind === "ok" ? state.credits.balance : null;
   return (
     <>
       <h1>{copy.title}</h1>
+      {/* Signed in already; the interview is the current step until the record is shown. */}
+      <Stepper label={journey.label} steps={journey.steps} current={state.phase === "result" ? 2 : 1} words={journey} compact />
       {state.deleted && state.phase === "start" ? (
-        <p className="notice ok" role="status">
-          {copy.deleted}
-        </p>
+        <div className="notice ok" role="status" data-testid="deleted-notice">
+          <p>{copy.deleted}</p>
+          <p>{copy.deletedCredit}</p>
+          {balance !== null ? <p>{balance > 0 ? copy.nextWithCredit : copy.nextWithoutCredit}</p> : null}
+        </div>
       ) : null}
       {state.phase === "start" ? (
-        <StartPanel state={state} dispatch={dispatch} copy={copy} onBuy={buy} onRetryCredits={loadCredits} />
+        <StartPanel state={state} dispatch={dispatch} copy={copy} onBuy={buy} onRetryCredits={loadCredits} devHints={devHints} />
       ) : null}
       {state.phase === "consent" ? (
         <ConsentPanel copy={copy} starting={state.starting} notice={state.notice} onStart={start} onBack={() => dispatch({ type: "toStart" })} />
       ) : null}
       {state.phase === "chat" ? (
-        <ChatPanel copy={copy} state={state} onSend={send} onDelete={remove} notice={state.notice} />
+        <ChatPanel copy={copy} state={state} onSend={send} onFinish={finish} onDelete={remove} notice={state.notice} />
       ) : null}
       {state.phase === "result" ? (
         <ResultPanel copy={copy} state={state} onDelete={remove} notice={state.notice} onRetry={() => state.interview && loadResult(state.interview.id)} />

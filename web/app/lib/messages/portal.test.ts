@@ -29,8 +29,8 @@ describe("portal catalogs", () => {
 
   it.each(LOCALES)("says in %s that the conversation goes to Anthropic and that the result is wiped after 30 minutes", (locale) => {
     const t = messagesFor(locale);
-    expect(t.landing.kept).toContain("Anthropic");
-    expect(t.landing.kept).toMatch(/30 min/);
+    expect(t.landing.trust.map((c) => c.text).join(" ")).toContain("Anthropic");
+    expect(t.landing.trust.map((c) => c.text).join(" ")).toMatch(/30 min/);
     expect(t.privacy.interview.join(" ")).toContain("Anthropic");
   });
 
