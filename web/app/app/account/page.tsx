@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { m } from "@/lib/messages";
+import { getMessages } from "@/lib/i18n";
 import { Account } from "./Account";
 
-export const metadata: Metadata = { title: m.account.title };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).t.account.title };
+}
 
-export default function AccountPage() {
+export default function Page() {
   return <Account />;
 }

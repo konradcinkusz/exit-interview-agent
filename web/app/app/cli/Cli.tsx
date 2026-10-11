@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
 import { formatRemaining, parseTicket, ticketErrorKey, type Minted } from "@/lib/ticket";
 import { CopyButton } from "../_components/CopyButton";
 

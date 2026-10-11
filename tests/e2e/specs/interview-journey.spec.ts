@@ -33,6 +33,8 @@ async function openInterview(page: Page, name: string) {
   await page.goto("/login?redirect=%2Finterview");
   await signIn(page, name);
   await expect(page.getByRole("heading", { name: "Exit interview with an AI" })).toBeVisible();
+  // The page is server-rendered; the credit line changes only once it has hydrated and asked the service, so the controls work.
+  await expect(page.getByText("Checking your credits…")).toHaveCount(0);
 }
 
 async function consentAndStart(page: Page) {
@@ -44,6 +46,8 @@ async function consentAndStart(page: Page) {
 
 async function say(page: Page, text: string) {
   const answer = page.getByLabel("Your answer");
+  // One answer at a time: while the interviewer is still replying, the page does not send (as for a person).
+  await expect(page.getByRole("status").filter({ hasText: /The interviewer is typing|Rozmówca pisze/ })).toHaveCount(0);
   await answer.fill(text);
   await answer.press("Enter");
 }
@@ -235,7 +239,8 @@ test("the chat works from the keyboard: consent, answer, send, and the stop dial
   await configure(request, name, "credits=1");
   await openInterview(page, name);
 
-  // Keyboard only from the start screen: the consent box by Space, the start by Enter.
+  // Keyboard only from the start screen: the consent box by Space, the start by Enter. Continue is enabled once the credits are in.
+  await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
   await page.getByRole("button", { name: "Continue" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Before we start" })).toBeFocused();

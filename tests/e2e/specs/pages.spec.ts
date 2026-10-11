@@ -4,15 +4,16 @@ import { accountName, signIn } from "./support";
 // The product pages say what the system can and cannot do (docs/ux/UI-UX.md principle 1). The words that state a fact are
 // asserted here so the page and the design cannot drift apart.
 
-test("the landing page says what is stored, what is not, and the non-goals @smoke", async ({ page }) => {
-  await page.goto("/");
+test("the about page keeps the facts of the AI-client and command-line paths: what is stored, what is not, the non-goals @smoke", async ({ page }) => {
+  await page.goto("/about");
 
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Exit Interview Agent");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("About this project");
   await expect(page.getByText("The interview transcript. It stays in your AI client or on your computer.")).toBeVisible();
   await expect(page.getByText("A link between your account and a submission.")).toBeVisible();
   await expect(page.getByText("Not a public review site")).toBeVisible();
   await expect(page.getByText("never calls records anonymous")).toBeVisible();
   await expect(page.locator("main")).not.toContainText(/\banonymi[sz]ed\b/i);
+  await expect(page.locator("main")).not.toContainText(/not for real people/i);
 });
 
 test("the connect page shows the connector address from the runtime config and what the connector cannot do @smoke", async ({ page }) => {
@@ -39,6 +40,8 @@ test("the connect page points to the operator runbook in the project repository 
 test("the privacy page lists the key facts and the limits, and links to the full documents @smoke", async ({ page }) => {
   await page.goto("/privacy");
 
+  await expect(page.getByTestId("privacy-interview")).toContainText("Anthropic");
+  await expect(page.getByTestId("privacy-interview")).toContainText("30 minutes");
   await expect(page.getByTestId("privacy-facts")).toContainText("it is still personal data");
   await expect(page.getByTestId("privacy-facts")).toContainText("Your account is not linked to your submissions");
   await expect(page.getByText("An operator who has the database, the secret key")).toBeVisible();

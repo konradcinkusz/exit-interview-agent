@@ -264,11 +264,14 @@ test("the page is gated: signed out, an employer page goes to sign-in and back, 
   expect((await request.get("/api/proxy/v1/signals/employers", { maxRedirects: 0 })).status()).toBe(401);
 });
 
-test("the navigation has the entry, and it opens the list once signed in @smoke", async ({ page }) => {
-  await page.goto("/login");
+test("the developer pages have the entry, and it opens the list once signed in @smoke", async ({ page }) => {
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page, accountName("signals-nav"));
   await expect(page).toHaveURL(/\/account$/);
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Employer signals" }).click();
+  // Not in the header (a former employee does not need it): footer -> For developers -> Employer signals.
+  await page.getByRole("contentinfo").getByRole("link", { name: "For developers" }).click();
+  await expect(page).toHaveURL(/\/developers$/);
+  await page.getByTestId("developer-links").getByRole("link", { name: "Employer signals" }).click();
   await expect(page).toHaveURL(/\/signals$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Employer signals");
 });

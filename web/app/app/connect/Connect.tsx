@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
 import { CopyButton } from "../_components/CopyButton";
 
 const C = m.connect;

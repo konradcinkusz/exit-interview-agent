@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
+import { EnglishOnly } from "../_components/EnglishOnly";
 import { Cli } from "./Cli";
 
 export const metadata: Metadata = { title: m.cli.title };
 
 export default function CliPage() {
-  return <Cli />;
+  return (
+    <EnglishOnly>
+      <Cli />
+    </EnglishOnly>
+  );
 }

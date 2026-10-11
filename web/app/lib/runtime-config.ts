@@ -81,3 +81,20 @@ export function backendCandidates(name: BackendName, env: Env = process.env): st
   ];
   return [...new Set(candidates.filter((c): c is string => Boolean(c)))];
 }
+
+/**
+ * The local-development test account, shown on the sign-in page only when the web app is told it runs in the local AppHost stack
+ * (`DEV_HINTS=1`, set by src/ExitInterviewAgent.AppHost/Program.cs for the web resource and nowhere else). These are the fixed,
+ * dev-only credentials of the dashboard command "Seed test user (with credits)" (AppHost DevSeed.cs). With the variable unset, as
+ * in every deployment, there is nothing to show.
+ */
+export interface DevHints {
+  email: string;
+  password: string;
+}
+
+export const DEV_SEED_ACCOUNT: DevHints = { email: "tester@example.com", password: "Dev-Tester-Pass-1" };
+
+export function devHints(env: Env = process.env): DevHints | null {
+  return env.DEV_HINTS?.trim() === "1" ? DEV_SEED_ACCOUNT : null;
+}

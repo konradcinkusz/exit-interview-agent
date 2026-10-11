@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { m } from "@/lib/messages";
+import { getMessages } from "@/lib/i18n";
+import { devHints } from "@/lib/runtime-config";
+import { DevHintsBox } from "./DevHintsBox";
 import { LoginForm } from "./LoginForm";
 
-export const metadata: Metadata = { title: m.login.title };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).t.login.title };
+}
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const { t } = await getMessages();
   return (
-    <Suspense fallback={<p>{m.site.loading}</p>}>
-      <LoginForm />
-    </Suspense>
+    <>
+      <Suspense fallback={<p>{t.site.loading}</p>}>
+        <LoginForm />
+      </Suspense>
+      <DevHintsBox hints={devHints()} t={t.devHints} />
+    </>
   );
 }

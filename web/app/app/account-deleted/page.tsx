@@ -1,20 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { m } from "@/lib/messages";
+import { getMessages } from "@/lib/i18n";
 
-const A = m.accountDeleted;
-const D = m.account.deletion;
-export const metadata: Metadata = { title: A.title };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).t.accountDeleted.title };
+}
 
-export default function AccountDeletedPage() {
+export default async function AccountDeletedPage() {
+  const { t } = await getMessages();
+  const A = t.accountDeleted;
+  const D = t.account.deletion;
   return (
     <>
       <h1>{A.title}</h1>
       <p data-testid="deleted-removes">{D.removes}</p>
       <p data-testid="deleted-not-submissions">{D.notSubmissions}</p>
       <p data-testid="deleted-receipt">{D.receipt}</p>
-      <p><Link href="/delete-submission">{A.deleteSubmission}</Link></p>
-      <p><Link href="/">{A.back}</Link></p>
+      <div className="actions">
+        <Link className="button primary" href="/">{A.back}</Link>
+        <Link className="button secondary" href="/delete-submission">{A.deleteSubmission}</Link>
+      </div>
     </>
   );
 }

@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { m } from "@/lib/messages";
-
-const V = m.verifyEmail;
+import { useMessages } from "../_components/I18n";
 type State = "idle" | "working" | "done" | "failed" | "error";
 
 /**
@@ -13,6 +11,7 @@ type State = "idle" | "working" | "done" | "failed" | "error";
  * from the address bar, so it does not stay in the history or in a screenshot (the link is single-use anyway).
  */
 export function VerifyEmail() {
+  const V = useMessages().verifyEmail;
   const params = useSearchParams();
   // Read once: removing the token from the address bar below changes the search params, which must not cancel the request.
   const [{ token, email }] = useState(() => ({ token: params.get("token"), email: params.get("email") }));
@@ -54,7 +53,7 @@ export function VerifyEmail() {
       {state === "done" && (
         <>
           <p className="notice ok" role="status" data-testid="verify-status">{V.done}</p>
-          <p><Link className="button" href="/login">{V.signIn}</Link></p>
+          <p><Link className="button primary" href="/login">{V.signIn}</Link></p>
         </>
       )}
       {state === "failed" && <p role="alert" data-testid="verify-status">{V.failed}</p>}
@@ -65,7 +64,7 @@ export function VerifyEmail() {
           <h2 id="resend-heading">{V.resendTitle}</h2>
           <label htmlFor="resend-email">{V.email}</label>
           <input id="resend-email" name="email" type="email" autoComplete="email" required data-testid="resend-email" />
-          <button type="submit" data-testid="resend-submit">{V.resend}</button>
+          <button type="submit" className="primary" data-testid="resend-submit">{V.resend}</button>
           {resent === "ok" && <p role="status" data-testid="resend-status">{V.resent}</p>}
           {resent === "limited" && <p role="alert" data-testid="resend-status">{V.rateLimited}</p>}
           {resent === "error" && <p role="alert" data-testid="resend-status">{V.generic}</p>}

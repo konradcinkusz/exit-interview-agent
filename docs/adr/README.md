@@ -240,3 +240,9 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0081](0081-full-stack-test-of-the-apphost.md) | Full-stack test of the AppHost: Aspire test host, Docker in CI, skipped without it | accepted | One fixture starts the composition (PostgreSQL, pgAdmin, authservice v0.3.4, interview-service, the production web build); scenarios: resources up, registration and BFF sign-in, a web interview end to end and deleted, the credit gate, the database's tables and no interview text; skipped and reported as NOT RUN without Docker or FULL_STACK_TESTS=1; its own CI job |
+
+## 21. The portal in two languages (0082)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0082](0082-portal-in-polish-and-english-and-a-header-for-the-former-employee.md) | The portal in Polish and English, and a header for the former employee | accepted | A typed Polish catalog for every page on the former employee's path, chosen per request (switch cookie, then Accept-Language); developer pages stay English-only behind the footer; header is Interview, Account/Sign in, Sign out, language; `DEV_HINTS=1` (AppHost only) shows the local test account on sign-in |

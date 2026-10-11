@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authConfig, backendCandidates, identityConfigured, mcpResourceUrl } from "./runtime-config";
+import { authConfig, backendCandidates, devHints, identityConfigured, mcpResourceUrl } from "./runtime-config";
 
 describe("backendCandidates (the candidate ladder)", () => {
   it("orders explicit variable, service discovery, internal DNS, then localhost", () => {
@@ -51,5 +51,17 @@ describe("mcpResourceUrl", () => {
     expect(mcpResourceUrl({})).toBeUndefined();
     expect(mcpResourceUrl({ MCP_RESOURCE_URL: "  " })).toBeUndefined();
     expect(mcpResourceUrl({ MCP_RESOURCE_URL: "http://localhost:5200/mcp" })).toBeUndefined();
+  });
+});
+
+describe("devHints (the local stack's test account on the sign-in page)", () => {
+  it("is off without DEV_HINTS, as in every deployment", () => {
+    expect(devHints({})).toBeNull();
+    expect(devHints({ NODE_ENV: "development" })).toBeNull();
+  });
+
+  it("is on only for exactly 1", () => {
+    expect(devHints({ DEV_HINTS: "1" })).toEqual({ email: "tester@example.com", password: "Dev-Tester-Pass-1" });
+    for (const value of ["0", "true", "yes", "", " "]) expect(devHints({ DEV_HINTS: value })).toBeNull();
   });
 });

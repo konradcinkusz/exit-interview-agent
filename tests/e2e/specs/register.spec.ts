@@ -16,6 +16,7 @@ test("a visitor registers, sees the versions they accept, and signs in @smoke", 
   const name = accountName("reg");
   await page.goto("/register");
   await expect(page.getByTestId("register-submit")).toBeDisabled();
+  await expect(page.getByText(`Version ${TERMS_VERSION}`).first()).toBeVisible(); // the version is a line under the plain-language label
   await expect(page.getByText(TERMS_VERSION).first()).toBeVisible();
   await expect(page.getByText(PRIVACY_VERSION).first()).toBeVisible();
 
@@ -23,9 +24,10 @@ test("a visitor registers, sees the versions they accept, and signs in @smoke", 
   await page.getByTestId("register-submit").click();
 
   await expect(page.getByTestId("register-done")).toContainText("Account created. You can sign in now.");
-  await page.getByRole("link", { name: "Sign in" }).last().click();
+  await page.getByRole("main").getByRole("link", { name: "Sign in" }).click();
   await signIn(page, name);
-  await expect(page).toHaveURL(/\/account$/);
+  // Without a page to return to, signing in leads to the interview: that is what a former employee came for.
+  await expect(page).toHaveURL(/\/interview$/);
 });
 
 test("a registration that needs verification says to check email, cannot sign in, then verifies from the link @smoke", async ({ page }) => {

@@ -4,8 +4,8 @@ import { accountName, signIn, watchViolations } from "./support";
 // Hardening (T-06, ADR-0047, ADR-0048): a per-request nonce CSP with no inline-script allowance, no-store on everything
 // that can show account data, a same-origin check on state-changing routes, nothing third-party.
 
-const PUBLIC_PAGES = ["/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/delete-submission", "/account-deleted"];
-const SIGNED_IN_PAGES = ["/cli", "/account"];
+const PUBLIC_PAGES = ["/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/about", "/developers", "/delete-submission", "/account-deleted"];
+const SIGNED_IN_PAGES = ["/cli", "/account", "/interview"];
 
 const directive = (csp: string, name: string) => csp.split("; ").find((d) => d.startsWith(`${name} `)) ?? "";
 
@@ -51,6 +51,7 @@ test("no page raises a CSP violation, loads anything from another origin, or fai
   }
   await page.goto("/login?redirect=%2Faccount");
   await signIn(page, accountName("csp"));
+  await expect(page).toHaveURL(/\/account$/);
   for (const path of SIGNED_IN_PAGES) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
@@ -117,7 +118,7 @@ test("a same-origin request is not refused by the check, and a safe method never
 });
 
 test("the session cookies are SameSite=Strict and HttpOnly, and none holds anything a page can read @smoke", async ({ page, context }) => {
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page, accountName("cookies"));
   await expect(page).toHaveURL(/\/account$/);
 
