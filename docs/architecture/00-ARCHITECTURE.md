@@ -33,6 +33,7 @@ one consumed identity service. See [`../diagrams/system.mmd`](../diagrams/system
 | `tests/ExitInterviewAgent.Eval.Tests` | xUnit; corpus validation, statistics, fault injection, Layer 1, the broken-variant mutation tests, judge, calibration, gate, report, architecture (anti-goals) | 3 |
 | `web/app` | Next.js product surface + BFF | 4 runtime, 7 dev |
 | `tests/e2e` | Playwright journeys against the production artifact; axe-core accessibility gate | 1 runtime, 3 dev |
+| `tests/ExitInterviewAgent.AppHost.Tests` | xUnit under the Aspire test host: the full stack (PostgreSQL, pgAdmin, authservice, interview-service, web) through the BFF, skipped and reported as NOT RUN without Docker (ADR-0081); the composition builds without Docker | 5 |
 
 The dependency counts come from `grep -c '<PackageReference' <csproj>` and the key counts of
 `dependencies` / `devDependencies` in each `package.json`; update them in the pull request that changes

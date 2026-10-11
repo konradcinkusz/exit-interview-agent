@@ -228,3 +228,9 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0079](0079-local-stack-pgadmin-interview-config-dev-credit-grant.md) | Local stack: pgAdmin, interview configuration, development credit grant | accepted | pgAdmin in the AppHost only (port 5050, generated password); the interview model from parameters, the scripted mock when no key is set and visible as degraded; the fake payment provider with a development price; a development-only credit grant mounted only in Development with the fake provider (404 elsewhere); the verified-email gate off in development until authservice issues the claim |
+
+## 19. Full-stack test of the AppHost (0081)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0081](0081-full-stack-test-of-the-apphost.md) | Full-stack test of the AppHost: Aspire test host, Docker in CI, skipped without it | accepted | One fixture starts the composition (PostgreSQL, pgAdmin, authservice v0.3.4, interview-service, the production web build); scenarios: resources up, registration and BFF sign-in, a web interview end to end and deleted, the credit gate, the database's tables and no interview text; skipped and reported as NOT RUN without Docker or FULL_STACK_TESTS=1; its own CI job |

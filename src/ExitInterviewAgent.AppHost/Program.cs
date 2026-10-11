@@ -80,7 +80,10 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Parameters:anthropic-works
     interviewService.WithEnvironment("ANTHROPIC_WORKSPACE_ID", builder.AddParameter("anthropic-workspace-id", builder.Configuration["Parameters:anthropic-workspace-id"]!.Trim()));
 }
 
-var web = builder.AddJavaScriptApp("web", "../../web/app", "dev")
+// Relative to the AppHost project, not the working directory. The script is `dev` for a developer; the full-stack test sets
+// Web:Script=start after a production build, because a first `next dev` compile is slow and not what a CI run should measure (ADR-0081).
+var webScript = string.IsNullOrWhiteSpace(builder.Configuration["Web:Script"]) ? "dev" : builder.Configuration["Web:Script"]!.Trim();
+var web = builder.AddJavaScriptApp("web", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../../web/app")), webScript)
     .WithPnpm()
     .WithHttpEndpoint(port: WebPort, env: "PORT")
     .WithReference(interviewService)
