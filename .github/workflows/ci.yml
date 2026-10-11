@@ -222,6 +222,11 @@ jobs:
           docker ps -a --format '{{.Names}}' | while read -r name; do
             docker logs "$name" > "$FULL_STACK_LOG_DIR/containers/$name.log" 2>&1 || true
           done
+          # The artifact may not be readable from every place (ADR-0081): the tail of each container's log goes to the job log too.
+          for file in "$FULL_STACK_LOG_DIR"/containers/*.log; do
+            echo "===== $(basename "$file") (last 60 lines) ====="
+            tail -n 60 "$file" || true
+          done
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

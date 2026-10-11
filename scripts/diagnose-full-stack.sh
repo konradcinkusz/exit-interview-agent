@@ -52,7 +52,9 @@ say "AppHost pid $apphost"
 if wait_for http://127.0.0.1:5100/health/ready 240 "$apphost" "authservice (AppHost)"; then
   wait_for http://127.0.0.1:3000/healthz 240 "$apphost" "web (AppHost)" || true
 fi
-say "--- AppHost log (last 80 lines)"
+say "--- AppHost log, first 120 lines (where the start failed, if it did)"
+head -n 120 "$out/apphost.log" >> "$report" 2>&1
+say "--- AppHost log, last 80 lines"
 tail -n 80 "$out/apphost.log" >> "$report" 2>&1
 
 section "Listeners and containers with the AppHost running"
@@ -114,7 +116,9 @@ if [ -n "${web_pid:-}" ] && [ -r "/proc/$web_pid/environ" ]; then
   done
 fi
 
-section "authservice container logs (tail 200)"
+section "authservice container: state and its own log (tail 200)"
+timeout 20 docker ps -a --filter name=authservice --format 'name={{.Names}} status={{.Status}} ports={{.Ports}}' >> "$report" 2>&1
+say "(none listed above means the AppHost never created the container)"
 mkdir -p "$out/containers"
 timeout 20 docker ps -a --format '{{.Names}}' | grep -i authservice | while read -r name; do
   timeout 30 docker logs --tail 200 "$name" > "$out/containers/$name.log" 2>&1
