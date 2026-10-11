@@ -16,6 +16,7 @@ export const en = {
   nav: {
     label: "Main",
     home: "Home",
+    interview: "Interview",
     connect: "Connect your AI client",
     cli: "Use the CLI",
     signals: "Employer signals",
@@ -61,6 +62,7 @@ export const en = {
       "Not for real people yet: this is a development build with simulated interviews.",
     ],
     ctaTitle: "Start",
+    ctaInterview: "Start an interview",
     ctaConnect: "Connect your AI client",
     ctaCli: "Use the command line",
     ctaDelete: "Delete a submission",

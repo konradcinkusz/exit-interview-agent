@@ -26,7 +26,8 @@ export default function Home() {
 
       <h2>{L.ctaTitle}</h2>
       <p>
-        <Link className="button" href="/connect" data-testid="connect-link">{L.ctaConnect}</Link>
+        <Link className="button" href="/interview" prefetch={false} data-testid="interview-link">{L.ctaInterview}</Link>
+        <Link className="button secondary" href="/connect" data-testid="connect-link">{L.ctaConnect}</Link>
         <Link className="button secondary" href="/cli" prefetch={false} data-testid="cli-link">{L.ctaCli}</Link>
         <Link className="button secondary" href="/delete-submission">{L.ctaDelete}</Link>
       </p>
