@@ -8,6 +8,7 @@ import { m } from "@/lib/messages";
 // and the router would replay that cached redirect after the user signs in, bouncing them back to the sign-in page.
 const LINKS = [
   { href: "/", label: m.nav.home, gated: false },
+  { href: "/interview", label: m.nav.interview, gated: true },
   { href: "/connect", label: m.nav.connect, gated: false },
   { href: "/cli", label: m.nav.cli, gated: true },
   { href: "/signals", label: m.nav.signals, gated: true },
