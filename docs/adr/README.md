@@ -222,3 +222,9 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0077](0077-credits-ledger-and-payment-provider.md) | Credits ledger and payment provider | accepted | Append-only credit ledger with database-enforced uniqueness per payment event and per session; provider seam with Stripe over HTTP and a fake sharing the production classifier; signature over the raw body; fail-closed configuration; a start takes one credit and a failed session returns it; the Stripe wire format is not yet checked against the provider |
+
+## 18. Local stack and development credits (0079)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0079](0079-local-stack-pgadmin-interview-config-dev-credit-grant.md) | Local stack: pgAdmin, interview configuration, development credit grant | accepted | pgAdmin in the AppHost only (port 5050, generated password); the interview model from parameters, the scripted mock when no key is set and visible as degraded; the fake payment provider with a development price; a development-only credit grant mounted only in Development with the fake provider (404 elsewhere); the verified-email gate off in development until authservice issues the claim |

@@ -1,4 +1,5 @@
 using ExitInterviewAgent.InterviewService.Billing.Endpoints;
+using ExitInterviewAgent.InterviewService.Dev;
 using ExitInterviewAgent.InterviewService.Endpoints;
 using ExitInterviewAgent.InterviewService.Infrastructure.Auth;
 using ExitInterviewAgent.InterviewService.Interviews;
@@ -33,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<InterviewRateLimits>();
         services.AddSingleton<DailyStartCap>();
         services.ConfigureOpenTelemetryMeterProvider(m => m.AddMeter(CostMetrics.MeterName));
+        services.AddDevStack(configuration); // development-only rows for /health and the banner (ADR-0079)
 
         // Optional and visible (P8): /health and the startup banner show the cost-control state. No key, no environment variable name.
         var section = configuration.GetSection(InterviewServiceOptions.SectionName);
@@ -69,6 +71,7 @@ public static class ServiceCollectionExtensions
         authApi.MapSignalsEndpoints();
         authApi.MapInterviewSessionEndpoints();
         authApi.MapCreditEndpoints();
+        app.MapDevEndpoints(); // mounted only in Development with the fake payment provider (ADR-0079)
 
         // No account, no token: ticketed submission, receipt deletion and the payment webhook. Short enough to read aloud; the architecture test pins the list.
         var publicApi = app.MapGroup("/api/v1").AllowAnonymous().WithValidation();
