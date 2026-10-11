@@ -7,7 +7,13 @@
 .status p + p { margin-top: var(--s1); color: var(--muted); }
 .statusReady { border-left-color: var(--ok); background: var(--ok-soft); }
 .statusEmpty { border-left-color: var(--warn); background: var(--warn-soft); }
-.statusTitle { font-size: var(--text-lg); font-weight: 700; }
+.statusTitle { display: flex; align-items: center; gap: var(--s2); font-size: var(--text-lg); font-weight: 700; }
+.statusReady .statusTitle :global(.icon) { color: var(--ok); }
+.statusEmpty .statusTitle :global(.icon) { color: var(--warn); }
+.form { margin-top: var(--s5); }
+.form fieldset { margin-top: 0; }
+.form :global(.actions) { margin-bottom: var(--s3); }
+.form > p:last-child { margin-bottom: 0; }
 .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--s2); }
 .choices :global(label.check) { margin: 0; }
 

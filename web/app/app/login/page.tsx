@@ -12,11 +12,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LoginPage() {
   const { t } = await getMessages();
   return (
-    <>
-      <Suspense fallback={<p>{t.site.loading}</p>}>
-        <LoginForm />
-      </Suspense>
+    <div className="auth">
+      <div className="card auth-card">
+        <Suspense fallback={<p role="status">{t.site.loading}</p>}>
+          <LoginForm />
+        </Suspense>
+      </div>
       <DevHintsBox hints={devHints()} t={t.devHints} />
-    </>
+    </div>
   );
 }

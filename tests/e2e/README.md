@@ -7,7 +7,7 @@ that no unit test sees. Today those flows are: **sign in (with two-factor) and r
 forged or unsigned token never passes the edge**, **tokens never reach page JavaScript**, **sign-out ends
 the session**, **runtime config exposes no backend address**, **a ticket is shown once and kept nowhere**, **deletion by
 receipt code is anonymous, header-only and uniform**, **the Signals pages show what the API returned and nothing derived (no number for `insufficient_data`, no band named for a hidden breakdown, no ranking or sorting affordance), cache and revalidate within the batch, and never retry a 429 by themselves**, **the CSP carries a nonce and nothing violates it**, **cross-origin
-state changes are refused**, and **every page passes the axe-core accessibility rules** (a subset of what a person would check).
+state changes are refused**, **every page and every interview state passes the axe-core accessibility rules, the control and focus contrast of WCAG 1.4.11, a visible focus on every Tab stop, reduced motion, and 390 px and 200% zoom without sideways scrolling** (`a11y.spec.ts`, `a11y-interview.spec.ts`; a subset of what a person would check), and **a former employee can go from the start page to a deleted result in Polish** (`journey-pl.spec.ts`).
 
 E2E does not exist to test single-field validation (unit-test it), to duplicate the backend's own
 integration tests through a browser, or to pixel-check visuals.
