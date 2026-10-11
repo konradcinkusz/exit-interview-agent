@@ -273,3 +273,7 @@ jobs:
               assert "http_service" in d or f.name == "postgres.fly.toml", f"{f}: no [http_service]"
               assert "http_service" not in d or f.name != "postgres.fly.toml", "postgres must have no public listener"
           PY
+      - name: "Fly topology invariants (ADR-0080: single interview instance, pinned builds, no secret values, no pgAdmin)"
+        run: python3 scripts/check-fly.py
+      - name: "Fly topology invariants have negative tests (every rule is shown to fail on a broken copy)"
+        run: python3 scripts/check-fly-selftest.py

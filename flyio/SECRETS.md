@@ -20,10 +20,21 @@ Rule of thumb: if you would not paste it into a pull request, it is a secret. `[
 | | `Jwt__PrivateKeyPem` | **the only signing key in the system**, RSA-2048+, PKCS#8 PEM | never reused from a laptop key; held by this app and nothing else |
 | `exit-interview-agent-interview-service-dev` | `ConnectionStrings__interviewdb` | `Host=exit-interview-agent-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=<INTERVIEW_DB_PASSWORD>` | no credentials for any other database |
 | | `Ledger__ActiveKeyId`, `Ledger__Keys__0__Id`, `Ledger__Keys__0__Secret` | the submission ledger's HMAC key: an id of 1-32 characters and `openssl rand -base64 32` (at least 32 bytes) | **the service refuses to start without it outside Development.** Keep it outside the database's backup domain. Rotation: add `Keys__1`, switch `ActiveKeyId`, remove the old key after the ledger window ([ADR-0028](../docs/adr/0028-submission-ledger-hmac-rotation-and-window.md)) |
+| | `ANTHROPIC_API_KEY` (or the variable named by `Interviews__ApiKeyEnv`) | the model provider key, from a dedicated workspace with a monthly spend limit (runbook §4) | read from the environment by the Providers resolver, never from `Interviews__*` configuration; without it a start answers 503 |
+| | `ANTHROPIC_WORKSPACE_ID` | optional workspace id, sent as the `anthropic-workspace-id` header (`ProviderChatClients.cs`); needed only for a key that is not workspace-scoped | optional; the spend limit in the console is the control that matters |
+| | `Interviews__Provider`, `Interviews__Model` | which provider and which model run the interview | set with `fly secrets set --stage`, not in `[env]`: the model is an owner decision after the W9 run, and the code has no default |
+| | `Billing__StripeSecretKey`, `Billing__StripeWebhookSecret`, `Billing__StripePriceId` | payment provider keys and the one-credit price (test mode in staging, `sk_test_` only) | added after the Stripe test-mode checks (runbook §5) |
+| | `Billing__PriceMinorUnits`, `Billing__Currency`, `Billing__SuccessUrl`, `Billing__CancelUrl` | price, currency and the owner's return pages | decisions of the owner; the code has no default and refuses checkout (503) until they are set |
 | `exit-interview-agent-web-dev` | none today | the BFF holds no key: it verifies against authservice's JWKS | |
 
-Later work adds secrets (model
-API keys for hosted use). They are added to this table in the same pull request that introduces them.
+**Known gap before the first deployment (not closed in this change).** `Ledger__*` is required outside
+Development, and the interview service refuses to start without it. `.github/workflows/flyio.yml` sets only
+`ConnectionStrings__interviewdb` for this app, so until the ledger keys are set by hand (runbook §3) the first
+deploy fails its health check. That is the fail-closed behaviour working, not a bug to hide. The authservice's
+`AuthorizationServer__Clients__0__ClientSecret` and `AuthorizationServer__EncryptionKey` are in the same position.
+The rows above for hosted-interview secrets are the ones the code reads today; each is set with `fly secrets set --stage`.
+
+Later work adds secrets. They are added to this table in the same pull request that introduces them.
 
 ## How, when it is ever done
 

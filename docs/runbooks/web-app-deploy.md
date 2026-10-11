@@ -15,6 +15,32 @@ Related: [cost controls](web-app-cost-controls.md) (the four brakes and the spen
 - **No paid interview before the gates in [RELEASE-GATE.md](../release/RELEASE-GATE.md) that concern money and law are closed by you:** the legal review (item 16), the Stripe sandbox test (item 17), the real-model run on 10 Polish interviews with a measured cost (item 18), the spend limit (item 19). A staging deployment with the switch on and no payment configured is allowed earlier; it is not a launch.
 - **Staging = the `dev` environment in this repository.** The Fly apps are named `exit-interview-agent-<name>-dev` (see the `[app]` lines in `flyio/*.fly.toml`). The first deployment is that environment. A separate production environment is a later decision; do not rename the apps, because `flyio.yml` creates them by these names.
 
+### 0b. What runs where, and the first deployment order
+
+Four apps, one image each, one database instance with one logical database per service (P3). Nothing here is deployed by this repository (PROJECT-BRIEF §2); the table is the reference for the first deployment.
+
+| App (`fly.toml`) | Image | Internal port | Health check | Secrets (names only, see [SECRETS](../../flyio/SECRETS.md)) | Depends on |
+|---|---|---|---|---|---|
+| `exit-interview-agent-postgres` (`postgres.fly.toml`) | `postgres:17-alpine`, pinned major | 5432, `.internal` only, **no public listener** | none (no HTTP); volume `exit_interview_agent_pgdata` | `POSTGRES_PASSWORD`, `INTERVIEW_DB_PASSWORD`, `AUTH_DB_PASSWORD` | nothing; creates roles and databases `interviewdb`, `authdb` on first boot |
+| `exit-interview-agent-authservice-dev` (`authservice.fly.toml`) | `ghcr.io/konradcinkusz/authservice:v0.3.4`, pinned tag | 8080 | `/health/ready`, grace 60 s (**NOT VERIFIED** against this tag) | `ConnectionStrings__DefaultConnection`, `Jwt__PrivateKeyPem`, `AuthorizationServer__Clients__0__ClientSecret`, `AuthorizationServer__EncryptionKey` | postgres (`authdb`) |
+| `exit-interview-agent-interview-service-dev` (`interview-service.fly.toml`) | built from `src/ExitInterviewAgent.InterviewService/Dockerfile` | 8080 | `/health`, grace 60 s (schema migrates after the listener starts) | `ConnectionStrings__interviewdb`, `Ledger__ActiveKeyId`, `Ledger__Keys__0__Id`, `Ledger__Keys__0__Secret`, `ANTHROPIC_API_KEY`, `Interviews__Provider`, `Interviews__Model`; later the `Billing__*` set | postgres (`interviewdb`); authservice JWKS at its public URL; **exactly one machine** (ADR-0080) |
+| `exit-interview-agent-web-dev` (`web.fly.toml`) | built from `web/app/Dockerfile` | 3000 | `/healthz`, grace 30 s | none (the BFF holds no key) | interview-service and authservice at their public URLs |
+
+pgAdmin is **not** deployed to Fly: no file in `flyio/` mentions it, and `scripts/check-fly.py` fails the build if one does.
+
+**Order of the first deployment** (each step is verified before the next; the commands are **examples, not run**):
+
+1. **Postgres.** Create the app and the volume, set the three passwords, deploy with `--ha=false`. Check that both databases exist, e.g. `fly ssh console -a exit-interview-agent-postgres` and `psql -l`.
+2. **Authservice.** Set its connection string (`Host=exit-interview-agent-postgres.internal;Database=authdb;Username=authservice`), signing key, client secret and encryption key; deploy. Check that the JWKS has keys: `curl -fsS https://exit-interview-agent-authservice-dev.fly.dev/.well-known/jwks.json`. An empty key set makes every token rejected downstream.
+3. **Interview service.** Set the connection string, the three ledger keys (**required outside Development; the service refuses to start without them**), the provider key and `Interviews__Provider`/`Interviews__Model`; deploy with `--image`. Check `/health` lists the integrations, then a start with no credit answers `402`.
+4. **Web.** Deploy; check `https://<your domain>/healthz`, then sign in through the browser to exercise authservice and the BFF end to end.
+
+Migrations: there is no release command. Each service applies its own migrations from a hosted service after its listener starts (P4, `MigrationExtensions`). With one interview-service machine and `strategy = "immediate"` there is never a second process migrating at the same time.
+
+Service-to-service calls use the **public URLs** (FLY-IO-DEPLOYMENT §6): the JWT issuer must be fetchable from every validator, and the proxy starts a stopped machine where `.internal` does not. The database alone uses `.internal`.
+
+**Single instance (ADR-0080).** Do not add a second machine to `interview-service`, do not turn on autoscaling, and do not stop it when idle: its open interview sessions live in its memory, and every one of them ends when the machine stops or is replaced. A deploy ends open interviews too.
+
 ### 1. Fly account and organisation
 
 1. Create or sign in to the Fly.io account that will own the apps. Use the owner's account, not a shared one.
@@ -56,7 +82,7 @@ fly secrets set --app exit-interview-agent-interview-service-dev --stage \
 ```
 
 - `ANTHROPIC_API_KEY` is the default name of the variable that holds the key (`Interviews:ApiKeyEnv`). If you rename it, set `Interviews__ApiKeyEnv` to the new name as well.
-- **The workspace identifier is not read by this code yet.** [cost controls §2](web-app-cost-controls.md) says so. Set it only when the code reads it; until then the spend limit in the console is the control that matters.
+- **`ANTHROPIC_WORKSPACE_ID` is read by the code** (`ProviderConfigResolver`) and sent as the `anthropic-workspace-id` header (`ProviderChatClients`). It is needed only for a key that is not already scoped to a workspace. The spend limit in the console is the control that matters either way. (This corrects an earlier note here and in [cost controls §2](web-app-cost-controls.md), which says the code does not read it.)
 - `Interviews__Model` is a configuration value, not a repository value: the model is chosen after the W9 run, and no model identifier is written into the repository.
 
 **Payments** (same app), added in step 5, only after the Stripe test-mode checks:
@@ -152,6 +178,32 @@ Interview sessions live **in memory** (web-app-plan §3, ADR-0076). A deploy, a 
 - **Żadna płatna rozmowa przed zamknięciem bramek z [RELEASE-GATE.md](../release/RELEASE-GATE.md), które dotyczą prawa i pieniędzy, przez właściciela:** przegląd prawny (pozycja 16), test płatności w piaskownicy Stripe (pozycja 17), przebieg na prawdziwym modelu, 10 wywiadów po polsku, z zmierzonym kosztem (pozycja 18), limit wydatków (pozycja 19). Wdrożenie stagingowe z wyłącznikiem włączonym i bez skonfigurowanej płatności wolno wcześniej; to nie jest uruchomienie.
 - **Staging = środowisko `dev` w tym repozytorium.** Aplikacje Fly nazywają się `exit-interview-agent-<nazwa>-dev` (linie `app` w `flyio/*.fly.toml`). Pierwsze wdrożenie to właśnie to środowisko. Osobne środowisko produkcyjne to późniejsza decyzja; nie zmieniaj nazw aplikacji, bo `flyio.yml` tworzy je po tych nazwach.
 
+### 0b. Co działa gdzie i kolejność pierwszego wdrożenia
+
+Cztery aplikacje, po jednym obrazie każda, jedna instancja bazy z jedną bazą logiczną na usługę (P3). Tego repozytorium nic nie wdraża (PROJECT-BRIEF §2); tabela jest punktem odniesienia dla pierwszego wdrożenia.
+
+| Aplikacja (`fly.toml`) | Obraz | Port wewnętrzny | Health check | Sekrety (tylko nazwy, zob. [SECRETS](../../flyio/SECRETS.md)) | Zależności |
+|---|---|---|---|---|---|
+| `exit-interview-agent-postgres` (`postgres.fly.toml`) | `postgres:17-alpine`, przypięty major | 5432, tylko `.internal`, **bez publicznego listenera** | brak (bez HTTP); wolumen `exit_interview_agent_pgdata` | `POSTGRES_PASSWORD`, `INTERVIEW_DB_PASSWORD`, `AUTH_DB_PASSWORD` | nic; tworzy role i bazy `interviewdb`, `authdb` przy pierwszym starcie |
+| `exit-interview-agent-authservice-dev` (`authservice.fly.toml`) | `ghcr.io/konradcinkusz/authservice:v0.3.4`, przypięty tag | 8080 | `/health/ready`, grace 60 s (**NIEZWERYFIKOWANE** dla tego tagu) | `ConnectionStrings__DefaultConnection`, `Jwt__PrivateKeyPem`, `AuthorizationServer__Clients__0__ClientSecret`, `AuthorizationServer__EncryptionKey` | postgres (`authdb`) |
+| `exit-interview-agent-interview-service-dev` (`interview-service.fly.toml`) | budowany z `src/ExitInterviewAgent.InterviewService/Dockerfile` | 8080 | `/health`, grace 60 s (schemat migruje po starcie listenera) | `ConnectionStrings__interviewdb`, `Ledger__ActiveKeyId`, `Ledger__Keys__0__Id`, `Ledger__Keys__0__Secret`, `ANTHROPIC_API_KEY`, `Interviews__Provider`, `Interviews__Model`; później zestaw `Billing__*` | postgres (`interviewdb`); JWKS authservice pod publicznym URL; **dokładnie jedna maszyna** (ADR-0080) |
+| `exit-interview-agent-web-dev` (`web.fly.toml`) | budowany z `web/app/Dockerfile` | 3000 | `/healthz`, grace 30 s | brak (BFF nie trzyma klucza) | interview-service i authservice pod publicznymi URL |
+
+pgAdmin **nie** jest wdrażany na Fly: żaden plik w `flyio/` go nie wymienia, a `scripts/check-fly.py` przerywa build, jeśli się pojawi.
+
+**Kolejność pierwszego wdrożenia** (każdy krok sprawdzasz przed następnym; polecenia to **przykłady, nie uruchomione**):
+
+1. **Postgres.** Utwórz aplikację i wolumen, ustaw trzy hasła, wdróż z `--ha=false`. Sprawdź, że obie bazy istnieją, np. `fly ssh console -a exit-interview-agent-postgres` i `psql -l`.
+2. **Authservice.** Ustaw connection string (`Host=exit-interview-agent-postgres.internal;Database=authdb;Username=authservice`), klucz podpisu, sekret klienta i klucz szyfrowania; wdróż. Sprawdź, że JWKS ma klucze: `curl -fsS https://exit-interview-agent-authservice-dev.fly.dev/.well-known/jwks.json`. Pusty zestaw kluczy powoduje odrzucanie każdego tokenu niżej.
+3. **Usługa wywiadu.** Ustaw connection string, trzy klucze ledgera (**wymagane poza Development; usługa bez nich nie wystartuje**), klucz dostawcy oraz `Interviews__Provider`/`Interviews__Model`; wdróż z `--image`. Sprawdź, że `/health` wymienia integracje, a start bez kredytu zwraca `402`.
+4. **Web.** Wdróż; sprawdź `https://<twoja domena>/healthz`, potem zaloguj się przez przeglądarkę, żeby przejść całą drogę przez authservice i BFF.
+
+Migracje: nie ma komendy release. Każda usługa stosuje własne migracje z usługi hostowanej po starcie listenera (P4, `MigrationExtensions`). Przy jednej maszynie interview-service i `strategy = "immediate"` nigdy nie migruje drugi proces równolegle.
+
+Wywołania między usługami używają **publicznych URL** (FLY-IO-DEPLOYMENT §6): issuer JWT musi być dostępny dla każdego walidatora, a proxy startuje zatrzymaną maszynę, czego `.internal` nie robi. Wyłącznie baza używa `.internal`.
+
+**Jedna instancja (ADR-0080).** Nie dodawaj drugiej maszyny do `interview-service`, nie włączaj autoskalowania i nie zatrzymuj jej w bezczynności: otwarte sesje wywiadu żyją w jej pamięci i każda kończy się, gdy maszyna się zatrzyma lub zostanie zastąpiona. Wdrożenie też kończy otwarte wywiady.
+
 ### 1. Konto Fly i organizacja
 
 1. Załóż albo zaloguj się na konto Fly.io, które będzie właścicielem aplikacji. Użyj konta właściciela, nie wspólnego.
@@ -193,7 +245,7 @@ fly secrets set --app exit-interview-agent-interview-service-dev --stage \
 ```
 
 - `ANTHROPIC_API_KEY` to domyślna nazwa zmiennej z kluczem (`Interviews:ApiKeyEnv`). Jeśli ją zmienisz, ustaw też `Interviews__ApiKeyEnv` na nową nazwę.
-- **Identyfikator workspace nie jest jeszcze czytany przez ten kod.** Mówi o tym [cost controls §2](web-app-cost-controls.md). Ustawiaj go dopiero, gdy kod go czyta; do tego czasu kontrolą jest limit wydatków w konsoli.
+- **`ANTHROPIC_WORKSPACE_ID` czyta ten kod** (`ProviderConfigResolver`) i wysyła go jako nagłówek `anthropic-workspace-id` (`ProviderChatClients`). Potrzebny jest tylko dla klucza, który nie jest już przypisany do workspace. (To poprawia wcześniejszą notatkę tutaj i w [cost controls §2](web-app-cost-controls.md), która mówi, że kod go nie czyta.) Niezależnie od tego kontrolą jest limit wydatków w konsoli.
 - `Interviews__Model` to wartość konfiguracyjna, nie wartość repozytorium: model wybiera się po przebiegu W9 i żaden identyfikator modelu nie trafia do repozytorium.
 
 **Płatności** (ta sama aplikacja), dodawane w kroku 5, dopiero po sprawdzeniach w trybie testowym Stripe:

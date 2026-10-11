@@ -456,6 +456,18 @@ oznaczone \emph{NOT RUN} nie są wykonane w tym przewodniku.
         istniejąca sesja dokańcza się normalnie.
 \end{enumerate}
 
+\subsection{Uruchomienie lokalne}
+
+Cały stos działa na Twoim komputerze: baza z panelem pgAdmin, authservice w przypiętym obrazie, usługa rozmów i aplikacja webowa. Startuje jednym poleceniem, \texttt{dotnet run --project src/ExitInterviewAgent.AppHost}, po jednorazowym \texttt{scripts/setup.sh} (w Windows: \texttt{scripts/setup.ps1}). Konsola podaje adres panelu Aspire, który wymienia wszystkie zasoby i ich porty.
+
+Adresy stałe: aplikacja webowa \texttt{http://localhost:3000}, authservice \texttt{http://localhost:5100}, pgAdmin \texttt{http://localhost:5050} (tylko ten komputer). Port usługi rozmów przydziela Aspire; odczytujesz go z panelu.
+
+Rozmowę na mocku przechodzisz bez klucza i bez kosztów: zakładasz konto, akceptujesz zgodę i rozmawiasz. Prawdziwy model wymaga Twojego klucza w \texttt{user-secrets} i identyfikatora modelu z konsoli dostawcy, a koszt ponosisz Ty. Płatności lokalnie działają przez nadanie deweloperskie, nie przez zakup.
+
+Komendy krok po kroku, tabela portów, rozwiązywanie problemów i tabela tego, co uruchomiono, a czego nie, są w runbooku \texttt{docs/runbooks/local-run.md}. Skrypt \texttt{scripts/smoke-local.sh} (albo \texttt{scripts/smoke-local.ps1}) sprawdza, czy stos odpowiada, i może przeprowadzić jedną rozmowę przez API.
+
+\textbf{Stan.} Runbook i skrypty powstały bez uruchomienia stosu, bo w środowisku autora nie działał Docker. Uruchomienie stosu i rozmowy w przeglądarce należy do czytelnika; wynik trzeba zapisać, zanim uzna się tę część za sprawdzoną.
+
 \subsection{Ćwiczenia: wersja webowa na mocku}
 
 Ćwiczenia używają wyłącznie lokalnych komend, modelu testowego (\texttt{mock})
