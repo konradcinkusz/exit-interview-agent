@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 69 ADRs** (numbered 0001–0076). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 72 ADRs** (numbered 0001–0080). Gaps: numbers 0015–0016, 0020–0021, 0064–0066 and 0079 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -222,3 +222,9 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0077](0077-credits-ledger-and-payment-provider.md) | Credits ledger and payment provider | accepted | Append-only credit ledger with database-enforced uniqueness per payment event and per session; provider seam with Stripe over HTTP and a fake sharing the production classifier; signature over the raw body; fail-closed configuration; a start takes one credit and a failed session returns it; the Stripe wire format is not yet checked against the provider |
+
+## 18. Fly topology (0080)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0080](0080-interview-service-runs-as-a-single-instance.md) | Interview service runs as a single instance (in-memory sessions) | accepted | One machine, never stopped by the proxy (`auto_stop_machines = false`), `immediate` deploy strategy, migrations after the listener starts, 1 GB memory (not measured), public URLs for service-to-service calls and `.internal` only for Postgres; enforced by `scripts/check-fly.py` and its negative tests |

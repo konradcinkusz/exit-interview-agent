@@ -1,6 +1,20 @@
 # GENERATED TOPOLOGY, NEVER TRIGGERED in this phase (PROJECT-BRIEF §2: no deployment of any kind).
+#
+# SINGLE INSTANCE (ADR-0080). Interview sessions (transcript, result, idle timers) live in THIS process's memory
+# (ADR-0076). A second machine cannot see the first one's sessions, and a stopped machine loses them all. Therefore:
+#   - exactly one machine: min_machines_running = 1 below, and NO autoscaling and NO `flyctl scale count` above 1
+#     (flyio-scale.yml normalizes to 1). Fly's TOML does not express a maximum here; this is operator-enforced and
+#     checked by scripts/check-fly.py for the minimum and the stop policy.
+#   - auto_stop_machines = false: the proxy must never stop the one machine (that would drop every open session).
+#   - strategy = "immediate": a rolling deploy would run the old and the new machine side by side, and a request
+#     for a session could reach the machine that does not hold it. Immediate stops the old one first.
+# A deploy therefore ends every open interview. That is accepted: sessions are short and the ledger refunds failed
+# ones (ADR-0077). Lift this only with shared session state (a future ADR).
 app = "exit-interview-agent-interview-service-dev"
 primary_region = "fra"
+
+[deploy]
+  strategy = "immediate"
 
 [build]
   # Both paths are relative to THIS FILE. The context is the repository root: the Dockerfile
@@ -39,10 +53,11 @@ primary_region = "fra"
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  # false, not "stop": a stopped machine takes its in-memory interview sessions with it (ADR-0076, ADR-0080).
+  auto_stop_machines = false
   auto_start_machines = true
   # 1, not 0: the web app's server side calls this service in-request (the BFF proxy, GET /api/v1/me).
-  # A cold start here is a failed call, not a slow page.
+  # A cold start here is a failed call, not a slow page. Also the single instance (ADR-0080): never more than 1.
   min_machines_running = 1
 
   [http_service.concurrency]
@@ -56,6 +71,9 @@ primary_region = "fra"
     timeout = "5s"
     grace_period = "60s"   # .NET cold start + first-boot schema migration
 
+# 1 GB, not 512 MB: the .NET 10 runtime, EF Core, the Anthropic SDK and up to one open session per account, each
+# with its transcript held in memory (ADR-0076). 512 MB is the untested guess this replaces; measure before lowering
+# it (NOT RUN: no Fly machine exists to measure).
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "512mb"
+  memory = "1024mb"
