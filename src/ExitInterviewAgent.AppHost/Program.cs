@@ -92,6 +92,10 @@ var web = builder.AddJavaScriptApp("web", Path.GetFullPath(Path.Combine(builder.
     .WithEnvironment("AUTH_AUDIENCE", "ExitInterviewAgent")
     .WithEnvironment("SESSION_COOKIE_SECURE", "false") // plain-http localhost only
     .WithHttpHealthCheck("/healthz");
+if (builder.Configuration["Web:NodeDebug"] is { Length: > 0 } nodeDebug)
+{
+    web.WithEnvironment("NODE_DEBUG", nodeDebug.Trim()); // e.g. "net": each socket connect and its error code, in the web process's output
+}
 
 // Identity (P5, shared-service-reuse): authservice runs as a SEPARATE instance of the published,
 // version-pinned image: its own database, its own signing key, never this repository's code, never
@@ -166,10 +170,12 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
     }
 
     var authority = $"http://localhost:{AuthservicePort}";
+    // CI diagnostics (ADR-0081): an address override for the web app only, and Node's own socket trace. Unset in development.
+    var webAuthUrl = builder.Configuration["Web:AuthUrl"] is { Length: > 0 } configuredAuthUrl ? configuredAuthUrl.Trim() : authority;
     interviewService
         .WithEnvironment("Jwt__Authority", authority)
         .WaitFor(authservice);
-    web.WithEnvironment("AUTH_SERVICE_URL", authority).WaitFor(authservice);
+    web.WithEnvironment("AUTH_SERVICE_URL", webAuthUrl).WaitFor(authservice);
 }
 
 builder.Build().Run();

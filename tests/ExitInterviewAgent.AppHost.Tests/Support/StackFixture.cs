@@ -64,7 +64,9 @@ public sealed class StackFixture : IAsyncLifetime
         try
         {
             await app.StartAsync(budget.Token);
-            var stack = new Stack(app);
+            var capture = new CancellationTokenSource();
+            Stack.CaptureLiveLogs(app, capture.Token);
+            var stack = new Stack(app, capture);
             foreach (var name in new[] { "postgres", "authservice", "interview-service", "web" })
             {
                 await app.ResourceNotifications.WaitForResourceHealthyAsync(name, budget.Token);
@@ -82,7 +84,7 @@ public sealed class StackFixture : IAsyncLifetime
 }
 
 /// <summary>The running AppHost and the addresses the scenarios call. Only the resources the tests need are exposed.</summary>
-public sealed class Stack(DistributedApplication app) : IAsyncDisposable
+public sealed class Stack(DistributedApplication app, CancellationTokenSource? capture = null) : IAsyncDisposable
 {
     public DistributedApplication App { get; } = app;
 
@@ -114,7 +116,11 @@ public sealed class Stack(DistributedApplication app) : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync() => await App.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        capture?.Cancel();
+        await App.DisposeAsync();
+    }
 
     /// <summary>
     /// The last log lines of every resource, also written to <see cref="StackFixture.LogDirectory"/>. Each resource is read on its
@@ -127,24 +133,58 @@ public sealed class Stack(DistributedApplication app) : IAsyncDisposable
         Directory.CreateDirectory(StackFixture.LogDirectory);
         foreach (var name in StackFixture.Resources)
         {
+            var file = Path.Combine(StackFixture.LogDirectory, $"{name}.log");
             var lines = new List<string>();
-            try
+            if (File.Exists(file))
             {
-                // The backlog is the resource's whole log so far (not only the lines written from now on).
-                await foreach (var batch in logs.GetAllAsync(name))
+                lines.AddRange(File.ReadAllLines(file));
+            }
+            else
+            {
+                try
                 {
-                    lines.AddRange(batch.Select(l => l.Content));
+                    await foreach (var batch in logs.GetAllAsync(name))
+                    {
+                        lines.AddRange(batch.Select(l => l.Content));
+                    }
+                }
+                catch (Exception e)
+                {
+                    lines.Add($"(could not read the log: {e.GetType().Name})");
                 }
             }
-            catch (Exception e)
-            {
-                lines.Add($"(could not read the log: {e.GetType().Name})");
-            }
-            await File.WriteAllLinesAsync(Path.Combine(StackFixture.LogDirectory, $"{name}.log"), lines);
             text.AppendLine().AppendLine($"--- {name} ({lines.Count} lines) ---");
-            foreach (var line in lines.TakeLast(40)) text.AppendLine(line);
+            foreach (var line in lines.TakeLast(60)) text.AppendLine(line);
         }
         return text.ToString();
+    }
+
+    /// <summary>
+    /// Every resource's log lines, from the moment the stack starts, appended to <c>&lt;LogDirectory&gt;/&lt;resource&gt;.log</c>.
+    /// The backlog read alone came back empty in CI, so the live stream is what the failure report and the artifact use.
+    /// </summary>
+    public static void CaptureLiveLogs(DistributedApplication app, CancellationToken stop)
+    {
+        var logs = app.Services.GetRequiredService<ResourceLoggerService>();
+        Directory.CreateDirectory(StackFixture.LogDirectory);
+        foreach (var name in StackFixture.Resources)
+        {
+            var file = Path.Combine(StackFixture.LogDirectory, $"{name}.log");
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var batch in logs.WatchAsync(name).WithCancellation(stop))
+                    {
+                        await File.AppendAllLinesAsync(file, batch.Select(l => l.Content), stop);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // The stack is stopping; the lines already written stay in the file.
+                }
+            }, stop);
+        }
     }
 
     /// <summary>The interview database, with a connection that is closed when the caller is done.</summary>
