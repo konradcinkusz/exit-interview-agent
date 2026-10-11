@@ -6,6 +6,16 @@
 | `scan-secrets.sh` | gitleaks over the tree, or `--staged`. Local binary, else the pinned container image. Fails closed. |
 | `hooks/pre-commit` | Runs `scan-secrets.sh --staged`. Installed by `setup.*` via `core.hooksPath`. |
 | `check-kernel-size.sh` | P2's ceiling: fails if `ExitInterviewAgent.ServiceDefaults` exceeds 800 lines. CI runs it. |
+| `smoke-local.sh` / `smoke-local.ps1` | Checks a running local stack: `/health` of interview-service, `/healthz` of web, `/health/ready` of authservice; prints PASS, WARN (a degraded integration, such as the mock model) or FAIL and exits 0 or 1. With `--token` / `-Token` it also runs one scripted interview through the API (start, reply to the end, result, delete). Needs `--interview-url` / `-InterviewUrl`: interview-service's port is assigned by Aspire, so read it from the dashboard. `--dry-run` / `-DryRun` prints the checks and sends nothing. Web and authservice use their fixed ports (3000, 5100). Runbook: [`../docs/runbooks/local-run.md`](../docs/runbooks/local-run.md) |
+
+Start the stack first (`dotnet run --project src/ExitInterviewAgent.AppHost`), then, for example:
+
+```bash
+scripts/smoke-local.sh --interview-url http://localhost:<port from the dashboard>
+scripts/smoke-local.sh --interview-url http://localhost:<port> --token "$TOKEN"   # also runs one scripted interview
+```
+
+Both scripts need `python3` (bash) or nothing extra (PowerShell). Their token is sent only to interview-service and never printed.
 
 Runbook scripts will use the numbered-alias convention (`0-…`, `1-…`) when there is a runbook
 to number; at t=0 there is setup and the scanner.
