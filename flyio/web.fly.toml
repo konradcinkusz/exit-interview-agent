@@ -15,6 +15,9 @@ primary_region = "fra"
   AUTH_SERVICE_URL = "https://exit-interview-agent-authservice-dev.fly.dev"
   AUTH_ISSUER = "ExitInterviewAgent"
   AUTH_AUDIENCE = "ExitInterviewAgent"
+  # Explicit, although true is the default in runtime-config.ts: the public app is only ever served over https
+  # (force_https below), so the session cookies must carry the Secure attribute. Only "false" turns it off.
+  SESSION_COOKIE_SECURE = "true"
 
 [http_service]
   internal_port = 3000

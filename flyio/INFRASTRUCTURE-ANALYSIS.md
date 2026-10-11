@@ -13,7 +13,7 @@ Read from the `fly.toml` files (`min_machines_running`, `[[vm]]`):
 |---|---|---|---|
 | `exit-interview-agent-postgres` | 1 (never stops; has a volume) | shared-cpu-1x, 1 GB, 3 GB volume | state |
 | `exit-interview-agent-authservice-dev` | 1 | shared-cpu-1x, 512 MB | pinned (see 2) |
-| `exit-interview-agent-interview-service-dev` | 1 | shared-cpu-1x, 512 MB | pinned (see 2) |
+| `exit-interview-agent-interview-service-dev` | exactly 1, never stopped | shared-cpu-1x, 1 GB (not measured; was an untested 512 MB) | pinned, single instance (see 2, ADR-0080) |
 | `exit-interview-agent-web-dev` | 0 | shared-cpu-1x, 512 MB | scale to zero |
 
 ## 2. Which services pin a machine, and which synchronous call forces it?
@@ -23,12 +23,17 @@ Read from the `fly.toml` files (`min_machines_running`, `[[vm]]`):
   `/api/v1/auth/login` in-request.
 - **interview-service** pins one machine because `web`'s BFF proxy (`/api/proxy/v1/...`) calls it
   in-request with a 35 s timeout sized for a cold start; pinning is the preferred option over relying on
-  that timeout.
+  that timeout. It is also a **single instance**: its interview sessions are in process memory (ADR-0076), so
+  `auto_stop_machines = false`, `strategy = "immediate"` and no second machine (ADR-0080). A deploy ends open
+  interviews; a machine crash does too.
 - **web** scales to zero: it is entered only from a browser, so a cold start is a slow first page.
 - **postgres** never stops: it carries a volume and is reached over `.internal`, which does not start
   stopped machines.
 
 ## 3. What is the cheaper option, and what does it actually cost?
+
+Letting `interview-service` scale to zero is ruled out by ADR-0080, not merely not recommended: a stopped machine
+loses every open session. The text below is the reasoning as first written.
 
 Letting `interview-service` scale to zero saves one idle machine at the price of a failed (not slow)
 first call from `web` after idle if the cold start exceeds the proxy's rung timeout, with a .NET start
@@ -42,5 +47,7 @@ plus a schema check inside it. Letting `authservice` scale to zero is worse: a J
   system (shared-service-reuse §1: independent instances).
 - A public listener on Postgres.
 - Pointing service-to-service calls at `.internal` for apps that scale to zero.
+- A second `interview-service` machine, or autoscaling it, until sessions live in shared state (ADR-0080). A
+  second machine would be a second, empty session store behind the same address.
 - A second Postgres server "for isolation" before there is a reason: one instance, one database and role
   per service is the recorded decision (ADR-004).
