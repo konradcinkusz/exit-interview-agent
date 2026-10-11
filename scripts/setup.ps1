@@ -7,6 +7,24 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $apphost = Join-Path $repoRoot 'src/ExitInterviewAgent.AppHost'
 $missing = 0
 
+# Native tools (docker, dotnet) write warnings to stderr. Under $ErrorActionPreference = 'Stop', Windows PowerShell 5.1 turns any such
+# line into a terminating error ("NativeCommandError"), so a harmless "WARNING: daemon is not using the default seccomp profile" would
+# abort the check. Run native commands with 'Continue', keep their output, and judge them by the exit code only.
+function Invoke-Native([scriptblock]$Command) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command 2>&1 | ForEach-Object { "$_" } }
+    finally { $ErrorActionPreference = $previous }
+}
+
+# The .NET 5+ APIs used below are missing in Windows PowerShell 5.1 (.NET Framework); random bytes come from the API that exists in both.
+function New-RandomBytes([int]$count) {
+    $bytes = New-Object byte[] $count
+    $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    , $bytes
+}
+
 function Need($name, $pointer) {
     if (Get-Command $name -ErrorAction SilentlyContinue) { Write-Host "  ok       $name" }
     else { Write-Host "  MISSING  $name -> $pointer"; $script:missing++ }
@@ -18,7 +36,7 @@ Need dotnet '.NET SDK 10: https://dotnet.microsoft.com/download/dotnet/10.0'
 Need node 'Node 22+: https://nodejs.org/en/download'
 Need pnpm 'npm install -g pnpm   (or: corepack enable)'
 $dockerOk = $false
-if (Get-Command docker -ErrorAction SilentlyContinue) { docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0) }
+if (Get-Command docker -ErrorAction SilentlyContinue) { Invoke-Native { docker info } | Out-Null; $dockerOk = ($LASTEXITCODE -eq 0) }
 if ($dockerOk) { Write-Host '  ok       container engine (docker)' }
 else { Write-Host '  MISSING  container engine -> https://docs.docker.com/get-docker/ (needed by the AppHost and image builds)'; $missing++ }
 
@@ -30,27 +48,33 @@ git -C $repoRoot config core.hooksPath scripts/hooks
 Write-Host '  core.hooksPath = scripts/hooks'
 
 Write-Host '3/4 local secret store (dotnet user-secrets, never files in the tree)'
-dotnet user-secrets init --project $apphost *> $null
-$existing = dotnet user-secrets list --project $apphost 2>$null | Select-String '^Parameters:authservice-jwt-private-key'
+Invoke-Native { dotnet user-secrets init --project $apphost } | Out-Null
+$existing = Invoke-Native { dotnet user-secrets list --project $apphost } | Select-String '^Parameters:authservice-jwt-private-key'
 if ($existing) { Write-Host '  authservice dev signing key already present' }
 else {
     # The platform runtime emits the PEM itself: no openssl needed on Windows.
     $rsa = [System.Security.Cryptography.RSA]::Create(2048)
-    $pem = $rsa.ExportPkcs8PrivateKeyPem()
-    dotnet user-secrets set 'Parameters:authservice-jwt-private-key' $pem --project $apphost | Out-Null
-    Write-Host '  generated a DEV-ONLY RSA-2048 signing key (PKCS#8) for the local authservice instance'
+    if ($rsa.GetType().GetMethod('ExportPkcs8PrivateKeyPem')) {
+        $pem = $rsa.ExportPkcs8PrivateKeyPem()
+        Invoke-Native { dotnet user-secrets set 'Parameters:authservice-jwt-private-key' $pem --project $apphost } | Out-Null
+        Write-Host '  generated a DEV-ONLY RSA-2048 signing key (PKCS#8) for the local authservice instance'
+    }
+    else {
+        # Windows PowerShell 5.1 cannot export a PEM. Not an error: the AppHost makes an ephemeral key on every run.
+        Write-Host '  skipped the signing key (needs PowerShell 7+: https://aka.ms/powershell); the AppHost uses an ephemeral key per run'
+    }
 }
 
 # MCP connector secrets (ADR-0012): used only when Mcp:AuthPublicBaseUrl and Mcp:ResourceUrl are configured.
-$secretsList = dotnet user-secrets list --project $apphost 2>$null
+$secretsList = Invoke-Native { dotnet user-secrets list --project $apphost }
 if (-not ($secretsList | Select-String '^Parameters:authservice-mcp-client-secret')) {
-    $hex = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower()
-    dotnet user-secrets set 'Parameters:authservice-mcp-client-secret' $hex --project $apphost | Out-Null
+    $hex = -join ((New-RandomBytes 32) | ForEach-Object { $_.ToString('x2') })
+    Invoke-Native { dotnet user-secrets set 'Parameters:authservice-mcp-client-secret' $hex --project $apphost } | Out-Null
     Write-Host '  generated a DEV-ONLY MCP client secret (256 random bits)'
 }
 if (-not ($secretsList | Select-String '^Parameters:authservice-encryption-key')) {
-    $b64 = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-    dotnet user-secrets set 'Parameters:authservice-encryption-key' $b64 --project $apphost | Out-Null
+    $b64 = [Convert]::ToBase64String((New-RandomBytes 32))
+    Invoke-Native { dotnet user-secrets set 'Parameters:authservice-encryption-key' $b64 --project $apphost } | Out-Null
     Write-Host '  generated a DEV-ONLY authservice token-encryption key (256 random bits)'
 }
 
