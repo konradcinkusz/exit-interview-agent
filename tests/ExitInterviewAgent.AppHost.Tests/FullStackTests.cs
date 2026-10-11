@@ -100,16 +100,24 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
 
             var (id, _) = await RunInterviewToResultAsync(stack, web, session, marker: null);
 
-            // The result carries the record and the three draft tiles (Glassdoor, Google, Reddit), as the web page shows them.
+            // The result carries the record and the tiles, as the web page shows them. The Facts tile is built by code; the others come
+            // from the writer, and a short interview can legitimately yield fewer (the product drops a tile it will not show, and
+            // says so in "dropped"). So a tile kind that is not shown must be accounted for by a dropped code, never silently absent.
             using var result = await SendAsync(web, session, HttpMethod.Get, $"/api/proxy/v1/interviews/{id}/result");
             var payload = await ReadJsonAsync(result);
             Assert.True(payload.TryGetProperty("record", out var record), "the result carries the record");
             Assert.Equal(JsonValueKind.Object, record.ValueKind);
-            var kinds = payload.GetProperty("tiles").GetProperty("items").EnumerateArray().Select(t => t.GetProperty("kind").GetString()).ToArray();
-            foreach (var expected in new[] { "glassdoor", "google_review", "reddit" })
+            var tiles = payload.GetProperty("tiles");
+            var kinds = tiles.GetProperty("items").EnumerateArray().Select(t => t.GetProperty("kind").GetString()).ToArray();
+            var droppedCount = tiles.GetProperty("dropped").GetArrayLength();
+            Assert.NotEmpty(kinds);
+            Assert.Contains("facts", kinds);
+            foreach (var expected in new[] { "glassdoor", "google_review", "reddit", "short_note", "overview" })
             {
-                Assert.Contains(expected, kinds);
+                Assert.True(kinds.Contains(expected) || droppedCount > 0,
+                    $"the tile {expected} is neither shown nor accounted for by a dropped code (shown: {string.Join(", ", kinds)})");
             }
+            Assert.False(string.IsNullOrWhiteSpace(tiles.GetProperty("notice").GetString()), "the tiles carry the legal notice");
 
             // Delete, then the id is unknown: the BFF answers 404 (the stage answers are never kept after a delete).
             using var deleted = await SendAsync(web, session, HttpMethod.Delete, $"/api/proxy/v1/interviews/{id}");
