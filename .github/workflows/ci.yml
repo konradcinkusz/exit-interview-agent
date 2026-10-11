@@ -184,7 +184,8 @@ jobs:
     # The AppHost starts PostgreSQL, pgAdmin and authservice (v0.3.4) as containers, interview-service and the web app, and the
     # journeys run through the BFF (tests/ExitInterviewAgent.AppHost.Tests, ADR-0081). A GitHub-hosted runner has the Docker daemon.
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The test's own start budget is 12 minutes on a cold runner, so the job cap is above it; the diagnostic step has its own cap.
+    timeout-minutes: 30
     # NON-BLOCKING until the web-to-authservice hop is fixed (ADR-0081, 'Open'). Four CI attempts: the stack starts and 10 of 14 tests
     # pass; the four BFF sign-in journeys fail at the web app's identity call (502 identity_unreachable; the GET probe on the same
     # path 502 identity_unavailable), while the test host reaches authservice on the same address. The cause is not established.
@@ -232,7 +233,7 @@ jobs:
       # and probed from the runner. Runs whether or not the journeys passed, so the evidence is there on every run.
       - name: Live diagnostics of the web-to-authservice hop
         if: ${{ !cancelled() }}
-        timeout-minutes: 25
+        timeout-minutes: 14
         env:
           DIAGNOSTICS_DIR: ${{ github.workspace }}/diagnostics
         run: bash scripts/diagnose-full-stack.sh "$DIAGNOSTICS_DIR"
