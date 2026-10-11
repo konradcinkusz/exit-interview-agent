@@ -15,9 +15,22 @@ export interface StubStats {
 export const accountName = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 
 export async function signIn(page: Page, name: string, password = FAKE_PASSWORD) {
+  await hydrated(page);
   await page.getByTestId("login-email").fill(emailFor(name));
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
+  // Done when the form answers (an error, the second step) or the next page has loaded and hydrated: success is a full page load,
+  // and a server-rendered control on the next page does nothing until React has taken it over (app/_components/HydrationMarker.tsx).
+  await page
+    .locator('[data-testid="login-error"], [data-testid="twofactor-form"], html[data-hydrated]:not([data-hydrated="/login"])')
+    .first()
+    .waitFor({ state: "attached" });
+}
+
+/** Waits until the current page is hydrated, so its controls respond. */
+export async function hydrated(page: Page) {
+  const path = new URL(page.url()).pathname;
+  await page.locator(`html[data-hydrated="${path}"]`).waitFor({ state: "attached" });
 }
 
 export async function stats(request: APIRequestContext, name: string): Promise<StubStats> {
