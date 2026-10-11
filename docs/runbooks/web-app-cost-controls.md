@@ -33,7 +33,7 @@ The application's brakes count requests. The provider's spend limit is the only 
 4. Set the limit's notification to an address you read.
 5. Record the workspace name and the limit's date in the release gate (not in this file, and not the key).
 
-The app reads a workspace identifier from `ANTHROPIC_WORKSPACE_ID` in the plan. **This code does not read that variable yet**; the spend limit is what matters, and it is set in the console. Check the console's screens against these steps: the menu names change.
+The service reads an optional workspace identifier from `ANTHROPIC_WORKSPACE_ID` (`ProviderConfigResolver`, Anthropic only) and sends it on every request as the `anthropic-workspace-id` header (`ProviderChatClients`). Set it when the key is not scoped to a workspace. The id is not a secret, and it does not limit spend: the spend limit in the console is the control that does. Check the console's screens against these steps: the menu names change.
 
 ### 3. What the switch does and does not do
 
@@ -120,7 +120,7 @@ Hamulce aplikacji liczą żądania. Jedynym elementem, który zatrzymuje rachune
 4. Ustaw powiadomienie o limicie na adres, który czytasz.
 5. Zapisz nazwę workspace'u i datę ustawienia limitu w bramce wydania (nie w tym pliku, i nigdy nie zapisuj klucza).
 
-Plan wspomina o identyfikatorze workspace'u w `ANTHROPIC_WORKSPACE_ID`. **Ten kod tej zmiennej jeszcze nie czyta**; liczy się limit wydatków, ustawiany w konsoli. Sprawdź ekrany konsoli z tymi krokami: nazwy menu się zmieniają.
+Usługa czyta opcjonalny identyfikator workspace'u z `ANTHROPIC_WORKSPACE_ID` (`ProviderConfigResolver`, tylko dla Anthropic) i wysyła go przy każdym żądaniu jako nagłówek `anthropic-workspace-id` (`ProviderChatClients`). Ustaw go, gdy klucz nie jest przypisany do workspace'u. Identyfikator nie jest sekretem i nie ogranicza wydatków: robi to limit ustawiony w konsoli. Sprawdź ekrany konsoli z tymi krokami: nazwy menu się zmieniają.
 
 ### 3. Co robi wyłącznik, a czego nie robi
 

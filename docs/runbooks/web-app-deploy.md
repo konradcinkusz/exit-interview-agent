@@ -65,7 +65,15 @@ The database volume is created once, in the region the apps use (`fra`). Do not 
 
 Secrets are set with `fly secrets set`, never in a `.toml` file, a commit, a PR, a chat or a document. Set them with `--stage` so the machines restart once, at deploy. Check the names with `fly secrets list` (it shows names and digests only).
 
-> **Deviation from the standard, to close before the first real deployment.** The standards guide (FLY-IO-DEPLOYMENT §9, §11) says secrets and apps are set from the pipeline, not by hand, so environments cannot drift. `flyio.yml` does this for the database, authservice and the interview service's connection string only. The provider key, the Anthropic workspace id, the model, the Stripe keys and the price are **not** in the workflow yet. Until they are, the commands in this section are the one-time manual bootstrap: run them once, record in the release gate that you did, and move the values into the workflow (as GitHub `dev` environment secrets) in a separate change. Do not keep them only in your shell history.
+> **Deviation from the standard, to close before the first real deployment.** The standards guide (FLY-IO-DEPLOYMENT §9, §11) says secrets and apps are set from the pipeline, not by hand, so environments cannot drift. `flyio.yml` does this for the database passwords, the authservice connection string and signing key, the interview service's connection string, and the **ledger key** the interview service needs to start (`LEDGER_KEY_ID`, `LEDGER_KEY_SECRET`). The provider key, the Anthropic workspace id, the model, the Stripe keys, the price and the authservice MCP client secrets are **not** in the workflow yet. Until they are, the commands in this section are a one-time manual bootstrap: run them once, record in the release gate that you did, and move the values into the workflow (as GitHub `dev` environment secrets) in a separate change. Fly keeps a secret set by hand across deploys, so set it once, not on every release. Do not keep them only in your shell history.
+
+**Order before the first `fly deploy` (or the first `v*` tag):**
+
+1. Create the apps and the database volume (§2). A secret can only be set on an app that exists, and the pipeline creates apps only when it runs.
+2. Put the GitHub `dev` environment secrets the pipeline reads in place: `FLY_API_TOKEN`, the three database passwords, `AUTH_JWT_PRIVATE_KEY_PEM`, and `LEDGER_KEY_ID` with `LEDGER_KEY_SECRET`. Each deploy job stops before its first `flyctl` call if a secret it needs is missing or malformed, so a gap shows up in the job log, not at a health check.
+3. If the Claude connector will be used, set the two authservice MCP secrets by hand (the authservice block below) before the first authservice deploy.
+4. The pipeline deploys in this order: **postgres** (creates the roles and databases from the passwords on first boot), then **authservice** (the workflow then checks that its JWKS is not empty), then **interview-service** (refuses to start without the `Ledger__*` values, so they are set in the same job, before `flyctl deploy`), then **web** (no secret).
+5. After the first deploy, set the provider, model, Stripe and price values below with `--stage`, and check `/health` (§8) before any real interview.
 
 **Interview service** (`exit-interview-agent-interview-service-dev`):
 
@@ -82,7 +90,8 @@ fly secrets set --app exit-interview-agent-interview-service-dev --stage \
 ```
 
 - `ANTHROPIC_API_KEY` is the default name of the variable that holds the key (`Interviews:ApiKeyEnv`). If you rename it, set `Interviews__ApiKeyEnv` to the new name as well.
-- **`ANTHROPIC_WORKSPACE_ID` is read by the code** (`ProviderConfigResolver`) and sent as the `anthropic-workspace-id` header (`ProviderChatClients`). It is needed only for a key that is not already scoped to a workspace. The spend limit in the console is the control that matters either way. (This corrects an earlier note here and in [cost controls §2](web-app-cost-controls.md), which says the code does not read it.)
+- **`ANTHROPIC_WORKSPACE_ID` is read by the code** (`ProviderConfigResolver`) and sent as the `anthropic-workspace-id` header (`ProviderChatClients`). It is needed only for a key that is not already scoped to a workspace. The spend limit in the console is the control that matters either way.
+- **The three `Ledger__*` lines** are the fail-closed part: outside Development the service does not start without them (`LedgerKeySet.Create`, [ADR-0028](../adr/0028-submission-ledger-hmac-rotation-and-window.md)). With the pipeline they come from `LEDGER_KEY_ID` and `LEDGER_KEY_SECRET`, set by `flyio.yml` before `flyctl deploy`. Set them by hand only when you deploy without the pipeline. If you do both, the values must be identical, because the last `fly secrets set` wins.
 - `Interviews__Model` is a configuration value, not a repository value: the model is chosen after the W9 run, and no model identifier is written into the repository.
 
 **Payments** (same app), added in step 5, only after the Stripe test-mode checks:
@@ -104,7 +113,16 @@ fly secrets set --app exit-interview-agent-interview-service-dev --stage \
 
 **Web app** (`exit-interview-agent-web-dev`): no secret. The BFF holds no key; it verifies tokens against authservice's public keys.
 
-**Authservice** (`exit-interview-agent-authservice-dev`): the secrets in `flyio/SECRETS.md` (signing key, database connection, client secret, encryption key). The signing key is held by authservice only.
+**Authservice** (`exit-interview-agent-authservice-dev`): the secrets in `flyio/SECRETS.md`. The pipeline sets the database connection and the signing key, which authservice holds alone. The two MCP secrets are not in the workflow; set them once, before the first authservice deploy, if the Claude connector will be used:
+
+```bash
+fly secrets set --app exit-interview-agent-authservice-dev --stage \
+  "AuthorizationServer__Clients__0__ClientSecret=<openssl rand -hex 32, never the dev value>" \
+  "AuthorizationServer__EncryptionKey=<openssl rand -base64 32, kept: changing it breaks every MCP connection>"
+```
+
+- **What happens without them.** `interview-service` does not read these two values. Its MCP endpoint is optional: with `Mcp:Issuer` or `Mcp:Resource` unset, `/mcp` answers 401 and `/health` lists `mcp-auth` as degraded (`McpOptions.Describe`); the web app and the interview path are unaffected. The topology does set both `Mcp__*` values, so the connector is switched on, and only the connector needs the authservice secrets.
+- **Not verified here.** What authservice does when a client is registered without its secret or encryption key is decided in authservice's repository, which this repository does not contain. Check it in authservice's deployment documentation before you rely on the connector.
 
 ### 4. Provider console: a dedicated workspace and a spend limit
 
@@ -228,7 +246,15 @@ Wolumen bazy tworzy się raz, w regionie aplikacji (`fra`). Nie dodawaj drugiej 
 
 Sekrety ustawiasz przez `fly secrets set`, nigdy w pliku `.toml`, w commicie, PR, czacie ani dokumencie. Używaj `--stage`, żeby maszyny zrestartowały się raz, przy wdrożeniu. Nazwy sprawdzisz przez `fly secrets list` (pokazuje nazwy i skróty, nie wartości).
 
-> **Odstępstwo od standardu, do zamknięcia przed pierwszym prawdziwym wdrożeniem.** Przewodnik ze standardów (FLY-IO-DEPLOYMENT §9, §11) mówi, że sekrety i aplikacje ustawia się z pipeline, a nie ręcznie, żeby środowiska się nie rozjeżdżały. `flyio.yml` robi to dla bazy, authservice i connection stringu usługi wywiadu. Klucz dostawcy, identyfikator workspace, model, klucze Stripe i cena **nie** są jeszcze w workflow. Do tego czasu polecenia z tej sekcji to jednorazowy ręczny bootstrap: uruchom je raz, zapisz w bramkach wydania, że to zrobiono, i przenieś wartości do workflow (jako sekrety środowiska `dev` w GitHub) osobną zmianą. Nie trzymaj ich tylko w historii powłoki.
+> **Odstępstwo od standardu, do zamknięcia przed pierwszym prawdziwym wdrożeniem.** Przewodnik ze standardów (FLY-IO-DEPLOYMENT §9, §11) mówi, że sekrety i aplikacje ustawia się z pipeline, a nie ręcznie, żeby środowiska się nie rozjeżdżały. `flyio.yml` robi to dla haseł baz, connection stringu i klucza podpisu authservice, connection stringu usługi wywiadu oraz **klucza ledger**, bez którego usługa wywiadu nie wystartuje (`LEDGER_KEY_ID`, `LEDGER_KEY_SECRET`). Klucz dostawcy, identyfikator workspace, model, klucze Stripe, cena i sekrety klienta MCP authservice **nie** są jeszcze w workflow. Do tego czasu polecenia z tej sekcji to jednorazowy ręczny bootstrap: uruchom je raz, zapisz w bramkach wydania, że to zrobiono, i przenieś wartości do workflow (jako sekrety środowiska `dev` w GitHub) osobną zmianą. Fly zachowuje sekret ustawiony ręcznie między wdrożeniami, więc ustaw go raz, a nie przy każdym wydaniu. Nie trzymaj ich tylko w historii powłoki.
+
+**Kolejność przed pierwszym `fly deploy` (lub pierwszym tagiem `v*`):**
+
+1. Utwórz aplikacje i wolumin bazy (§2). Sekret można ustawić tylko na istniejącej aplikacji, a pipeline tworzy aplikacje dopiero przy uruchomieniu.
+2. Umieść sekrety środowiska `dev` w GitHub, które czyta pipeline: `FLY_API_TOKEN`, trzy hasła baz, `AUTH_JWT_PRIVATE_KEY_PEM`, a także `LEDGER_KEY_ID` i `LEDGER_KEY_SECRET`. Każdy job wdrożenia zatrzymuje się przed pierwszym wywołaniem `flyctl`, jeśli brakuje mu sekretu albo jest niepoprawny, więc luka widoczna jest w logu joba, a nie w kontroli zdrowia.
+3. Jeśli będziesz używać konektora Claude, ustaw ręcznie dwa sekrety MCP authservice (blok w sekcji authservice poniżej) przed pierwszym wdrożeniem authservice.
+4. Pipeline wdraża w tej kolejności: **postgres** (tworzy role i bazy z haseł przy pierwszym starcie), potem **authservice** (workflow sprawdza następnie, że jego JWKS nie jest pusty), potem **interview-service** (nie startuje bez wartości `Ledger__*`, więc są ustawiane w tym samym jobie, przed `flyctl deploy`), na końcu **web** (bez sekretu).
+5. Po pierwszym wdrożeniu ustaw wartości dostawcy, modelu, Stripe i ceny poniżej, z `--stage`, i sprawdź `/health` (§8) przed pierwszą prawdziwą rozmową.
 
 **Usługa wywiadu** (`exit-interview-agent-interview-service-dev`):
 
@@ -245,7 +271,8 @@ fly secrets set --app exit-interview-agent-interview-service-dev --stage \
 ```
 
 - `ANTHROPIC_API_KEY` to domyślna nazwa zmiennej z kluczem (`Interviews:ApiKeyEnv`). Jeśli ją zmienisz, ustaw też `Interviews__ApiKeyEnv` na nową nazwę.
-- **`ANTHROPIC_WORKSPACE_ID` czyta ten kod** (`ProviderConfigResolver`) i wysyła go jako nagłówek `anthropic-workspace-id` (`ProviderChatClients`). Potrzebny jest tylko dla klucza, który nie jest już przypisany do workspace. (To poprawia wcześniejszą notatkę tutaj i w [cost controls §2](web-app-cost-controls.md), która mówi, że kod go nie czyta.) Niezależnie od tego kontrolą jest limit wydatków w konsoli.
+- **`ANTHROPIC_WORKSPACE_ID` czyta ten kod** (`ProviderConfigResolver`) i wysyła go jako nagłówek `anthropic-workspace-id` (`ProviderChatClients`). Potrzebny jest tylko dla klucza, który nie jest już przypisany do workspace. Niezależnie od tego kontrolą jest limit wydatków w konsoli.
+- **Trzy linie `Ledger__*`** to część zamknięta domyślnie: poza Development usługa nie startuje bez nich (`LedgerKeySet.Create`, [ADR-0028](../adr/0028-submission-ledger-hmac-rotation-and-window.md)). Z pipeline pochodzą z `LEDGER_KEY_ID` i `LEDGER_KEY_SECRET`, ustawianych przez `flyio.yml` przed `flyctl deploy`. Ustawiaj je ręcznie tylko wtedy, gdy wdrażasz bez pipeline. Jeśli zrobisz oba, wartości muszą być identyczne, bo ostatnie `fly secrets set` wygrywa.
 - `Interviews__Model` to wartość konfiguracyjna, nie wartość repozytorium: model wybiera się po przebiegu W9 i żaden identyfikator modelu nie trafia do repozytorium.
 
 **Płatności** (ta sama aplikacja), dodawane w kroku 5, dopiero po sprawdzeniach w trybie testowym Stripe:
@@ -267,7 +294,16 @@ fly secrets set --app exit-interview-agent-interview-service-dev --stage \
 
 **Aplikacja webowa** (`exit-interview-agent-web-dev`): bez sekretów. BFF nie trzyma klucza; weryfikuje tokeny kluczami publicznymi authservice.
 
-**Authservice** (`exit-interview-agent-authservice-dev`): sekrety z `flyio/SECRETS.md` (klucz podpisu, połączenie z bazą, sekret klienta, klucz szyfrowania). Klucz podpisu trzyma wyłącznie authservice.
+**Authservice** (`exit-interview-agent-authservice-dev`): sekrety z `flyio/SECRETS.md`. Pipeline ustawia połączenie z bazą i klucz podpisu, który trzyma wyłącznie authservice. Dwa sekrety MCP nie są w workflow; ustaw je raz, przed pierwszym wdrożeniem authservice, jeśli będziesz używać konektora Claude:
+
+```bash
+fly secrets set --app exit-interview-agent-authservice-dev --stage \
+  "AuthorizationServer__Clients__0__ClientSecret=<openssl rand -hex 32, nigdy wartość deweloperska>" \
+  "AuthorizationServer__EncryptionKey=<openssl rand -base64 32, zachowaj: zmiana zrywa każde połączenie MCP>"
+```
+
+- **Co się dzieje bez nich.** `interview-service` nie czyta tych dwóch wartości. Jego endpoint MCP jest opcjonalny: bez `Mcp:Issuer` lub `Mcp:Resource` `/mcp` odpowiada 401, a `/health` pokazuje `mcp-auth` jako zdegradowany (`McpOptions.Describe`); aplikacja webowa i ścieżka rozmowy działają dalej. Topologia ustawia oba `Mcp__*`, więc konektor jest włączony, i tylko konektor potrzebuje sekretów authservice.
+- **Niezweryfikowane tutaj.** To, co authservice robi, gdy klient jest zarejestrowany bez sekretu lub klucza szyfrowania, rozstrzyga repozytorium authservice, którego to repozytorium nie zawiera. Sprawdź to w dokumentacji wdrożenia authservice, zanim polegasz na konektorze.
 
 ### 4. Konsola dostawcy: dedykowany workspace i limit wydatków
 

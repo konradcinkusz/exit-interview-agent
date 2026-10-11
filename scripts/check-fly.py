@@ -4,7 +4,8 @@
 Runs in the CI job "workflow syntax, doc links, fly.toml". It proves what a file can prove: that the
 declared build sources exist, that ports and health checks are declared, that the single-instance
 rules of ADR-0080 hold for the interview service, that no secret value is written into a public file,
-and that pgAdmin is not deployed. It does NOT prove that an app boots on Fly; that is NOT RUN here.
+that the secrets the interview service refuses to start without are named in flyio/SECRETS.md and set by the
+deploy workflow, and that pgAdmin is not deployed. It does NOT prove that an app boots on Fly; that is NOT RUN here.
 
 Usage: python3 scripts/check-fly.py [ROOT]     (ROOT defaults to the repository root)
 Exit 0 when clean; exit 1 and one line per violation otherwise.
@@ -30,6 +31,13 @@ SECRET_VALUE_PATTERNS = [
 
 # Keys whose value is a secret by name. The value must be empty or a placeholder in a public file.
 SECRET_KEY_NAME = re.compile(r"(?i)(secret|password|passwd|privatekey|api_?key|connectionstring|token)")
+
+# Secrets the interview service refuses to start without outside Development (LedgerKeySet.Create, ADR-0028).
+# This is the one place the list lives. It mirrors the code by hand: a new required secret is added here, to
+# flyio/SECRETS.md and to the deploy workflow in the same change. The check proves the names are written down
+# and set; it cannot prove the code still requires them (that is what the service's own tests cover).
+REQUIRED_INTERVIEW_SECRETS = ["Ledger__ActiveKeyId", "Ledger__Keys__0__Id", "Ledger__Keys__0__Secret"]
+DEPLOY_WORKFLOW = pathlib.Path(".github/workflows/flyio.yml")
 
 
 def load(path: pathlib.Path) -> dict:
@@ -134,6 +142,25 @@ def check_file(root: pathlib.Path, path: pathlib.Path) -> list[str]:
     return problems
 
 
+def check_required_secrets(root: pathlib.Path) -> list[str]:
+    """Each secret in REQUIRED_INTERVIEW_SECRETS is named in SECRETS.md and assigned by the deploy workflow."""
+    secrets_md = root / "flyio" / "SECRETS.md"
+    workflow = root / DEPLOY_WORKFLOW
+    missing = [str(p.relative_to(root)) for p in (secrets_md, workflow) if not p.is_file()]
+    if missing:
+        return [f"{m}: missing; it must name the interview service's required secrets" for m in missing]
+    text_md = secrets_md.read_text(encoding="utf-8")
+    text_wf = workflow.read_text(encoding="utf-8")
+    problems: list[str] = []
+    for name in REQUIRED_INTERVIEW_SECRETS:
+        if name not in text_md:
+            problems.append(f"flyio/SECRETS.md does not name the required interview-service secret {name}")
+        # The workflow assigns it: the NAME= form. A bare mention of the name (in a comment, say) does not satisfy this.
+        if f"{name}=" not in text_wf:
+            problems.append(f"{DEPLOY_WORKFLOW.as_posix()} does not set the required interview-service secret {name}")
+    return problems
+
+
 def check_root(root: pathlib.Path) -> list[str]:
     flyio = root / "flyio"
     files = sorted(flyio.glob("*.fly.toml"))
@@ -142,6 +169,8 @@ def check_root(root: pathlib.Path) -> list[str]:
         return [f"{flyio}: no *.fly.toml files"]
     for path in files:
         problems.extend(check_file(root, path))
+
+    problems.extend(check_required_secrets(root))
 
     # pgAdmin is an orchestrator-only tool (AppHost), never a Fly app.
     for path in sorted(flyio.rglob("*")):

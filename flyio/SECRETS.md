@@ -19,7 +19,7 @@ Rule of thumb: if you would not paste it into a pull request, it is a secret. `[
 | | `AuthorizationServer__EncryptionKey` | token-encryption key, base64 of 32 random bytes (`openssl rand -base64 32`) | durable: a key that changes invalidates every MCP connection (authservice ADR 0005 A4) |
 | | `Jwt__PrivateKeyPem` | **the only signing key in the system**, RSA-2048+, PKCS#8 PEM | never reused from a laptop key; held by this app and nothing else |
 | `exit-interview-agent-interview-service-dev` | `ConnectionStrings__interviewdb` | `Host=exit-interview-agent-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=<INTERVIEW_DB_PASSWORD>` | no credentials for any other database |
-| | `Ledger__ActiveKeyId`, `Ledger__Keys__0__Id`, `Ledger__Keys__0__Secret` | the submission ledger's HMAC key: an id of 1-32 characters and `openssl rand -base64 32` (at least 32 bytes) | **the service refuses to start without it outside Development.** Keep it outside the database's backup domain. Rotation: add `Keys__1`, switch `ActiveKeyId`, remove the old key after the ledger window ([ADR-0028](../docs/adr/0028-submission-ledger-hmac-rotation-and-window.md)) |
+| | `Ledger__ActiveKeyId`, `Ledger__Keys__0__Id`, `Ledger__Keys__0__Secret` | the submission ledger's HMAC key: an id of 1-32 characters and `openssl rand -base64 32` (at least 32 bytes) | **the service refuses to start without it outside Development** (`LedgerKeySet.Create`, fail-closed). Set by `flyio.yml` from the GitHub `dev` environment secrets `LEDGER_KEY_ID` (the id, used for both `ActiveKeyId` and `Keys__0__Id`) and `LEDGER_KEY_SECRET`; the deploy job refuses to run if either is missing or malformed. Keep it outside the database's backup domain. Rotation: add `Keys__1`, switch `ActiveKeyId`, remove the old key after the ledger window ([ADR-0028](../docs/adr/0028-submission-ledger-hmac-rotation-and-window.md)) |
 | | `ANTHROPIC_API_KEY` (or the variable named by `Interviews__ApiKeyEnv`) | the model provider key, from a dedicated workspace with a monthly spend limit (runbook §4) | read from the environment by the Providers resolver, never from `Interviews__*` configuration; without it a start answers 503 |
 | | `ANTHROPIC_WORKSPACE_ID` | optional workspace id, sent as the `anthropic-workspace-id` header (`ProviderChatClients.cs`); needed only for a key that is not workspace-scoped | optional; the spend limit in the console is the control that matters |
 | | `Interviews__Provider`, `Interviews__Model` | which provider and which model run the interview | set with `fly secrets set --stage`, not in `[env]`: the model is an owner decision after the W9 run, and the code has no default |
@@ -27,11 +27,22 @@ Rule of thumb: if you would not paste it into a pull request, it is a secret. `[
 | | `Billing__PriceMinorUnits`, `Billing__Currency`, `Billing__SuccessUrl`, `Billing__CancelUrl` | price, currency and the owner's return pages | decisions of the owner; the code has no default and refuses checkout (503) until they are set |
 | `exit-interview-agent-web-dev` | none today | the BFF holds no key: it verifies against authservice's JWKS | |
 
-**Known gap before the first deployment (not closed in this change).** `Ledger__*` is required outside
-Development, and the interview service refuses to start without it. `.github/workflows/flyio.yml` sets only
-`ConnectionStrings__interviewdb` for this app, so until the ledger keys are set by hand (runbook §3) the first
-deploy fails its health check. That is the fail-closed behaviour working, not a bug to hide. The authservice's
-`AuthorizationServer__Clients__0__ClientSecret` and `AuthorizationServer__EncryptionKey` are in the same position.
+**Ledger keys: set by the workflow, required before the first deploy (NOT RUN: no Fly app exists).** `Ledger__*`
+is required outside Development, and the interview service refuses to start without it (fail-closed). `flyio.yml`
+now sets the three values for the interview service from two GitHub `dev` environment secrets, `LEDGER_KEY_ID`
+and `LEDGER_KEY_SECRET`, and the deploy job stops before `flyctl deploy` if either is missing or malformed. So the
+first tag needs those two secrets in place; without them the job fails early and visibly, not at the health check.
+`scripts/check-fly.py` checks that this file and `flyio.yml` both name every required ledger secret.
+
+**MCP client secrets for authservice: optional for the web app, not set by the workflow.**
+`AuthorizationServer__Clients__0__ClientSecret` and `AuthorizationServer__EncryptionKey` are not in `flyio.yml`.
+Nothing in `interview-service` reads them, and its MCP path is optional: with `Mcp:Issuer` or `Mcp:Resource`
+unset, the MCP endpoint answers 401 and `/health` lists `mcp-auth` as degraded (`McpOptions.Describe`); the web
+app is unaffected. `flyio/interview-service.fly.toml` does set both `Mcp__*` values, so the path is switched on in
+this topology and only the Claude connector depends on the authservice secrets. What authservice does when they
+are absent is **not verified here** (its source is in another repository). Until it is, set both by hand before
+its first deploy, as [runbook §3](../docs/runbooks/web-app-deploy.md#3-secrets-what-to-set-where) describes.
+
 The rows above for hosted-interview secrets are the ones the code reads today; each is set with `fly secrets set --stage`.
 
 Later work adds secrets. They are added to this table in the same pull request that introduces them.
@@ -49,7 +60,8 @@ One-time human setup per repository, from `docs/guides/FLY-IO-DEPLOYMENT.md` §1
 
 1. `fly tokens create org`, stored as `FLY_API_TOKEN` in a GitHub **environment** (here: `dev`), not a
    repository secret.
-2. The root secrets above in that environment.
+2. The root secrets above in that environment, among them `LEDGER_KEY_ID` (1-32 characters from `[A-Za-z0-9_-]`) and
+   `LEDGER_KEY_SECRET` (`openssl rand -base64 32`), which `flyio.yml` needs before the interview service can start.
 3. Nothing else: no `fly launch`, no manual app or volume creation. `.github/workflows/flyio.yml` creates
    missing apps and volumes idempotently.
 

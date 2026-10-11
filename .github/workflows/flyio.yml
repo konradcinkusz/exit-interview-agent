@@ -204,15 +204,30 @@ jobs:
       - env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           INTERVIEW_DB_PASSWORD: ${{ secrets.INTERVIEW_DB_PASSWORD }}
+          # The submission ledger key (ADR-0028). The service refuses to start outside Development without it,
+          # so a deploy that lacks it fails here, before `flyctl deploy`, not at the health check.
+          LEDGER_KEY_ID: ${{ secrets.LEDGER_KEY_ID }}
+          LEDGER_KEY_SECRET: ${{ secrets.LEDGER_KEY_SECRET }}
         run: |
           set -euo pipefail
           app="$SLUG-interview-service-$ENVIRONMENT_NAME"
           [ -n "$INTERVIEW_DB_PASSWORD" ] || { echo "missing required secret: INTERVIEW_DB_PASSWORD" >&2; exit 1; }
+          for v in LEDGER_KEY_ID LEDGER_KEY_SECRET; do
+            [ -n "${!v}" ] || { echo "missing required secret: $v" >&2; exit 1; }
+          done
+          # Ledger:Keys__0__Id is 1-32 characters from [A-Za-z0-9_-] (LedgerKeySet.Create).
+          [[ "$LEDGER_KEY_ID" =~ ^[A-Za-z0-9_-]{1,32}$ ]] || { echo "LEDGER_KEY_ID must be 1-32 characters from [A-Za-z0-9_-]" >&2; exit 1; }
+          # Ledger:Keys__0__Secret is base64 of at least 32 bytes (LedgerKeySet.MinSecretBytes).
+          decoded="$(printf '%s' "$LEDGER_KEY_SECRET" | base64 -d 2>/dev/null | wc -c || true)"
+          [ "${decoded:-0}" -ge 32 ] || { echo "LEDGER_KEY_SECRET must be base64 of at least 32 bytes" >&2; exit 1; }
           if ! flyctl apps list --json | jq -e --arg a "$app" '.[] | select((.Name // .name) == $a)' >/dev/null; then
             flyctl apps create "$app" --org "$FLY_ORG" --yes
           fi
           flyctl secrets set --app "$app" --stage \
-            "ConnectionStrings__interviewdb=Host=$SLUG-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=$INTERVIEW_DB_PASSWORD"
+            "ConnectionStrings__interviewdb=Host=$SLUG-postgres.internal;Port=5432;Database=interviewdb;Username=interview;Password=$INTERVIEW_DB_PASSWORD" \
+            "Ledger__ActiveKeyId=$LEDGER_KEY_ID" \
+            "Ledger__Keys__0__Id=$LEDGER_KEY_ID" \
+            "Ledger__Keys__0__Secret=$LEDGER_KEY_SECRET"
           # Pulling a private GHCR image needs a credential on Fly: see flyio/SECRETS.md (open question).
           flyctl deploy --config flyio/interview-service.fly.toml --app "$app" \
             --image "$REGISTRY/$IMAGE_OWNER/$SLUG-interview-service:$GITHUB_REF_NAME" --wait-timeout 300
