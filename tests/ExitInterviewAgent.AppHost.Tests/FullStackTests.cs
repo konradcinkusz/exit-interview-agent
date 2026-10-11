@@ -288,6 +288,10 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
             await reply.EnsureStatusAsync(HttpStatusCode.OK, $"answer {i + 1}");
             var body = await ReadJsonAsync(reply);
             if (body.TryGetProperty("ending", out var ending) && ending.ValueKind == JsonValueKind.Object) return;
+            // The closing turn is an interviewer turn of kind "close": the session ends after it, and a reply after it answers 409
+            // (interview_ended). The ending comes with the next event, so the closing turn is the signal (run 38142954680).
+            if (body.TryGetProperty("turn", out var turn) && turn.ValueKind == JsonValueKind.Object
+                && turn.TryGetProperty("kind", out var kind) && kind.GetString() == "close") return;
         }
     }
 
