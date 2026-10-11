@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 72 ADRs** (numbered 0001–0080). Gaps: numbers 0015–0016, 0020–0021, 0064–0066 and 0079 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 73 ADRs** (numbered 0001–0080). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -223,7 +223,13 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 |---|---|---|---|
 | [0077](0077-credits-ledger-and-payment-provider.md) | Credits ledger and payment provider | accepted | Append-only credit ledger with database-enforced uniqueness per payment event and per session; provider seam with Stripe over HTTP and a fake sharing the production classifier; signature over the raw body; fail-closed configuration; a start takes one credit and a failed session returns it; the Stripe wire format is not yet checked against the provider |
 
-## 18. Fly topology (0080)
+## 18. Local stack and development credits (0079)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0079](0079-local-stack-pgadmin-interview-config-dev-credit-grant.md) | Local stack: pgAdmin, interview configuration, development credit grant | accepted | pgAdmin in the AppHost only (port 5050, generated password); the interview model from parameters, the scripted mock when no key is set and visible as degraded; the fake payment provider with a development price; a development-only credit grant mounted only in Development with the fake provider (404 elsewhere); the verified-email gate off in development until authservice issues the claim |
+
+## 19. Fly topology (0080)
 
 | ID | Title | Status | Summary |
 |---|---|---|---|
