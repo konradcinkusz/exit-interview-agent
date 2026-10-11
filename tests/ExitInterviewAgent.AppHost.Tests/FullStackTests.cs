@@ -190,7 +190,8 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
         var versions = await ReadJsonAsync(versionsResponse);
 
         var email = $"l6-{Guid.NewGuid():N}@example.invalid";
-        var password = Convert.ToBase64String(RandomNumberGenerator.GetBytes(18));
+        // authservice requires a digit and a non-alphanumeric character: both are fixed here, the rest is random.
+        var password = "Aa1!" + Convert.ToBase64String(RandomNumberGenerator.GetBytes(18));
         using var register = await identity.PostAsJsonAsync("/api/v1/auth/register", new
         {
             email,

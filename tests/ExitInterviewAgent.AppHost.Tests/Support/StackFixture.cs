@@ -130,16 +130,11 @@ public sealed class Stack(DistributedApplication app) : IAsyncDisposable
             var lines = new List<string>();
             try
             {
-                using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                await foreach (var batch in logs.WatchAsync(name).WithCancellation(stop.Token))
+                // The backlog is the resource's whole log so far (not only the lines written from now on).
+                await foreach (var batch in logs.GetAllAsync(name))
                 {
                     lines.AddRange(batch.Select(l => l.Content));
-                    if (batch.Count == 0) break;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                // The snapshot is what was read before the stop; the rest of the resource is not needed to diagnose.
             }
             catch (Exception e)
             {
