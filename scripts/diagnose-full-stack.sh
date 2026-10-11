@@ -139,4 +139,12 @@ kill "$manual" 2>/dev/null
 kill -INT "$apphost" 2>/dev/null
 for _ in $(seq 1 24); do kill -0 "$apphost" 2>/dev/null || break; sleep 5; done
 say "AppHost stopped (or still running after 2 minutes; the job ends regardless)"
+
+# The job log carries the evidence too (the artifact may not be readable from every place): the report, then the tails.
+echo "===== report.txt ====="
+cat "$report"
+echo "===== apphost.log (last 150 lines; the resource logs of the AppHost run) ====="
+tail -n 150 "$out/apphost.log"
+echo "===== web-manual.log (last 100 lines) ====="
+tail -n 100 "$out/web-manual.log" 2>/dev/null
 exit 0
