@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
 import { PAGE_SIZE, readEmployerList } from "@/lib/signals";
 import { Failure } from "./Failure";
 import { useSignals } from "./useSignals";

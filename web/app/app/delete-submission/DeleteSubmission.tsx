@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
 import { normaliseReceiptCode, receiptOutcome } from "@/lib/receipt";
 
 const D = m.deleteSubmission;

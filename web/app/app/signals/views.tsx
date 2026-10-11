@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
 import {
   fill, formatBatchStart, levelPercent, twoDecimals,
   type Cell, type Cut, type Employer, type EmployerList, type Group, type Snapshot, type Stats, type Topic,

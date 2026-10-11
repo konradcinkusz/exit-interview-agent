@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { m } from "@/lib/messages";
+import { getMessages } from "@/lib/i18n";
 import { ConsentForm } from "./ConsentForm";
 
-export const metadata: Metadata = { title: m.consent.title };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).t.consent.title };
+}
 
-export default function ConsentPage() {
+export default async function Page() {
+  const { t } = await getMessages();
   return (
-    <Suspense fallback={<p>{m.site.loading}</p>}>
+    <Suspense fallback={<p role="status">{t.site.loading}</p>}>
       <ConsentForm />
     </Suspense>
   );

@@ -26,6 +26,8 @@ async function openInterview(page: Page, name: string) {
   await page.goto("/login?redirect=%2Finterview");
   await signIn(page, name);
   await expect(page.getByRole("heading", { name: "Exit interview with an AI" })).toBeVisible();
+  // The page is server-rendered; the credit line changes only once it has hydrated and asked the service, so the controls work.
+  await expect(page.getByText("Checking your credits…")).toHaveCount(0);
 }
 
 async function startInterview(page: Page) {
@@ -38,6 +40,8 @@ async function startInterview(page: Page) {
 
 async function say(page: Page, text: string, label = "Your answer") {
   const answer = page.getByLabel(label);
+  // One answer at a time: while the interviewer is still replying, the page does not send (as for a person).
+  await expect(page.getByRole("status").filter({ hasText: /The interviewer is typing|Rozmówca pisze/ })).toHaveCount(0);
   await answer.fill(text);
   await answer.press("Enter");
 }

@@ -94,6 +94,7 @@ var web = builder.AddJavaScriptApp("web", Path.GetFullPath(Path.Combine(builder.
     .WithEnvironment("AUTH_ISSUER", "ExitInterviewAgent")
     .WithEnvironment("AUTH_AUDIENCE", "ExitInterviewAgent")
     .WithEnvironment("SESSION_COOKIE_SECURE", "false") // plain-http localhost only
+    .WithEnvironment("DEV_HINTS", "1") // the sign-in page shows the DevSeed test account; this resource only, never a deployment
     .WithHttpHealthCheck("/healthz");
 
 // Identity (P5, shared-service-reuse): authservice runs as a SEPARATE instance of the published,

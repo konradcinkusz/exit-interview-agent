@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { m } from "@/lib/messages";
+import { useSearchParams } from "next/navigation";
+import type { Messages } from "@/lib/messages";
 import { safeRedirect } from "@/lib/safe-redirect";
+import { useMessages } from "../_components/I18n";
 
-const L = m.login;
-type ErrorKey = keyof typeof L.errors;
-const message = (code: string | undefined): string => L.errors[(code ?? "") as ErrorKey] ?? L.errors.generic;
+type ErrorKey = keyof Messages["login"]["errors"];
 
 type Step = "password" | "code" | "recovery";
 
 export function LoginForm() {
-  const router = useRouter();
+  const L = useMessages().login;
+  const message = (code: string | undefined): string => L.errors[(code ?? "") as ErrorKey] ?? L.errors.generic;
   const redirect = safeRedirect(useSearchParams().get("redirect"));
   const [step, setStep] = useState<Step>("password");
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,9 @@ export function LoginForm() {
 
   function finish(consentRequired: boolean | undefined) {
     // Consent before anything else: an account that has not accepted the versions in force goes to that step first.
-    router.push(consentRequired ? `/consent?redirect=${encodeURIComponent(redirect)}` : redirect);
+    // A full page load, not a client-side push: the header was rendered signed out and must be rendered again, and a push
+    // followed by a refresh can remount the page the person has already started using.
+    window.location.assign(consentRequired ? `/consent?redirect=${encodeURIComponent(redirect)}` : redirect);
   }
 
   async function onPassword(event: React.FormEvent<HTMLFormElement>) {
@@ -81,13 +83,16 @@ export function LoginForm() {
     return (
       <form method="post" onSubmit={onPassword} aria-labelledby="login-heading">
         <h1 id="login-heading">{L.title}</h1>
+        <p className="lead">{redirect.startsWith("/interview") ? L.introInterview : L.intro}</p>
         <label htmlFor="email">{L.email}</label>
         <input ref={emailInput} id="email" name="email" type="email" autoComplete="username" required data-testid="login-email" />
         <label htmlFor="password">{L.password}</label>
         <input id="password" name="password" type="password" autoComplete="current-password" required data-testid="login-password" />
         {error && <p role="alert" data-testid="login-error">{error}</p>}
-        <button type="submit" disabled={busy} data-testid="login-submit">{L.submit}</button>
-        <p><Link href="/register">{L.register}</Link></p>
+        <button type="submit" className="primary" disabled={busy} data-testid="login-submit">{L.submit}</button>
+        <p className="aside">
+          {L.noAccount} <Link href={`/register?redirect=${encodeURIComponent(redirect)}`} data-testid="register-link">{L.register}</Link>
+        </p>
       </form>
     );
   }
@@ -113,9 +118,9 @@ export function LoginForm() {
         aria-describedby={recovery ? "recovery-hint" : undefined}
         data-testid="twofactor-code"
       />
-      {recovery && <p id="recovery-hint" className="muted">{L.recoveryHint}</p>}
+      {recovery && <p id="recovery-hint" className="hint">{L.recoveryHint}</p>}
       {error && <p role="alert" data-testid="login-error">{error}</p>}
-      <button type="submit" disabled={busy} data-testid="twofactor-submit">{L.twoFactorSubmit}</button>
+      <button type="submit" className="primary" disabled={busy} data-testid="twofactor-submit">{L.twoFactorSubmit}</button>
       <button type="button" className="secondary" onClick={() => { setError(null); setStep(recovery ? "code" : "recovery"); }} data-testid="twofactor-toggle">
         {recovery ? L.useCode : L.useRecovery}
       </button>

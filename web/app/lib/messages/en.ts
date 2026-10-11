@@ -1,14 +1,15 @@
-import { DELETION_FACTS } from "../copy";
+import { CONSENT_SUMMARY, DELETION_FACTS } from "../copy";
 
-// The message catalog (English). Every user-facing string of the portal lives here, so a second language is a new file with
-// the same keys (see ./index.ts), not a refactor. Strings that state a precise fact about the system are asserted by tests
-// (the unit tests and the browser suite) so the facts and the words cannot drift apart. Plain text only: no markup, no
-// interpolation of user data. Polish is not shipped: a half translation is worse than none (docs/ux/UI-UX.md).
+// The portal catalog in English: every page on the former employee's path (home, sign-in, sign-up, consent, account, privacy,
+// about, the header, the footer and the error pages). Polish is ./pl.ts, typed against this file, so a missing key is a compile
+// error. The developer pages are English-only (./developer.ts); the interview page has its own catalog (./interview.ts).
+// Strings that state a precise fact about the system are asserted by tests so the facts and the words cannot drift apart. Plain
+// text only: no markup, no interpolation of user data.
 
 export const en = {
   site: {
     name: "Exit Interview Agent",
-    description: "Structured exit interviews with privacy-preserving employer signals. Simulated data only.",
+    description: "Give your exit interview to an AI interviewer, read the record it makes, and delete everything when you are done.",
     devBuild: "Development build: simulated interviews only. Nothing here is deployed, and no real personal data may be entered.",
     skipToContent: "Skip to content",
     loading: "Loading…",
@@ -17,26 +18,59 @@ export const en = {
     label: "Main",
     home: "Home",
     interview: "Interview",
-    connect: "Connect your AI client",
-    cli: "Use the CLI",
-    signals: "Employer signals",
-    deleteSubmission: "Delete a submission",
-    privacy: "Privacy",
     account: "Account",
     signIn: "Sign in",
+    signOut: "Sign out",
+  },
+  language: {
+    label: "Language",
+    // The switch names the OTHER language, in that language, so a person who cannot read the current one still finds it.
+    switchTo: "Polski",
+    switchToLang: "pl",
+    switchHint: "Przełącz na polski",
+    englishOnly: "This page is only in English.",
+  },
+  footer: {
+    label: "More",
+    privacy: "Privacy",
+    about: "About this project",
+    developers: "For developers",
   },
   landing: {
-    title: "Exit Interview Agent",
+    title: "Give your exit interview to an AI",
     lead:
-      "An open-source AI agent that runs a structured exit interview with a former employee. You use it from your own AI " +
-      "client or from a command-line tool, with your own model. This website runs no model and never sees your interview.",
-    whatTitle: "What this website is for",
-    what: [
-      "Your account and your consents.",
-      "Connecting your AI client (Claude) so the interview can run there.",
-      "Creating a short-lived ticket so the command-line tool can submit a record for you.",
-      "Deleting a submission with its receipt code.",
+      "You left a job and want to say how it really was. An AI interviewer asks you about six topics, one at a time, in Polish " +
+      "or English. At the end you get a short record of what you said and draft texts you can copy, change or throw away.",
+    start: "Start your interview",
+    startNote: "You sign in first, or create an account if you do not have one yet.",
+    keptTitle: "What is kept, and what is not",
+    kept:
+      "Your account is your email address and password, and the terms you accepted. The conversation is sent to Anthropic, the " +
+      "company behind the AI model, so it can reply; this site keeps it only in memory while the interview runs. When the " +
+      "interview ends, your record and drafts stay readable for 30 minutes and are then wiped. You can delete everything sooner.",
+    keptLink: "The privacy facts",
+    stepsTitle: "How it works",
+    steps: [
+      "Sign in, or create an account with your email address.",
+      "Choose the language and how long you worked there, then read what happens to your words.",
+      "Talk with the AI interviewer in the chat. Stop whenever you want.",
+      "Read your record and the draft texts, copy or download what you want, and delete the rest.",
     ],
+    notTitle: "What this is not",
+    not: [
+      "Not a review site: nothing you say is published by this site.",
+      "Not legal advice: the drafts are drafts, not facts.",
+      "Not a check of your employment: nobody verifies where you worked.",
+    ],
+    aboutLink: "About this open-source project",
+  },
+  about: {
+    title: "About this project",
+    lead:
+      "Exit Interview Agent is an open-source project. Besides the interview on this website, it can run the same structured " +
+      "interview from your own AI client or from a command-line tool, with your own model. In that case this website runs no " +
+      "model and never sees your interview; it only receives the final record if you choose to submit it.",
+    pathsTitle: "If you use your own AI client or the command line",
     storedTitle: "What is stored",
     stored: [
       "Your account (email and credentials) and the consents you gave, held by the identity service.",
@@ -58,24 +92,42 @@ export const en = {
     nonGoals: [
       "Not a public review site: individual records are never published, only aggregates above a minimum number of records.",
       "Not a source of verified employment: verification is not implemented.",
-      "Not a model host: you bring the model, through your AI client or your own API key or local model.",
-      "Not for real people yet: this is a development build with simulated interviews.",
+      "Not a model host for the AI-client and command-line paths: you bring the model, through your AI client or your own API key or local model.",
     ],
-    ctaTitle: "Start",
-    ctaInterview: "Start an interview",
-    ctaConnect: "Connect your AI client",
-    ctaCli: "Use the command line",
-    ctaDelete: "Delete a submission",
-    ctaPrivacy: "Read the privacy facts",
-    ctaSignIn: "Sign in",
-    ctaRegister: "Create an account",
+    sourceTitle: "Source code",
+    sourceLink: "The project repository on GitHub",
+    sourceHref: "https://github.com/konradcinkusz/exit-interview-agent",
+    developersLink: "Pages for developers",
+  },
+  developers: {
+    title: "For developers",
+    lead:
+      "These pages are for people who run the interview from their own AI client or the command line, and for the employer " +
+      "figures built from submitted records. You do not need any of them for the interview on this website.",
+    links: [
+      { href: "/connect", label: "Connect your AI client", what: "Add this service to Claude as a connector, so the interview runs in your own Claude conversation.", gated: false },
+      { href: "/cli", label: "Use the command line", what: "Create a single-use ticket so the command-line tool can submit a record for you.", gated: true },
+      { href: "/delete-submission", label: "Delete a submission", what: "Delete a record you submitted from your AI client or the command line, with its receipt code.", gated: false },
+      { href: "/signals", label: "Employer signals", what: "Aggregated figures about employers, with their uncertainty. Never a ranking.", gated: true },
+    ],
+    englishOnly: "These pages are in English.",
+  },
+  devHints: {
+    title: "Local development",
+    intro: "Shown only because this web app runs with DEV_HINTS=1 (the local AppHost sets it). Never shown in a deployment.",
+    email: "Test e-mail",
+    password: "Test password",
+    seed: "If signing in fails, first run “Seed test user (with credits)” from the … menu of postgres, authdb or interviewdb in the Aspire dashboard. It creates this account with interview credits.",
   },
   login: {
     title: "Sign in",
+    introInterview: "Sign in to start your exit interview.",
+    intro: "Sign in to your account.",
     email: "Email",
     password: "Password",
     submit: "Sign in",
-    register: "No account yet? Create one",
+    noAccount: "No account yet?",
+    register: "Create one",
     twoFactorTitle: "Two-factor sign-in",
     twoFactorIntro: "Enter the 6-digit code from your authenticator app.",
     code: "Authenticator code",
@@ -102,10 +154,12 @@ export const en = {
     email: "Email",
     password: "Password",
     passwordHint: "At least 8 characters.",
-    termsPrefix: "I accept the Terms of Use, version",
-    privacyPrefix: "I accept the Privacy Policy, version",
+    terms: "I accept the Terms of Use",
+    privacy: "I accept the Privacy Policy",
+    version: "Version",
     submit: "Create account",
-    signIn: "Already have an account? Sign in",
+    haveAccount: "Already have an account?",
+    signIn: "Sign in",
     created: "Account created. You can sign in now.",
     createdVerify: "Account created. Check your email for a link to verify your address, then sign in.",
     errors: {
@@ -133,250 +187,27 @@ export const en = {
   consent: {
     title: "Before you continue",
     intro:
-      "To use this service you need to accept the current versions of these documents. If either has changed since you last " +
-      "accepted, you are asked again.",
-    termsPrefix: "I accept the Terms of Use, version",
-    privacyPrefix: "I accept the Privacy Policy, version",
+      "To use this service you need to accept the current versions of these documents. You see this page after you first sign in, " +
+      "and again whenever one of them changes.",
+    terms: "I accept the Terms of Use",
+    privacy: "I accept the Privacy Policy",
+    version: "Version",
+    termsSummary: CONSENT_SUMMARY.terms,
+    privacySummary: CONSENT_SUMMARY.privacy,
     accept: "Accept and continue",
     decline: "Decline and sign out",
     loadError: "Could not check your consent status. Try again.",
     saveError: "Could not record your consent. Try again.",
   },
-  connect: {
-    title: "Connect your AI client",
-    lead:
-      "You can run the interview inside Claude. Claude is the AI client that is supported today; other clients are future work. " +
-      "The interview happens in your conversation with Claude, under your own Claude account and its terms.",
-    urlTitle: "The connector address",
-    urlIntro: "Add this address as a custom connector in Claude:",
-    urlMissing:
-      "The connector is not set up in this environment, so there is no address to show. The operator turns it on by giving the " +
-      "web app a public HTTPS address for the MCP endpoint.",
-    copy: "Copy address",
-    copied: "Copied",
-    copyFailed: "Copy failed. Select the address and copy it yourself.",
-    stepsTitle: "How to add it",
-    steps: [
-      "In Claude, open Settings, then Connectors.",
-      "Choose to add a custom connector and paste the address above.",
-      "If the operator gave you a client ID and secret, enter them under Advanced settings. They are operator configuration, not part of your account.",
-      "Sign in with the same account you use on this website and approve the connection.",
-      "Start a new conversation and ask Claude to run an exit interview with the connector enabled.",
-    ],
-    plansNote: "Which Claude plans allow custom connectors is decided by Anthropic, not by this project.",
-    canTitle: "What the connector can do",
-    can: [
-      "Give Claude the interview protocol: how to open, which topics to cover, how to ask without leading, when to stop.",
-      "Accept one structured record at the end, if you agree to submit it.",
-    ],
-    cannotTitle: "What the connector cannot do",
-    cannot: [
-      "See your conversation. The server receives only the record that Claude submits, never the transcript.",
-      "Read, list or change records. There is no way to look up what you submitted.",
-      "Link a submission to your account: the record carries no account, and the receipt code is the only handle.",
-      "Verify that your quotes are word for word, or that you worked where you say you did.",
-    ],
-    privacyNote:
-      "Your conversation is visible to Claude and to Anthropic under your own agreement with them. Do not name individual people. " +
-      "After a submission, Claude shows you a receipt code once: keep it, because it is the only way to delete that submission.",
-    privacyLink: "Privacy facts",
-    deleteLink: "Delete a submission",
-    // There is no documentation site yet, so the runbook is linked where it lives: the project repository on GitHub, the same
-    // place the privacy page links to (ADR-0070). It is written for whoever runs the deployment, and says what was not verified.
-    runbookNote: "Running this deployment yourself? The operator runbook, with what was and was not verified, is in the project repository:",
-    runbookLabel: "Connect Claude: operator runbook",
-    runbookHref: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/guides/connect-claude.md",
-    runbookPath: "docs/guides/connect-claude.md",
-    config: { loading: "Loading…", error: "The connector address could not be loaded." },
-  },
-  cli: {
-    title: "Use the command line",
-    lead:
-      "The command-line tool runs the whole interview on your computer with your own API key or a local model. It sends " +
-      "only the final record. To submit, it needs a ticket from this page.",
-    ticketTitle: "Submission ticket",
-    ticketFacts: [
-      "Single use: the first successful submission with it uses it up.",
-      "Short-lived: the countdown shows when it stops working; after that, make another.",
-      "Not tied to any employer or to a record. It only proves that a signed-in account made it.",
-      "A password-like secret: anyone who has it can use it once. Do not paste it into a chat, a ticket tracker or a shared file.",
-    ],
-    shownOnce: "It is shown once. This page does not store it and cannot show it again: reloading or leaving the page clears it.",
-    create: "Create a ticket",
-    creating: "Creating…",
-    yourTicket: "Your ticket",
-    copy: "Copy ticket",
-    copied: "Copied. Paste it into the CLI now; it is cleared from the clipboard only when you copy something else.",
-    copyFailed: "Copy failed. Select the ticket and copy it yourself.",
-    expiresIn: "Stops working in",
-    expired: "This ticket has expired and was cleared. Create a new one.",
-    clear: "Clear it now",
-    cleared: "Ticket cleared from this page.",
-    limitTitle: "No ticket created",
-    errors: {
-      TICKET_LIMIT:
-        "You already have the maximum number of unused tickets, or you made too many in the last hour. Use one or wait for one to expire, then try again.",
-      rate_limited: "Too many requests. Wait a little and try again.",
-      unauthenticated: "Your session has ended. Sign in again.",
-      consent_required: "Accept the current Terms and Privacy Policy first.",
-      unavailable: "The service could not be reached. Nothing was created; try again.",
-      generic: "A ticket could not be created. Try again.",
-    },
-    waitSeconds: "Try again in about",
-    seconds: "seconds",
-    commandsTitle: "The CLI today",
-    commandsIntro: "These are the commands the command-line tool has in this version:",
-    commands: [
-      { command: "exit-interview interview --provider <p> --model <m> --out <dir>", what: "runs a real interview with your own model or API key and writes the record to a file; nothing is sent anywhere" },
-      { command: "exit-interview submit --record <file> --server <address>", what: "checks the record on your computer, shows exactly what will be sent, asks you to type \"submit\", then asks for the ticket and sends it" },
-      { command: "exit-interview delete-receipt --server <address>", what: "deletes a submission with its receipt code, which it asks for" },
-      { command: "exit-interview personas", what: "lists the simulated interviewees" },
-      { command: "exit-interview demo --persona <id> [--seed <n>] [--out <dir>]", what: "runs a full interview offline against a simulated person and prints the record" },
-      { command: "exit-interview --help", what: "shows the usage" },
-    ],
-    commandsNote:
-      "Never put the ticket or a receipt code on the command line: the tool has no option for either, because command lines end up in process lists " +
-      "and shell history. It asks for the ticket with a hidden prompt, or reads it from the EXIT_INTERVIEW_TICKET environment variable or from standard input. " +
-      "There is no default server address: give the address of this site, over https. After a submission the tool shows a receipt code once. " +
-      "It is the only way to delete the record, and nobody can look it up for you.",
-  },
-  deleteSubmission: {
-    title: "Delete a submission",
-    lead:
-      "Enter the receipt code you were given when you submitted. You do not need to sign in: the code is the only thing that " +
-      "identifies a submission, because submissions are not linked to accounts.",
-    label: "Receipt code",
-    hint: "46 characters. Letters, digits, hyphens and underscores.",
-    submit: "Delete this submission",
-    working: "Deleting…",
-    // The uniform answer (ADR-0029). Deliberately does not say whether a submission existed.
-    uniformAnswer: "If a submission with this receipt code existed, it is deleted now.",
-    uniformDetail:
-      "This answer is the same for every correctly typed code, so it does not tell you whether a submission existed. " +
-      "Deletion cannot be undone.",
-    // AGGREGATION section 8: the receipt-deletion screen says what happens to published figures. Always shown, so it does not depend on the outcome.
-    publishedFigures: "Deleting your record removes it from the stored data now. Published figures drop it at the next update.",
-    lostCode: "A lost code cannot be recovered or replaced, and nobody can look up your submissions without it.",
-    errors: {
-      INVALID_RECEIPT_CODE:
-        "That is not a valid receipt code. Check for a missed or extra character. Nothing was deleted and no request about a submission was made.",
-      rate_limited: "Too many attempts. Wait a minute and try again.",
-      unavailable: "The service could not be reached. Nothing was deleted; try again.",
-      generic: "Something went wrong. Nothing was confirmed; try again.",
-    },
-    waitSeconds: "Try again in about",
-    seconds: "seconds",
-    accountNote: "Closing your account does not delete submissions. Only the receipt code does.",
-    again: "Delete another",
-  },
-  signals: {
-    title: "Employer signals",
-    lead: "Aggregated figures about employers, built from records submitted by users of this tool.",
-    // AGGREGATION section 8: every aggregate carries this, and the snapshot line next to the date.
-    aggregatedNote: "Aggregated from records submitted by users of this tool. Employment is claimed, not verified.",
-    snapshot: "Updated {date}. Figures change once per update, not when someone submits. A record deleted after this date is still counted until the next update.",
-    snapshotInterval: "A new update is published every {hours} hours.",
-    explainerTitle: "How to read these figures",
-    explainer: [
-      "Ratings are on a scale from 1 (lowest) to 5 (highest). Each topic stands alone: there is no overall score for an employer and no average across topics.",
-      "Every figure comes with its 95% interval and the number of ratings it rests on, on the same line. The interval is the range the figure could plausibly be in. A wide interval means early, not wrong.",
-      "Reliability says how much the figure can move as more ratings arrive. Coverage says what share of the respondents rated the topic at all: a figure with low coverage speaks for few of them.",
-      "Two figures whose intervals overlap are not different. This tool does not compare employers, and a figure here is not a verdict.",
-      "Some figures are hidden to protect small groups. The page does not say which, or how many.",
-    ],
-    listTitle: "Employers",
-    listOrder: "Employers are listed alphabetically. This tool does not rank employers.",
-    listLabel: "Employers with figures to show",
-    empty: "No employer has enough responses to show yet.",
-    emptyDetail: "An employer appears here only when at least one figure rests on enough ratings to be shown. This page does not say how many employers or responses there are.",
-    previous: "Previous page",
-    next: "Next page",
-    pageLabel: "Page {page}",
-    paging: "Pages",
-    employerTitle: "Employer signals",
-    employerLabel: "Employer reference",
-    backToList: "Back to the employer list",
-    nothing: "There is nothing to show for this employer.",
-    nothingDetail: "Either this tool has no figures it can show for this employer, or the reference is not one it knows. The page cannot tell you which.",
-    respondents: "Respondents",
-    respondentsNote: "A range, not an exact count.",
-    minimumNote: "A figure is shown only when it rests on at least {k} ratings.",
-    notEnough: "Not enough responses to show this topic.",
-    statLine: "{mean} ({level}% interval {lower}-{upper}), {n} ratings",
-    wideInterval: "A wide interval means early, not wrong.",
-    reliabilityLabel: "Reliability",
-    reliability: {
-      low: "low: based on few ratings, so the figure can move a lot.",
-      moderate: "moderate: based on a fair number of ratings.",
-      high: "high: based on many ratings.",
-    },
-    coverageLabel: "Coverage",
-    coverage: {
-      high: "high: the share of respondents who rated this topic.",
-      medium: "medium: the share of respondents who rated this topic.",
-      low: "low: the share of respondents who rated this topic.",
-    },
-    distributionCaption: "How the ratings were spread",
-    distributionGroup: "Rating group",
-    distributionCount: "Ratings",
-    distribution: { low: "Low (1-2)", mid: "Middle (3)", high: "High (4-5)" } as Record<string, string>,
-    verificationTitle: "Employment checks",
-    verificationNote: "Employment is claimed, not verified.",
-    verificationCaption: "Ratings by employment check",
-    verificationGroup: "Employment check",
-    verification: { unchecked: "Not checked", unverified: "Checked, not confirmed", verified: "Confirmed" } as Record<string, string>,
-    cutsTitle: "Breakdowns",
-    cutsNote: "One breakdown at a time: tenure, seniority and function are never combined.",
-    cutSuppressed: "This breakdown is hidden to protect small groups.",
-    cutNone: "No ratings.",
-    cutBandSuppressed: "Hidden to protect small groups.",
-    cutGroup: "Group",
-    cutFigures: "Figures",
-    cutCaption: "Breakdown by {dimension}",
-    dimensions: { tenure: "tenure", seniority: "seniority", function: "function" } as Record<string, string>,
-    topics: {
-      onboarding: "Onboarding",
-      management: "Management",
-      growth: "Growth",
-      pay_vs_promises: "Pay versus promises",
-      culture: "Culture",
-      reason_for_leaving: "Reason for leaving",
-    } as Record<string, string>,
-    bands: {
-      lt_6m: "Less than 6 months",
-      "6m_1y": "6 to 12 months",
-      "1y_3y": "1 to 3 years",
-      "3y_5y": "3 to 5 years",
-      "5y_10y": "5 to 10 years",
-      gt_10y: "More than 10 years",
-      junior: "Junior",
-      mid: "Mid-level",
-      senior: "Senior",
-      management: "Management",
-      engineering: "Engineering",
-      product_design: "Product and design",
-      sales_marketing: "Sales and marketing",
-      operations_support: "Operations and support",
-      corporate_functions: "Corporate functions",
-      other: "Other",
-    } as Record<string, string>,
-    errors: {
-      rate_limited: "Too many requests. Nothing is shown for now, and this page will not retry by itself.",
-      unauthenticated: "Your session has ended. Sign in again.",
-      consent_required: "Accept the current Terms and Privacy Policy first.",
-      unavailable: "The signals could not be loaded. Nothing is shown. Try again later.",
-      generic: "The signals could not be loaded. Nothing is shown.",
-    },
-    waitPrefix: "You can try again in about",
-    waitSuffix: "seconds.",
-    retry: "Try again",
-    retryWaiting: "Waiting",
-  },
   account: {
     title: "My account",
-    signedInAs: "Signed in as account",
-    loadError: "Could not load your account",
+    signedIn: "You are signed in.",
+    accountId: "Account ID",
+    loadError: "Could not load your account. Try again later.",
     signOut: "Sign out",
+    interviewTitle: "Your interview",
+    interviewText: "Start, continue or delete your exit interview on the interview page.",
+    interviewLink: "Go to the interview",
     exportTitle: "Export your data",
     exportIntro: "Download what the identity service holds about your account: profile, consents, sign-in methods and sessions.",
     exportNot:
@@ -406,7 +237,15 @@ export const en = {
   privacy: {
     title: "Privacy facts",
     lead: "The short version of the privacy design. The full design, with its limits, is linked at the bottom and is the authority.",
-    factsTitle: "Key facts",
+    interviewTitle: "The interview on this website",
+    interview: [
+      "The interviewer is an AI, and it tells you so at the start.",
+      "Everything you type is sent to the AI model provider, Anthropic, to produce each reply. Anthropic's own terms and data rules apply to that.",
+      "While the interview runs, the conversation is held in memory on the server. When it ends, the conversation is discarded; the transcript is not kept.",
+      "When the interview ends, your record and draft texts stay readable for 30 minutes, then they are wiped. You can delete them sooner.",
+      "This page keeps nothing in your browser's storage: reloading it empties the conversation and the result.",
+    ],
+    factsTitle: "Records submitted from your AI client or the command line",
     facts: [
       "The interview transcript stays on your side: in your AI client or on your computer. This service receives only the final record.",
       "A record has no account, name or email in it, but it is still personal data: quotes and the employer can point to a person in a small team. It is never called anonymous.",
@@ -423,13 +262,16 @@ export const en = {
       "The AI client or provider you use sees your conversation under your own terms with them.",
       "Short records in small teams can be recognised by people who know the team.",
     ],
+    cookiesTitle: "Cookies",
+    cookies:
+      "This site sets only the cookies it needs: your sign-in session (HttpOnly, not readable by page scripts) and, if you switch it, your language.",
     linksTitle: "The full documents",
     links: [
       { label: "Privacy design", href: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/privacy/DESIGN.md" },
       { label: "Threat model", href: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/security/THREAT-MODEL.md" },
       { label: "Open problems", href: "https://github.com/konradcinkusz/exit-interview-agent/blob/main/docs/OPEN-PROBLEMS.md" },
     ],
-    linksNote: "These links open the project repository on GitHub.",
+    linksNote: "These links open the project repository on GitHub. The documents are in English.",
   },
   errors: {
     notFoundTitle: "Page not found",
@@ -443,9 +285,11 @@ export const en = {
 
 type DeepString<T> = T extends string
   ? string
-  : T extends readonly (infer U)[]
-    ? readonly DeepString<U>[]
-    : { [K in keyof T]: DeepString<T[K]> };
+  : T extends boolean
+    ? boolean
+    : T extends readonly (infer U)[]
+      ? readonly DeepString<U>[]
+      : { [K in keyof T]: DeepString<T[K]> };
 
 /** The shape every language must provide: same keys, any strings. */
 export type Messages = DeepString<typeof en>;

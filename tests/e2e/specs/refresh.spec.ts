@@ -6,7 +6,7 @@ import { accountName, signIn, stats } from "./support";
 
 test("a lapsed access token is rotated transparently and the visitor stays on the page @smoke", async ({ page, context, request }) => {
   const name = accountName("refresh");
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page, name);
   await expect(page.getByTestId("account-subject")).toBeVisible();
   const before = (await context.cookies()).find((c) => c.name === "eia_refresh")?.value;
@@ -26,7 +26,7 @@ test("a lapsed access token is rotated transparently and the visitor stays on th
 
 test("parallel requests after the access token lapsed cause exactly one rotation and no reuse @smoke", async ({ page, context, request }) => {
   const name = accountName("refresh");
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page, name);
   await expect(page.getByTestId("account-subject")).toBeVisible();
   await context.clearCookies({ name: "eia_access" });
@@ -42,7 +42,7 @@ test("parallel requests after the access token lapsed cause exactly one rotation
 
 test("a revoked session cannot be rotated and sends the visitor to sign in @smoke", async ({ page, context, request }) => {
   const name = accountName("refresh");
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page, name);
   await expect(page.getByTestId("account-subject")).toBeVisible();
   await request.post(`http://localhost:4010/__test/revoke?email=${encodeURIComponent(`${name}@example.invalid`)}`);
@@ -56,7 +56,7 @@ test("a revoked session cannot be rotated and sends the visitor to sign in @smok
 
 test("signing out revokes the session at the identity service, not just the cookies @smoke", async ({ page, request }) => {
   const name = accountName("logout");
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page, name);
   await expect(page.getByTestId("account-subject")).toBeVisible();
 

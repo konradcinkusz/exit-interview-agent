@@ -58,7 +58,7 @@ describe("edge gate: consent before anything else", () => {
 
   it("keeps public pages public", async () => {
     for (const path of [
-      "/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/delete-submission", "/account-deleted",
+      "/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/about", "/developers", "/delete-submission", "/account-deleted",
       "/api/auth/refresh", "/api/auth/two-factor", "/api/auth/register", "/api/receipts",
     ]) {
       expect((await proxy(request(path))).headers.get("x-middleware-next")).toBe("1");

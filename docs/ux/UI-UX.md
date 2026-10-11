@@ -24,8 +24,10 @@ uncertainty. This page is written before the code (T9) and is the reference the 
 
 | Route | Access | What it does |
 |---|---|---|
-| `/` | public | what this is, what is stored, what is not, the non-goals; entry points to every other page |
-| `/login` | public | email and password; if the account has two-factor, a **second step** (authenticator code or one recovery code) on the same page; generic errors per failure class |
+| `/` | public | **for the former employee**: one headline, one primary button ("Start your interview": to `/interview` when signed in, through `/login?redirect=/interview` when not), one paragraph on what is kept and what is not, how it works, what this is not |
+| `/about` | public | the open-source project; the stored / not-stored facts and non-goals of the AI-client and command-line paths (moved from the start page) |
+| `/developers` | public | **For developers**: links to Connect your AI client, Use the CLI, Delete a submission and Employer signals, each with one line on what it is for |
+| `/login` | public | email and password, with one line on why ("Sign in to start your exit interview." when the redirect is `/interview`); with `DEV_HINTS=1` only (the local AppHost), a labelled "Local development" box with the DevSeed test account and the dashboard command that creates it; if the account has two-factor, a **second step** (authenticator code or one recovery code) on the same page; generic errors per failure class |
 | `/register` | public | create an account; the Terms and Privacy versions in force are fetched from authservice and shown; a second consent screen is not needed because registration records the acceptance |
 | `/verify-email` | public | landing page of the link in the verification email (`?token=&email=`); resend form |
 | `/consent` | signed in | the consent step (versions in force, both boxes required; decline signs out) |
@@ -33,12 +35,12 @@ uncertainty. This page is written before the code (T9) and is the reference the 
 | `/signals` | signed in | **Employer signals**: the employers that have something to show, alphabetical and paged; "this tool does not rank employers"; what the figures are and how to read them |
 | `/signals/[employerRef]` | signed in | **One employer**: snapshot freshness, respondent band, six topics each standing alone (mean with interval and n, reliability, coverage, distribution, verification, three single-band cuts) |
 | `/cli` | signed in | **Use the CLI**: mint a submission ticket (shown once, copy button, expiry countdown), what a ticket is and is not, the CLI commands that exist today |
-| `/interview` | signed in | **Interview with an AI** (plan [section 3 and 10](../architecture/web-app-plan.md)): language, time at the company, credits, the full consent, the chat, the record and draft texts, and the delete. Its own section below. Not in the header navigation yet: where it is linked is the owner's decision |
+| `/interview` | signed in | **Interview with an AI** (plan [section 3 and 10](../architecture/web-app-plan.md)): language, time at the company, credits, the full consent, the chat, the record and draft texts, and the delete. Its own section below. First item of the header, and the start page's primary button |
 | `/delete-submission` | public | **Delete a submission** by receipt code. Public on purpose: the code is the only credential, and it must work after the account is gone. It also says published figures drop the record at the next update |
 | `/account` | signed in | the subject, sign-out, **export your data** (authservice only), **delete account** with the exact semantics of [ADR-0014](../adr/0014-account-deletion-semantics-and-no-pii-in-telemetry.md) |
 | `/account-deleted` | public | what deletion did and did not do |
 | `/privacy` | public | the key facts of [`DESIGN.md`](../privacy/DESIGN.md), linked and not duplicated |
-| `/healthz`, `/api/config` | public | probe; runtime config (proxy base path, identity enabled, MCP URL) |
+| `/healthz`, `/api/config` | public | probe; runtime config (proxy base path, identity enabled, MCP URL, `dev.hints`: whether this is the local stack) |
 | 404, error | public | plain-language pages; the error page never prints an error message or digest into the document |
 
 Out of scope here and not invented: a submit form (interviews happen in the user's AI client or the CLI), a "my
@@ -46,18 +48,38 @@ records" list, an employer search, any sorting or ranking of employers, any view
 
 ### Navigation
 
-One header on every page: Home, Connect your AI client, Use the CLI, Employer signals, Delete a submission, Privacy, Account. Pages that
-need a session are gated by the edge gate (a visitor lands on `/login?redirect=...` and returns), so the header does
-not need to know whether the visitor is signed in. "Employer signals" is such a gated entry (like "Use the CLI" and "Account"): it is not
-prefetched, so a signed-out prefetch cannot cache the sign-in redirect.
+Redesigned on 2026-10-11 after the [UI audit](audit-2026-10-11/README.md): the header holds only what a former employee needs, in this
+order after the skip link: the product name (home), **Interview**, **Account** and **Sign out** when a session cookie is present
+(**Sign in** when not), and the **language switch**. Whether a session cookie is present only decides what is offered; access is
+still decided by the edge gate and the APIs. The footer holds **Privacy**, **About this project**, **For developers** and the
+development-build notice, which appears once on every page and nowhere else. The developer pages (Connect your AI client, Use the CLI,
+Employer signals, Delete a submission) keep their routes and are reached through **For developers**; "Use the CLI" and "Employer
+signals" are gated and are not prefetched, so a signed-out prefetch cannot cache the sign-in redirect.
+
+### Language
+
+The portal is Polish and English (decided 2026-10-11; it was English-only before). The owner and the first users are Polish former
+employees, and an English page around a Polish interview broke the flow (audit, cross-cutting findings). The rule against a half
+translation still holds, so the scope is explicit: **every page on the former employee's path** (start, sign-in with two-factor,
+sign-up, email verification, consent, account, account closed, privacy, about, for-developers, header, footer, 404 and the error page)
+has a Polish catalog, `web/app/lib/messages/pl.ts`, typed against `en.ts` so a missing key is a compile error. The interview page
+keeps its own two catalogs (`lib/messages/interview.ts`). The **developer pages stay English-only** (`lib/messages/developer.ts`):
+in Polish they open with "Ta strona jest dostępna tylko po angielsku." and their content is marked `lang="en"`.
+
+- **Which language:** the `locale` cookie if the person used the switch, else the browser's `Accept-Language` (the first of `pl`/`en`
+  by weight), else English. Decided on the server per request, so the first paint is already right; `<html lang>` follows.
+- **The switch** is one button in the header naming the other language in that language ("Polski" / "English"). It writes
+  `locale=<pl|en>; Path=/; Max-Age=1 year; SameSite=Lax` (`Secure` on https) and re-renders in place. The cookie holds a preference,
+  not a secret, so it is not HttpOnly; it is the only cookie a page can read (the browser suite asserts it). The privacy page lists it.
+- **Quality gate:** the Polish is a builder's draft until a native speaker has reviewed it, as the interview copy was.
 
 ## Flows
 
-1. **Sign in.** Credentials -> (consent step if versions moved) -> the page asked for. With two-factor: credentials ->
+1. **Sign in.** Credentials -> (consent step if versions moved) -> the page asked for, or `/interview` when none was (a former employee signs in to give the interview). With two-factor: credentials ->
    code step -> the same continuation. The challenge never reaches page JavaScript: the BFF keeps it in a short-lived
    HttpOnly cookie. A wrong code keeps the user on the step; an expired challenge or a locked account sends them back
    to the first step with a message.
-2. **Sign up.** `/register` -> "check your email" (when the deployment verifies email) -> the emailed link opens
+2. **Sign up.** `/register` (carries `?redirect=` to the sign-in link it ends with) -> "check your email" (when the deployment verifies email) -> the emailed link opens
    `/verify-email` -> sign in. When authservice cannot send email it marks the account verified at once; the page says
    "account created, sign in".
 3. **Use the CLI.** `/cli` -> "Create a ticket" -> the ticket appears once with a countdown -> copy -> use it in the
@@ -113,7 +135,7 @@ a colour scale that implies good or bad; any figure computed in the browser or t
 
 One page with five steps, held by a pure reducer (`app/interview/state.ts`). Copy: `lib/messages/interview.ts`, in Polish and
 English; the Polish is typed against the English keys and is a builder's draft until a native speaker has reviewed it (the W9
-quality gate in the plan). The rest of the portal stays English-only.
+quality gate in the plan). The interview's language starts as the portal's (see Language) and can be changed on the start screen.
 
 | Step | What the person sees | Leaves when |
 |---|---|---|
@@ -149,7 +171,7 @@ Rules this page keeps:
 - **The record is read as sentences.** Raw JSON is only a download.
 - **Copy puts the draft text alone on the clipboard**, without its label or the notice. When the clipboard is not available the page
   says so and asks the person to copy by hand.
-- **The language of the document follows the page's language choice.** The root layout is English, so the page sets `lang` itself.
+- **The language of the document follows the page's language choice.** The root layout sets `lang` from the portal's language; the interview page sets it to the interview's language when the two differ.
 - **No third party.** No script, font, analytics or image from another origin (the browser suite checks the requests and the CSP).
 - **Accessible.** One `h1`, the log is a live region (`role="log"`, `aria-live="polite"`), the typing line is a status, every failure is
   a `role="alert"` next to the control that caused it, and the confirmation of a deletion takes focus. Axe runs on all four steps.
@@ -181,10 +203,9 @@ The browser suite runs these against the production build and the stub of the se
 
 ## Copy rules
 
-- Plain language, one idea per sentence, no marketing. English is the shipped language for the portal; every string lives in
-  `web/app/lib/messages/en.ts`. The interview page is the one exception: Polish and English (`lib/messages/interview.ts`), with the
-  Polish typed against the English keys, so a missing translation is a build error, not a blank. A Polish catalog for the rest of the
-  portal is still not shipped: a half translation is worse than none.
+- Plain language, one idea per sentence, no marketing. Every string lives in a catalog: `web/app/lib/messages/en.ts` and `pl.ts`
+  for the portal, `interview.ts` for the interview page (both languages), `developer.ts` for the English-only developer pages. A
+  Polish catalog is typed against the English keys, so a missing translation is a build error, not a blank (see Language).
 - The exact semantics sentences (account deletion, receipt deletion, ticket) are catalog entries and are asserted by tests.
 
 ## Accessibility and quality bar
@@ -199,7 +220,7 @@ The browser suite runs these against the production build and the stub of the se
 
 ## Ranked backlog
 
-1. Polish for the rest of the portal, when someone can write and review it properly (the interview page is done, in draft).
+1. A native speaker's review of the Polish catalogs (portal and interview), which are builder's drafts.
 2. Cookie-consent categories, default-deny (identity guide §9): the portal sets only strictly necessary cookies today,
    so there is nothing to consent to; revisit if that changes.
 3. Password reset and email change screens (authservice owns the flows).

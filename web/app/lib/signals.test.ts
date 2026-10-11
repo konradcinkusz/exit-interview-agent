@@ -3,7 +3,7 @@ import { employerBody, type EmployerBody, insufficientTopic, listBody, okTopic }
 import {
   DEFAULT_WAIT_SECONDS, fill, formatBatchStart, levelPercent, readEmployer, readEmployerList, readPage, signalsFailure, twoDecimals,
 } from "./signals";
-import { m } from "./messages";
+import { devMessages as m } from "./messages";
 
 const clone = <T,>(v: T): T => structuredClone(v);
 

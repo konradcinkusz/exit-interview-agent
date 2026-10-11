@@ -20,7 +20,7 @@ for (const scheme of ["light", "dark"] as const) {
   test.describe(`${scheme} colour scheme`, () => {
     test.use({ colorScheme: scheme });
 
-    for (const path of ["/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/delete-submission", "/account-deleted"]) {
+    for (const path of ["/", "/login", "/register", "/verify-email", "/connect", "/privacy", "/about", "/developers", "/delete-submission", "/account-deleted"]) {
       test(`${path} has no axe violations @smoke`, async ({ page }) => {
         await page.goto(path);
         await page.waitForLoadState("networkidle");
@@ -131,12 +131,32 @@ test("every page can be used by keyboard alone: the skip link is the first stop 
   await page.keyboard.press("Tab");
   await page.keyboard.type("dev-only-e2e-password");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/account$/);
+  await expect(page).toHaveURL(/\/interview$/);
+});
+
+test("the header holds only what a former employee needs, and the keyboard reaches it right after the skip link @smoke", async ({ page }) => {
+  await page.goto("/");
+  const order: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press("Tab");
+    order.push(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.innerText.trim() ?? ""));
+  }
+  expect(order).toEqual(["Skip to content", "Exit Interview Agent", "Interview", "Sign in", "Polski"]);
+  const header = page.getByRole("navigation", { name: "Main" });
+  for (const name of ["Connect your AI client", "Use the CLI", "Employer signals", "Delete a submission", "Privacy"]) {
+    await expect(header.getByRole("link", { name })).toHaveCount(0);
+  }
+
+  await page.goto("/login?redirect=%2Faccount");
+  await signIn(page, accountName("header"));
+  await expect(page.getByTestId("account-subject")).toBeVisible();
+  await expect(header.getByRole("link")).toHaveText(["Interview", "Account"]);
+  await expect(header.getByRole("button")).toHaveText(["Sign out", "Polski"]);
 });
 
 test("the layout holds at 320 px wide (the width of 400% zoom): nothing scrolls sideways @smoke", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  for (const path of ["/", "/login", "/connect", "/delete-submission", "/privacy", "/register"]) {
+  for (const path of ["/", "/login", "/connect", "/delete-submission", "/privacy", "/register", "/about", "/developers"]) {
     await page.goto(path);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, `${path} horizontal overflow at 320px`).toBeLessThanOrEqual(0);

@@ -29,6 +29,8 @@ const PUBLIC_PATHS = new Set([
   "/verify-email",
   "/connect",
   "/privacy",
+  "/about",
+  "/developers",
   "/delete-submission",
   "/healthz",
   "/api/config",

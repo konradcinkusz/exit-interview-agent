@@ -9,6 +9,7 @@ import { ConsentPanel } from "./ConsentPanel";
 import { EndedPanel } from "./EndedPanel";
 import { ResultPanel } from "./ResultPanel";
 import { StartPanel } from "./StartPanel";
+import { useLocale } from "../_components/I18n";
 import { initialState, reduce } from "./state";
 
 const SETTLE_ATTEMPTS = 40;
@@ -22,11 +23,12 @@ export function Interview() {
   const copy: InterviewCopy = interviewCopy[state.language];
   const resultRequested = useRef(false);
 
-  // The page's language follows the browser on the first visit, and then the person's choice. The layout fixes `lang="en"`; this
-  // keeps the document's language true for the pages that are Polish.
+  // The interview's language starts as the portal's (the language switch, else the browser's), and then follows the person's
+  // choice on the start screen. The document's `lang` follows it, so a Polish interview is read with a Polish voice.
+  const siteLocale = useLocale();
   useEffect(() => {
-    dispatch({ type: "language", language: navigator.language.toLowerCase().startsWith("pl") ? "pl" : "en" });
-  }, []);
+    dispatch({ type: "language", language: siteLocale });
+  }, [siteLocale]);
   useEffect(() => {
     document.documentElement.lang = state.language;
   }, [state.language]);

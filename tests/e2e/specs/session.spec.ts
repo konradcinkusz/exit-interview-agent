@@ -21,7 +21,7 @@ test("a visitor who opens a protected page signs in and lands back on it as thei
 });
 
 test("tokens live only in HttpOnly cookies and never reach page JavaScript @smoke", async ({ page, context }) => {
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page);
   await expect(page.getByTestId("account-subject")).toBeVisible();
 
@@ -52,7 +52,7 @@ test("a wrong password is refused with one generic message @smoke", async ({ pag
 });
 
 test("signing out ends the session so the protected page is gated again @smoke", async ({ page }) => {
-  await page.goto("/login");
+  await page.goto("/login?redirect=%2Faccount");
   await signIn(page);
   await expect(page.getByTestId("account-subject")).toBeVisible();
 
@@ -68,8 +68,21 @@ test("runtime config exposes the proxy base path and no backend address @smoke",
 
   expect(response.status()).toBe(200);
   const text = await response.text();
-  expect(JSON.parse(text)).toEqual({ apiBase: "/api/proxy", identity: { enabled: true }, mcp: { url: "https://mcp.example.invalid/mcp" } });
+  expect(JSON.parse(text)).toEqual({
+    apiBase: "/api/proxy",
+    identity: { enabled: true },
+    mcp: { url: "https://mcp.example.invalid/mcp" },
+    dev: { hints: false },
+  });
   expect(text).not.toContain("4010");
+});
+
+test("without DEV_HINTS (as in every deployment) the sign-in page shows no local-development box and no test account @smoke", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByTestId("login-email")).toBeVisible();
+  await expect(page.getByTestId("dev-hints")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText("tester@example.com");
+  await expect(page.locator("body")).not.toContainText("Local development");
 });
 
 test("every page and API response carries the security header set @smoke", async ({ request }) => {

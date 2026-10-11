@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
 import type { SignalsFailure } from "@/lib/signals";
 import { NothingToShow } from "./views";
 

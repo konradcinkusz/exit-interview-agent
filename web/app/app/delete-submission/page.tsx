@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
-import { m } from "@/lib/messages";
+import { devMessages as m } from "@/lib/messages";
+import { EnglishOnly } from "../_components/EnglishOnly";
 import { DeleteSubmission } from "./DeleteSubmission";
 
 export const metadata: Metadata = { title: m.deleteSubmission.title };
 
 export default function DeleteSubmissionPage() {
-  return <DeleteSubmission />;
+  return (
+    <EnglishOnly>
+      <DeleteSubmission />
+    </EnglishOnly>
+  );
 }
