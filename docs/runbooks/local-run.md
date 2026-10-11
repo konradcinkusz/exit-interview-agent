@@ -97,6 +97,8 @@ Then the protected endpoints answer 401, `/health` says `identity: not configure
 
 ### 6. The mock interview, step by step (no key, no money)
 
+**Fastest start: the seeded test user.** In the Aspire dashboard (Resources), open the "..." menu of **postgres**, **authdb** or **interviewdb** and choose **Seed test user (with credits)**. It creates `tester@example.com` (password `Dev-Tester-Pass-1`, public and for this local stack only) and tops its balance up to 10 interview credits. It goes through the same APIs as the browser (authservice register and login, then the development credit grant), so it needs authservice and interview-service to be running; it is safe to click again (an existing account is reused, nothing is granted when the balance is already 10). Then sign in at http://localhost:3000/login and open http://localhost:3000/interview. If it fails, the dashboard shows why (for example "authservice answered 503: is it healthy yet?").
+
 The stack starts with the **scripted mock** model: no network call, no cost. Its wording is scripted, not generated, so judge the flow here, not the quality (section 7 is for that).
 
 1. **Check the stack.** `GET <interview-service>/health` shows `interview-model` as not configured, with the mock named in the detail. That is expected.
@@ -315,6 +317,8 @@ Wtedy chronione endpointy odpowiadają 401, `/health` mówi `identity: not confi
 **Potwierdzenie e-mail nie jest potrzebne lokalnie.** AppHost nie przekazuje klucza SendGrid. W authservice `v0.3.4` potwierdzenie e-mail jest wymagane tylko wtedy, gdy klucz SendGrid jest ustawiony (`requireConfirmedEmail = canSendEmail` w `Program.cs`), a nowe konto jest potwierdzane od razu, gdy go brak (`EmailConfirmed = !requireVerification` w endpointcie rejestracji). Możesz więc założyć konto i się zalogować bez maila. Claim `email_verified` **nie ma** w `v0.3.4` (jest na gałęzi main authservice, PR #73, i wymaga nowego wydania obrazu przez jego właściciela). Dlatego AppHost ustawia `Interviews__RequireVerifiedEmail=false` (ADR-0079).
 
 ### 6. Wywiad na mocku, krok po kroku (bez klucza, bez pieniędzy)
+
+**Najszybszy start: gotowy użytkownik testowy.** W dashboardzie Aspire (Resources) otwórz menu „...” przy **postgres**, **authdb** albo **interviewdb** i wybierz **Seed test user (with credits)**. Komenda tworzy konto `tester@example.com` (hasło `Dev-Tester-Pass-1`, publiczne i tylko do tego lokalnego stosu) i uzupełnia jego saldo do 10 kredytów na wywiady. Robi to tymi samymi API co przeglądarka (rejestracja i logowanie w authservice, potem deweloperskie przyznanie kredytów), więc authservice i interview-service muszą działać. Można ją klikać wielokrotnie (istniejące konto jest używane ponownie, przy saldzie 10 nic się nie dopisuje). Potem zaloguj się na http://localhost:3000/login i wejdź na http://localhost:3000/interview. Przy błędzie dashboard pokaże powód (np. „authservice answered 503: is it healthy yet?”).
 
 Stos startuje z **mockiem** (zaskryptowany model): bez połączenia z siecią, bez kosztów. Jego treść jest zaskryptowana, nie generowana, więc tutaj oceniasz przepływ, a nie jakość (do jakości służy sekcja 7).
 

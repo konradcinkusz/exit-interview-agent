@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using ExitInterviewAgent.AppHost;
 using Microsoft.Extensions.Configuration;
 
 // P1: the composition root. One command brings the system up:
@@ -174,6 +175,27 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
         .WithEnvironment("Jwt__Authority", authority)
         .WaitFor(authservice);
     web.WithEnvironment("AUTH_SERVICE_URL", authority).WaitFor(authservice);
+
+    // Dashboard command (the "..." menu of postgres, authdb and interviewdb): a test user with interview credits, so a fresh local
+    // stack can be used at once. It goes through the public APIs (DevSeed), is idempotent, and exists only in this development
+    // AppHost; nothing of it is deployed (the Fly files do not use the AppHost).
+    var interviewEndpoint = interviewService.GetEndpoint("http");
+    var authorityEndpoint = authservice.GetEndpoint("http");
+    async Task<ExecuteCommandResult> SeedTestUserAsync(ExecuteCommandContext context)
+    {
+        using var identity = new HttpClient { BaseAddress = new Uri(authorityEndpoint.Url), Timeout = TimeSpan.FromSeconds(30) };
+        using var interviews = new HttpClient { BaseAddress = new Uri(interviewEndpoint.Url), Timeout = TimeSpan.FromSeconds(30) };
+        var outcome = await DevSeed.SeedAsync(identity, interviews, DevSeed.Email, DevSeed.Password, DevSeed.TargetCredits, context.CancellationToken);
+        return new ExecuteCommandResult { Success = outcome.Success, Message = outcome.Message };
+    }
+    var seedOptions = new CommandOptions
+    {
+        Description = $"Creates {DevSeed.Email} (password {DevSeed.Password}) with {DevSeed.TargetCredits} interview credits. Safe to run again. Needs authservice and interview-service to be running.",
+        IconName = "PersonAdd",
+    };
+    postgres.WithCommand("seed-test-user", "Seed test user (with credits)", SeedTestUserAsync, seedOptions);
+    authDb.WithCommand("seed-test-user", "Seed test user (with credits)", SeedTestUserAsync, seedOptions);
+    interviewDb.WithCommand("seed-test-user", "Seed test user (with credits)", SeedTestUserAsync, seedOptions);
 }
 
 builder.Build().Run();

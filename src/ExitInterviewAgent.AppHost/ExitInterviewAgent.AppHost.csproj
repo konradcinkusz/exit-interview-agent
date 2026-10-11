@@ -15,4 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="..\ExitInterviewAgent.InterviewService\ExitInterviewAgent.InterviewService.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- DevSeed is internal; its test fakes the two HTTP services. -->
+    <InternalsVisibleTo Include="ExitInterviewAgent.AppHost.Tests" />
+  </ItemGroup>
 </Project>

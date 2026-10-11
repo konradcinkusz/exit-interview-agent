@@ -32,6 +32,18 @@ public sealed class CompositionTests
         Assert.DoesNotContain("authservice", Resources(app).Select(r => r.Name));
     }
 
+    [Fact]
+    public async Task The_dashboard_offers_the_seed_command_on_postgres_and_each_database()
+    {
+        await using var app = await BuildModelAsync([]);
+        var resources = Resources(app).ToDictionary(r => r.Name);
+
+        foreach (var name in new[] { "postgres", "authdb", "interviewdb" })
+        {
+            Assert.Contains(resources[name].Annotations.OfType<ResourceCommandAnnotation>(), c => c.Name == "seed-test-user");
+        }
+    }
+
     private static IEnumerable<IResource> Resources(DistributedApplication app) =>
         app.Services.GetRequiredService<DistributedApplicationModel>().Resources;
 

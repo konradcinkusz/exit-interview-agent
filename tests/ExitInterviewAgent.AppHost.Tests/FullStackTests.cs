@@ -61,6 +61,27 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
     }
 
     [FullStackFact]
+    public async Task The_seeded_test_user_signs_in_with_credits_and_a_second_seed_changes_nothing()
+    {
+        var stack = await fixture.StackAsync();
+        await stack.DiagnoseOnFailureAsync(async () =>
+        {
+            using var identity = stack.NewClient(stack.Authority);
+            using var interviews = stack.NewClient(stack.InterviewService);
+            var first = await ExitInterviewAgent.AppHost.DevSeed.SeedAsync(identity, interviews, ExitInterviewAgent.AppHost.DevSeed.Email, ExitInterviewAgent.AppHost.DevSeed.Password, ExitInterviewAgent.AppHost.DevSeed.TargetCredits, CancellationToken.None);
+            Assert.True(first.Success, first.Message);
+
+            using var web = stack.NewClient(stack.Web);
+            var session = await SignInAsync(web, ExitInterviewAgent.AppHost.DevSeed.Email, ExitInterviewAgent.AppHost.DevSeed.Password);
+            Assert.Equal(ExitInterviewAgent.AppHost.DevSeed.TargetCredits, await BalanceAsync(web, session));
+
+            var second = await ExitInterviewAgent.AppHost.DevSeed.SeedAsync(identity, interviews, ExitInterviewAgent.AppHost.DevSeed.Email, ExitInterviewAgent.AppHost.DevSeed.Password, ExitInterviewAgent.AppHost.DevSeed.TargetCredits, CancellationToken.None);
+            Assert.True(second.Success, second.Message);
+            Assert.Equal(ExitInterviewAgent.AppHost.DevSeed.TargetCredits, await BalanceAsync(web, session));
+        });
+    }
+
+    [FullStackFact]
     public async Task An_account_registers_at_authservice_and_signs_in_through_the_bff()
     {
         var stack = await fixture.StackAsync();
