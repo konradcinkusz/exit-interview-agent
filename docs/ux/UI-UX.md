@@ -139,21 +139,21 @@ quality gate in the plan). The interview's language starts as the portal's (see 
 
 | Step | What the person sees | Leaves when |
 |---|---|---|
-| start | language (the browser's language on the first visit, then their choice), time at the company, the credits they have, **Continue** (needs one credit), **Buy one interview** (goes to the payment provider's page) | Continue -> consent |
-| consent | the whole disclosure: the interviewer is an AI and says so; everything typed goes to the model provider (Anthropic); the conversation is held in memory and discarded when the interview ends; the result stays readable for 30 minutes; stop and delete at any time; the drafts are not facts and not legal advice; nothing checks employment; a failure on our side returns the credit. A checkbox is needed before **Start the interview**, which uses one credit | start -> chat; failures stay here; **Back** uses nothing |
-| chat | a live log of the conversation; an answer box (Enter sends, Shift+Enter starts a new line); "The interviewer is typing…" while a reply is pending; **Stop and delete** (asks once) | completed -> result; stopped or failed -> ended; deleted -> start; session lost (410) -> start with the credit back |
-| result | the legal notice first, then the draft warning; the record as sentences per topic (rating, confidence, quotes), never raw JSON; one card per draft with **Copy**; downloads: the record (JSON), the drafts (`tiles.html`, built in the browser from the same JSON with no script and no network resource), the drafts (JSON); **Delete everything now** (asks once) | deleted -> start with "The interview was deleted. Nothing from it is kept." |
+| start | one status line ("1 interview ready" / "No interview available: you have no interview credit", with what to do), the interview's language (the portal's by default) as two choice rows, time at the company, **Continue** (primary; needs one credit; when disabled its description says why), **Buy one interview** (primary only when there is no credit; the payment provider's page). With `DEV_HINTS=1` and no credit, a "Local development" line says how to get the test account's credits | Continue -> consent |
+| consent | the three things that matter first, numbered: the interviewer is an AI; everything typed goes to Anthropic, held in memory only while it runs; the result stays readable for 30 minutes and everything can be deleted. Then **Read the full terms** (a disclosure) with the whole list: stop and delete at any time; the drafts are not facts and not legal advice; nothing checks employment; a failure on our side returns the credit. A checkbox is needed before **Start the interview**, which uses one credit; after a 429 it waits out the seconds asked for | start -> chat; failures stay here; **Back** uses nothing |
+| chat | a progress line ("Introduction", then "Topic n of about 6", counting the topic questions); a live log of the conversation (marked with the interview's `lang`); an answer box (Enter sends, Shift+Enter starts a new line); **Send** is the only primary button and reads **Send again** when a failure kept the typed answer; "The interviewer is typing…" while a reply is pending; after a 429 a silent countdown, Send re-enabled at 0, nothing sent by itself. Two separate ways out, each with a line on what it does: **Finish interview** (from the first topic question on) sends "Can we finish now?" / "Czy możemy już skończyć?" as the person's answer, which the interviewer treats as a request to finish and keep the record (the agent's `FinishRequestCue`; no new endpoint); **Stop and delete** opens a modal dialog (Cancel first and focused, focus kept inside, Escape cancels, focus returns to the button) | completed -> result; stopped or failed -> ended; deleted -> start; session lost (410) -> start with the balance from the service |
+| result | a summary: readable until about HH:MM (30 minutes after the end the page saw), then wiped; "This interview used one credit". One warning, "Drafts, not facts", holding the service's legal notice. The record as sentences for the topics that were discussed, and one line "Not discussed: …" for the rest; one card per draft with **Copy**; a sentence explaining dropped drafts (failed an automatic check; shown as written or not at all); one **Save a copy** control with the three downloads: the record (JSON), the drafts as a page (`tiles.html`, built in the browser with no script and no network resource), the drafts (JSON); **Delete everything now** (the same modal dialog) | deleted -> start with "The interview was deleted. Nothing from it is kept.", what happened to the credit (not returned: it is used when an interview starts) and the next step (start another, or buy one) |
 | ended | "stopped": nothing kept, no record; "failed": a fault on our side, the credit is returned | start |
 
 Failure copy (the mapping is one function, `failureFor` in `lib/interview-api.ts`):
 
 | Answer | What the person is told | Where they stay |
 |---|---|---|
-| 402 `payment_required` | no credit; buy one | start |
+| 402 `payment_required` | no credit; buy one. The balance line shows 0 at once and is then read from the service again (every start failure re-reads it) | start |
 | 409 `interview_in_progress` | an open interview exists; finish or delete it | consent |
 | 409 `interview_ended` | this interview has ended | result |
 | 409 `not_completed` | the result is not ready | result |
-| 404 `not_found` | the interview no longer exists (deleted, or unknown after a restart); the same message as 410 | start |
+| 404 `not_found` | the interview no longer exists (expired, deleted, or lost in a restart); the credits are shown below; the same message as 410 | start |
 | 410 `gone` | expired or lost in a restart; the same message as 404 | start |
 | 422 `reply_invalid` | empty or over 2000 characters | chat, text kept |
 | 429 `rate_limited` | a wait in seconds when the service gives one; **no automatic retry** | where they were |
@@ -162,7 +162,7 @@ Failure copy (the mapping is one function, `failureFor` in `lib/interview-api.ts
 | 503 or 504, backend unreachable | the service cannot be reached right now | where they were |
 | 401 | signed out: a link to sign in again | where they were |
 | 403 `consent_required` | accept the current terms first: a link to `/consent` | where they were |
-| 403 `email_not_verified` | the address is not confirmed yet: say so without blame, with a link to `/verify-email` | where they were |
+| 403 `email_not_verified` | the address is not confirmed yet: say so without blame; the link to `/verify-email` is its own line under the message | where they were |
 
 Rules this page keeps:
 
@@ -174,7 +174,8 @@ Rules this page keeps:
 - **The language of the document follows the page's language choice.** The root layout sets `lang` from the portal's language; the interview page sets it to the interview's language when the two differ.
 - **No third party.** No script, font, analytics or image from another origin (the browser suite checks the requests and the CSP).
 - **Accessible.** One `h1`, the log is a live region (`role="log"`, `aria-live="polite"`), the typing line is a status, every failure is
-  a `role="alert"` next to the control that caused it, and the confirmation of a deletion takes focus. Axe runs on all four steps.
+  a `role="alert"` next to the control that caused it (a countdown ticks outside the alert, so it is not re-announced every second),
+  and a deletion is confirmed in a modal `<dialog>` that keeps focus inside and returns it. Axe runs on all four steps.
 - **The result has no server copy after it is shown.** The service keeps it for 30 minutes after the interview ends, then wipes it, and
   "Delete everything now" wipes it at once. The page does not offer to keep anything.
 
@@ -195,10 +196,12 @@ The browser suite runs these against the production build and the stub of the se
 | c | Rate limited (429) on a reply | the typed answer is kept, the interview stays open, the wait is shown |
 | c | Paused (503 `interviews_disabled`) | "Interviews are paused for now. Your credit has not been used." |
 | c | Model unavailable (503 `provider_unavailable`) | the typed text is kept; the interview is still open (existing suite) |
-| c | Unverified email (403 `email_not_verified`) | no interview starts and the credit is kept; "To start an interview, confirm your email address in your account settings." with a link to `/verify-email` |
+| c | Unverified email (403 `email_not_verified`) | no interview starts and the credit is kept; "To start an interview, confirm your email address first." with a link to `/verify-email` on its own line |
 | c | Lost or deleted session mid-chat (410 or 404) | the same message for both: "This interview no longer exists." The page returns to the start screen, the balance is the service's, and a new interview starts from there (existing suite: 410) |
 | d | Nothing kept after the visit | covered in (a): storage, cookies, URL, IndexedDB, and the text is absent from all of them |
-| e | Keyboard only | consent box by Space, start by Enter, answer field sends on Enter, Stop and delete opens a dialog with Cancel focused |
+| e | Keyboard only | consent box by Space, start by Enter, answer field sends on Enter, Stop and delete opens a dialog with Cancel focused; Tab stays inside it, Escape closes it and focus returns to the button |
+| f | Finish interview (`interview-redesign.spec.ts`) | the sentence appears in the log as the person's answer; the result follows; the session is `completed` |
+| f | 429 countdown on a reply | "You can try again in 30 s." counts down with the clock; Send stays disabled until 0, then works; nothing was sent meanwhile |
 | e | Axe (WCAG 2.0/2.1 A and AA) | the start, consent, chat and result steps, and the no-credit and rate-limited screens, have no violations |
 
 ## Copy rules
@@ -207,6 +210,14 @@ The browser suite runs these against the production build and the stub of the se
   for the portal, `interview.ts` for the interview page (both languages), `developer.ts` for the English-only developer pages. A
   Polish catalog is typed against the English keys, so a missing translation is a build error, not a blank (see Language).
 - The exact semantics sentences (account deletion, receipt deletion, ticket) are catalog entries and are asserted by tests.
+
+## Look
+
+One visual system, in `web/app/app/globals.css` (tokens first) and the interview's CSS module (redesign, 2026-10-11): warm paper,
+ink and one deep teal for action, focus and the brand, with a dark scheme; the system UI face; a 4-based spacing scale; cards with
+layered shadows; an inline-SVG brand mark and icon set (`app/_components/Icon.tsx`) and an inline-SVG illustration on the start page.
+No font, icon or image is fetched from anywhere (principle 5). Motion is decorative only (messages rise, typing dots, a loading
+shimmer), never fades text, and is off under `prefers-reduced-motion`.
 
 ## Accessibility and quality bar
 

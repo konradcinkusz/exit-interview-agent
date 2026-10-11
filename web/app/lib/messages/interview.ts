@@ -3,12 +3,12 @@ import type { InterviewLanguage } from "../interview-contract";
 
 // The copy of the interview pages (/interview), in Polish and English. It is a second catalog beside en.ts, and it is typed so
 // that the Polish one has exactly the English keys: a missing or renamed string is a compile error, not a blank on the page.
-// The rest of the portal stays English-only (docs/ux/UI-UX.md): a Polish page here is not a promise about the others.
+// The page's copy follows the portal's language (lib/messages/index.ts); the interview's own language is chosen on the start screen.
 // Plain text only; interpolation is done by functions, never by user data in markup.
 
 const en = {
   title: "Exit interview with an AI",
-  lead: "A structured conversation with an AI interviewer about your time at a company. You choose the language and how long you worked there, then talk in the chat. At the end you get a record and draft texts you can copy.",
+  lead: "An AI interviewer asks you about your time at the company, one topic at a time. At the end you get a short record and draft texts you can copy.",
   notAService:
     "This site runs the interview for you. It is not a review site, it does not publish anything, and it does not check what you say.",
   language: "Interview language",
@@ -22,8 +22,13 @@ const en = {
     "5y_10y": "5 to 10 years",
     gt_10y: "More than 10 years",
   },
-  credits: (n: number) => `Interview credits you have: ${n}.`,
-  noCredit: "You have no interview credit. Buy one to start an interview.",
+  ready: (n: number) => (n === 1 ? "1 interview ready" : `${n} interviews ready`),
+  readyDetail: "Continue uses one credit when the interview starts, not before.",
+  noCredit: "No interview available: you have no interview credit",
+  noCreditDetail: "To start an interview, buy one first. One credit is one interview.",
+  continueNeedsCredit: "Continue needs an interview credit.",
+  devNoCredit:
+    "Local development: this account has no credit. Run “Seed test user (with credits)” from the Aspire dashboard and sign in as the test account shown on the sign-in page.",
   buy: "Buy one interview",
   buying: "Opening the payment page…",
   buyNote: "Payment is handled by the payment provider on its own page. This site never sees your card.",
@@ -32,7 +37,13 @@ const en = {
   startSection: "Start",
 
   consentTitle: "Before we start",
-  consentIntro: "Please read this fully. It describes where your words go and what happens to them.",
+  consentIntro: "Three things matter most. The full terms are below them.",
+  consentKey: [
+    "The interviewer is an AI. It is not a person, and it says so.",
+    "Everything you type goes to Anthropic, the company behind the AI model, so it can reply. This site keeps the conversation only in memory while it runs.",
+    "When the interview ends, your record and drafts stay readable here for 30 minutes, then they are wiped. You can delete everything at any time.",
+  ],
+  fullTerms: "Read the full terms",
   consentPoints: [
     "The interviewer is an AI. It tells you so at the start of the conversation.",
     "Everything you type is sent to the AI model provider, Anthropic, to produce each reply. Anthropic's own terms and data rules apply to that. This site does not control them.",
@@ -54,23 +65,42 @@ const en = {
   you: "You",
   interviewer: "Interviewer",
   interviewerTyping: "The interviewer is typing…",
+  progressIntro: "Introduction",
+  progress: (n: number, total: number) => `Topic ${n} of about ${total}`,
   replyLabel: "Your answer",
   replyHint: "Press Enter to send. Shift+Enter starts a new line.",
   send: "Send",
   charCount: (n: number, max: number) => `${n} of ${max} characters`,
+  sendAgain: "Send again",
+  waitCountdown: (seconds: number) => `You can try again in ${seconds} s.`,
+  waitOver: "You can try again now.",
+  finish: "Finish interview",
+  finishHint: "Ends the conversation now. Your record and draft texts are kept.",
+  // Sent as your answer when you press "Finish interview": the interviewer understands it as a request to finish and keep the record.
+  finishMessage: "Can we finish now?",
   stopAndDelete: "Stop and delete",
+  stopHint: "Ends the conversation and deletes everything from it.",
+  deleteTitle: "Delete this interview?",
   deleteConfirm: "Delete this interview and everything from it now? This cannot be undone.",
   deleteYes: "Yes, delete it",
   cancel: "Cancel",
   deleted: "The interview was deleted. Nothing from it is kept.",
+  deletedCredit: "The credit it used is not returned: a credit is used when an interview starts.",
+  nextWithCredit: "You can start another interview below.",
+  nextWithoutCredit: "To give another interview, buy one below.",
 
   endedCompleted: "The interview has ended. Your record and draft texts are below.",
-  endedStopped: "The interview was stopped. Nothing from it is kept, and there is no record.",
+  endedStopped: "The interview was stopped. Nothing from it is kept, and there is no record. The credit it used stays used.",
   endedFailed: "The interview could not finish because of a fault on our side. Your credit has been returned.",
   loadingResult: "Preparing your record…",
 
   resultTitle: "Your record and draft texts",
   draftWarning: "These are drafts, not facts. Read and change every text before you publish it.",
+  warningTitle: "Drafts, not facts",
+  keptUntil: (time: string) =>
+    `This result stays readable here until about ${time}, 30 minutes after the interview ended. Then it is wiped. Save what you want to keep.`,
+  keptFor: "This result stays readable here for 30 minutes after the interview ended. Then it is wiped. Save what you want to keep.",
+  creditUsed: "This interview used one credit.",
   recordTitle: "Record",
   recordIntro: "What the interview produced. Ratings and quotes come from your own words.",
   recordFacts: {
@@ -98,6 +128,7 @@ const en = {
     reason_for_leaving: "Reason for leaving",
   },
   notDiscussed: "Not discussed",
+  notDiscussedLine: (topics: string) => `Not discussed: ${topics}.`,
   noRating: "No rating",
   rating: (r: number) => `Rating ${r} of 5`,
   confidence: { low: "Low confidence", medium: "Medium confidence", high: "High confidence" },
@@ -116,10 +147,13 @@ const en = {
   copy: "Copy",
   copied: "Copied",
   copyFailed: "Copying is not available here. Select the text and copy it by hand.",
-  dropped: (n: number) => `Texts left out: ${n}.`,
-  downloadRecord: "Download the record (JSON)",
-  downloadTiles: "Download the draft texts (tiles.html)",
-  downloadJson: "Download the draft texts (JSON)",
+  dropped: (n: number) =>
+    `${n === 1 ? "1 draft text was" : `${n} draft texts were`} left out because it failed an automatic check (for example, it named a person, said something you did not say, or was too long). A text is shown as written, or not at all.`,
+  save: "Save a copy",
+  saveHint: "Files are made in your browser and saved on your device. Nothing is sent anywhere.",
+  downloadRecord: "The record (JSON)",
+  downloadTiles: "The draft texts, as a page (tiles.html)",
+  downloadJson: "The draft texts (JSON)",
   startAnother: "Start another interview",
   deleteAll: "Delete everything now",
   deleteAllConfirm: "Delete the record, the draft texts and everything from this interview now? This cannot be undone.",
@@ -136,10 +170,10 @@ const en = {
     interview_in_progress: "You already have an open interview. Finish it or delete it first.",
     interview_ended: "This interview has already ended.",
     reply_invalid: "Your answer is empty or too long. Use up to 2000 characters.",
-    not_found: "This interview no longer exists. It expired, was deleted, or was lost when the service restarted. You can start a new one.",
+    not_found: "This interview no longer exists: it expired, was deleted, or was lost in a restart. Your credits are shown below.",
     // 404 (deleted, or unknown after a restart) and 410 (expired, or lost at a restart) are one answer for the person.
-    gone: "This interview no longer exists. It expired, was deleted, or was lost when the service restarted. You can start a new one.",
-    email_not_verified: "To start an interview, confirm your email address in your account settings.",
+    gone: "This interview no longer exists: it expired, was deleted, or was lost in a restart. Your credits are shown below.",
+    email_not_verified: "To start an interview, confirm your email address first.",
     not_completed: "The result is not ready yet.",
     provider_unavailable: "The AI model is not responding right now. Your interview is still open; try again in a moment.",
     billing_disabled: "Purchases are paused for now.",
@@ -154,7 +188,7 @@ export type InterviewCopy = typeof en;
 
 const pl: InterviewCopy = {
   title: "Rozmowa wyjściowa z AI",
-  lead: "Uporządkowana rozmowa z asystentem AI o Twoim czasie w firmie. Wybierasz język i czas zatrudnienia, a potem rozmawiasz w czacie. Na końcu dostajesz zapis rozmowy i szkice tekstów do skopiowania.",
+  lead: "Asystent AI pyta Cię o czas w firmie, po jednym temacie. Na końcu dostajesz krótki zapis i szkice tekstów do skopiowania.",
   notAService:
     "Ta strona prowadzi za Ciebie rozmowę. Nie jest portalem z opiniami, niczego nie publikuje i nie sprawdza tego, co mówisz.",
   language: "Język rozmowy",
@@ -168,8 +202,19 @@ const pl: InterviewCopy = {
     "5y_10y": "Od 5 do 10 lat",
     gt_10y: "Ponad 10 lat",
   },
-  credits: (n: number) => `Masz kredytów na rozmowę: ${n}.`,
-  noCredit: "Nie masz kredytu na rozmowę. Kup jeden, aby zacząć.",
+  ready: (n: number) => {
+    const tens = n % 100;
+    const ones = n % 10;
+    if (n === 1) return "1 rozmowa gotowa";
+    if (ones >= 2 && ones <= 4 && (tens < 12 || tens > 14)) return `${n} rozmowy gotowe`;
+    return `${n} rozmów gotowych`;
+  },
+  readyDetail: "„Dalej” zużywa jeden kredyt dopiero wtedy, gdy rozmowa się zaczyna.",
+  noCredit: "Brak dostępnej rozmowy: nie masz kredytu",
+  noCreditDetail: "Aby zacząć rozmowę, najpierw ją kup. Jeden kredyt to jedna rozmowa.",
+  continueNeedsCredit: "Do przejścia dalej potrzebny jest kredyt na rozmowę.",
+  devNoCredit:
+    "Lokalne środowisko: to konto nie ma kredytu. Uruchom „Seed test user (with credits)” w panelu Aspire i zaloguj się na konto testowe pokazane na stronie logowania.",
   buy: "Kup jedną rozmowę",
   buying: "Otwieram stronę płatności…",
   buyNote: "Płatność obsługuje dostawca płatności na swojej stronie. Ta strona nie widzi Twojej karty.",
@@ -178,7 +223,13 @@ const pl: InterviewCopy = {
   startSection: "Start",
 
   consentTitle: "Zanim zaczniemy",
-  consentIntro: "Przeczytaj to uważnie. Opisuje, dokąd trafiają Twoje słowa i co się z nimi dzieje.",
+  consentIntro: "Najważniejsze są trzy rzeczy. Pełne warunki są pod nimi.",
+  consentKey: [
+    "Rozmówcą jest AI. To nie jest człowiek i mówi o tym wprost.",
+    "Wszystko, co wpiszesz, trafia do firmy Anthropic, która dostarcza model AI, żeby mógł odpowiadać. Ta strona trzyma rozmowę tylko w pamięci, dopóki trwa.",
+    "Po zakończeniu rozmowy zapis i szkice są tu dostępne przez 30 minut, potem są usuwane. W każdej chwili możesz usunąć wszystko.",
+  ],
+  fullTerms: "Przeczytaj pełne warunki",
   consentPoints: [
     "Rozmówcą jest AI. Na początku rozmowy powie Ci o tym wprost.",
     "Wszystko, co wpiszesz, trafia do dostawcy modelu AI, firmy Anthropic, który pisze każdą odpowiedź. Obowiązują go warunki i zasady przetwarzania danych Anthropic. Ta strona ich nie kontroluje.",
@@ -200,23 +251,41 @@ const pl: InterviewCopy = {
   you: "Ty",
   interviewer: "Rozmówca",
   interviewerTyping: "Rozmówca pisze…",
+  progressIntro: "Wprowadzenie",
+  progress: (n: number, total: number) => `Temat ${n} z około ${total}`,
   replyLabel: "Twoja odpowiedź",
   replyHint: "Enter wysyła. Shift+Enter zaczyna nowy wiersz.",
   send: "Wyślij",
   charCount: (n: number, max: number) => `${n} z ${max} znaków`,
+  sendAgain: "Wyślij ponownie",
+  waitCountdown: (seconds: number) => `Możesz spróbować ponownie za ${seconds} s.`,
+  waitOver: "Możesz już spróbować ponownie.",
+  finish: "Zakończ rozmowę",
+  finishHint: "Kończy rozmowę teraz. Zapis i szkice tekstów zostają.",
+  finishMessage: "Czy możemy już skończyć?",
   stopAndDelete: "Przerwij i usuń",
+  stopHint: "Kończy rozmowę i usuwa wszystko, co z niej powstało.",
+  deleteTitle: "Usunąć tę rozmowę?",
   deleteConfirm: "Usunąć teraz tę rozmowę i wszystko, co z niej powstało? Tego nie da się cofnąć.",
   deleteYes: "Tak, usuń",
   cancel: "Anuluj",
   deleted: "Rozmowa została usunięta. Nic z niej nie jest zachowywane.",
+  deletedCredit: "Kredyt, który zużyła, nie wraca: kredyt jest zużywany, gdy rozmowa się zaczyna.",
+  nextWithCredit: "Poniżej możesz rozpocząć kolejną rozmowę.",
+  nextWithoutCredit: "Aby przeprowadzić kolejną rozmowę, kup ją poniżej.",
 
   endedCompleted: "Rozmowa się zakończyła. Zapis i szkice tekstów są poniżej.",
-  endedStopped: "Rozmowa została przerwana. Nic z niej nie jest zachowywane i nie powstaje zapis.",
+  endedStopped: "Rozmowa została przerwana. Nic z niej nie jest zachowywane i nie powstaje zapis. Zużyty kredyt nie wraca.",
   endedFailed: "Rozmowa nie mogła się dokończyć z powodu błędu po naszej stronie. Kredyt został zwrócony.",
   loadingResult: "Przygotowuję zapis…",
 
   resultTitle: "Zapis i szkice tekstów",
   draftWarning: "To są szkice, a nie fakty. Przeczytaj i zmień każdy tekst, zanim go opublikujesz.",
+  warningTitle: "Szkice, nie fakty",
+  keptUntil: (time: string) =>
+    `Ten wynik jest tu dostępny do około ${time}, czyli 30 minut po zakończeniu rozmowy. Potem zostanie usunięty. Zapisz to, co chcesz zachować.`,
+  keptFor: "Ten wynik jest tu dostępny przez 30 minut po zakończeniu rozmowy. Potem zostanie usunięty. Zapisz to, co chcesz zachować.",
+  creditUsed: "Ta rozmowa zużyła jeden kredyt.",
   recordTitle: "Zapis",
   recordIntro: "Wynik rozmowy. Oceny i cytaty pochodzą z Twoich własnych słów.",
   recordFacts: {
@@ -244,6 +313,7 @@ const pl: InterviewCopy = {
     reason_for_leaving: "Powód odejścia",
   },
   notDiscussed: "Nie poruszono",
+  notDiscussedLine: (topics: string) => `Nie poruszono: ${topics}.`,
   noRating: "Bez oceny",
   rating: (r: number) => `Ocena ${r} z 5`,
   confidence: { low: "Niska pewność", medium: "Średnia pewność", high: "Wysoka pewność" },
@@ -262,10 +332,13 @@ const pl: InterviewCopy = {
   copy: "Kopiuj",
   copied: "Skopiowano",
   copyFailed: "Kopiowanie nie jest tu dostępne. Zaznacz tekst i skopiuj go ręcznie.",
-  dropped: (n: number) => `Pominięte teksty: ${n}.`,
-  downloadRecord: "Pobierz zapis (JSON)",
-  downloadTiles: "Pobierz szkice tekstów (tiles.html)",
-  downloadJson: "Pobierz szkice tekstów (JSON)",
+  dropped: (n: number) =>
+    `Pominięte szkice: ${n}. Nie przeszły automatycznej kontroli (na przykład wymieniały osobę, mówiły coś, czego nie powiedziałeś/powiedziałaś, albo były za długie). Tekst jest pokazywany tak, jak powstał, albo wcale.`,
+  save: "Zapisz kopię",
+  saveHint: "Pliki powstają w Twojej przeglądarce i zapisują się na Twoim urządzeniu. Nic nie jest nigdzie wysyłane.",
+  downloadRecord: "Zapis (JSON)",
+  downloadTiles: "Szkice tekstów jako strona (tiles.html)",
+  downloadJson: "Szkice tekstów (JSON)",
   startAnother: "Rozpocznij kolejną rozmowę",
   deleteAll: "Usuń wszystko teraz",
   deleteAllConfirm: "Usunąć teraz zapis, szkice tekstów i wszystko z tej rozmowy? Tego nie da się cofnąć.",
@@ -275,7 +348,7 @@ const pl: InterviewCopy = {
   signInAgain: "Zaloguj się ponownie",
   acceptTerms: "Najpierw zaakceptuj aktualne warunki",
   errors: {
-    payment_required: "Nie masz kredytu na rozmowę. Kup jeden, aby zacząć.",
+    payment_required: "Nie masz kredytu na rozmowę. Kup rozmowę, aby zacząć.",
     rate_limited: (seconds?: number) =>
       seconds === undefined
         ? "Za dużo prób. Poczekaj chwilę i spróbuj ponownie."
@@ -284,9 +357,9 @@ const pl: InterviewCopy = {
     interview_in_progress: "Masz już otwartą rozmowę. Najpierw ją dokończ albo usuń.",
     interview_ended: "Ta rozmowa już się zakończyła.",
     reply_invalid: "Odpowiedź jest pusta albo za długa. Użyj do 2000 znaków.",
-    not_found: "Ta rozmowa już nie istnieje. Wygasła, została usunięta albo przepadła przy restarcie usługi. Możesz rozpocząć nową.",
-    gone: "Ta rozmowa już nie istnieje. Wygasła, została usunięta albo przepadła przy restarcie usługi. Możesz rozpocząć nową.",
-    email_not_verified: "Aby zacząć wywiad, potwierdź adres e-mail w ustawieniach konta.",
+    not_found: "Ta rozmowa już nie istnieje: wygasła, została usunięta albo przepadła przy restarcie. Twoje kredyty są pokazane poniżej.",
+    gone: "Ta rozmowa już nie istnieje: wygasła, została usunięta albo przepadła przy restarcie. Twoje kredyty są pokazane poniżej.",
+    email_not_verified: "Aby zacząć rozmowę, najpierw potwierdź adres e-mail.",
     not_completed: "Wynik nie jest jeszcze gotowy.",
     provider_unavailable: "Model AI nie odpowiada w tej chwili. Rozmowa jest nadal otwarta; spróbuj za chwilę.",
     billing_disabled: "Zakupy są chwilowo wstrzymane.",

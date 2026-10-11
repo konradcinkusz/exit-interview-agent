@@ -53,7 +53,7 @@ test("a visitor with a credit goes from consent to a result, copies a draft, dow
   const seen = await watchViolations(page);
 
   await openInterview(page, name);
-  await expect(page.getByText("Interview credits you have: 1.")).toBeVisible();
+  await expect(page.getByTestId("credit-status")).toContainText("1 interview ready");
   await page.getByRole("radio", { name: "English" }).check();
   await page.getByLabel("How long did you work there?").selectOption("1y_3y");
 
@@ -76,9 +76,11 @@ test("a visitor with a credit goes from consent to a result, copies a draft, dow
     "Onboarding was chaotic, but the team helped. Contact with the manager was rare.",
   );
 
+  // One "Save a copy" control holds the three downloads.
+  await page.getByTestId("save").getByText("Save a copy").click();
   const [recordDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download the record (JSON)" }).click(),
+    page.getByRole("button", { name: "The record (JSON)" }).click(),
   ]);
   expect(recordDownload.suggestedFilename()).toBe("exit-interview-record.json");
   const record = JSON.parse(readFileSync((await recordDownload.path()) as string, "utf8")) as { topics: { onboarding: { rating: number } } };
@@ -86,7 +88,7 @@ test("a visitor with a credit goes from consent to a result, copies a draft, dow
 
   const [tilesDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download the draft texts (tiles.html)" }).click(),
+    page.getByRole("button", { name: "The draft texts, as a page (tiles.html)" }).click(),
   ]);
   const html = readFileSync((await tilesDownload.path()) as string, "utf8");
   expect(html).not.toMatch(/<script/i);
@@ -95,8 +97,9 @@ test("a visitor with a credit goes from consent to a result, copies a draft, dow
 
   // Deleting is one deliberate step, and then nothing of the visit remains.
   await page.getByRole("button", { name: "Delete everything now" }).click();
-  await page.getByRole("button", { name: "Yes, delete it" }).click();
+  await page.getByRole("dialog", { name: "Delete this interview?" }).getByRole("button", { name: "Yes, delete it" }).click();
   await expect(page.getByText("The interview was deleted. Nothing from it is kept.")).toBeVisible();
+  await expect(page.getByTestId("deleted-notice")).toContainText("The credit it used is not returned");
   expect(await stubState(request, name)).toEqual({ credits: 0, session: null });
 
   // Nothing the page could have kept: no storage, no cookie with the text, no URL with it, no call that carried it in a URL.
@@ -120,8 +123,9 @@ test("stop and delete asks once, then wipes the open interview @smoke", async ({
   await expect(page.getByRole("log", { name: "Conversation" })).toBeVisible();
 
   await page.getByRole("button", { name: "Stop and delete" }).click();
-  await page.getByRole("button", { name: "Yes, delete it" }).click();
+  await page.getByRole("dialog", { name: "Delete this interview?" }).getByRole("button", { name: "Yes, delete it" }).click();
   await expect(page.getByText("The interview was deleted. Nothing from it is kept.")).toBeVisible();
+  await expect(page.getByTestId("deleted-notice")).toContainText("The credit it used is not returned");
   expect(await stubState(request, name)).toEqual({ credits: 0, session: null });
 });
 
@@ -130,8 +134,10 @@ test("without a credit the page does not start, and the purchase goes to the pay
   await configure(request, name, "credits=0");
   await openInterview(page, name);
 
-  await expect(page.getByText("You have no interview credit. Buy one to start an interview.")).toBeVisible();
+  await expect(page.getByTestId("credit-status")).toContainText("No interview available: you have no interview credit");
   await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  // The disabled button says why: its description is the reason, not a tooltip.
+  await expect(page.getByRole("button", { name: "Continue" })).toHaveAccessibleDescription("Continue needs an interview credit.");
 
   await page.route("https://checkout.example.invalid/**", (route) =>
     route.fulfill({ status: 200, contentType: "text/html", body: "<p>Checkout stub</p>" }),
@@ -163,9 +169,9 @@ test("a lost session (410) returns to the start screen, and a new interview can 
   await configure(request, name, "expireNext=1");
   await say(page, "Hello.");
   // The same words for 404 and 410: the interview is no longer there, whatever the reason.
-  await expect(alertWith(page, "This interview no longer exists.")).toContainText("You can start a new one.");
+  await expect(alertWith(page, "This interview no longer exists")).toContainText("Your credits are shown below.");
   await expect(page.getByRole("heading", { name: "Exit interview with an AI" })).toBeVisible();
-  await expect(page.getByText("Interview credits you have: 1.")).toBeVisible();
+  await expect(page.getByTestId("credit-status")).toContainText("1 interview ready");
 
   await startInterview(page);
   await expect(page.getByRole("log", { name: "Conversation" })).toContainText("Hello. I am an AI interviewer.");
@@ -189,24 +195,45 @@ test("a second open interview is refused on the consent step, and a reload empti
   await expect(alertWith(page, "You already have an open interview.")).toBeVisible();
 });
 
-test("the copy switches to Polish, and the page language follows", async ({ page, request }) => {
+test("the page follows the portal's language, and the interview's language is a separate choice", async ({ page, request }) => {
   const name = accountName("interview");
   await configure(request, name, "credits=1");
   await openInterview(page, name);
 
-  await page.getByRole("radio", { name: "Polski" }).check();
+  // The header's switch turns the page Polish; the interview's language follows it by default.
+  await page.getByTestId("language-switch").click();
   await expect(page.getByRole("heading", { name: "Rozmowa wyjściowa z AI" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.lang)).toBe("pl");
+  await expect(page.getByRole("radio", { name: "Polski" })).toBeChecked();
+  await expect(page.getByTestId("credit-status")).toContainText("1 rozmowa gotowa");
 
   await page.getByRole("button", { name: "Dalej" }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Rozpocznij rozmowę" }).click();
-  await expect(page.getByRole("log", { name: "Rozmowa" })).toContainText("Dzień dobry. Jestem rozmówcą AI.");
+  const log = page.getByRole("log", { name: "Rozmowa" });
+  await expect(log).toContainText("Dzień dobry. Jestem rozmówcą AI.");
+  await expect(log).toHaveAttribute("lang", "pl");
   await say(page, "Wdrożenie było trudne.", "Twoja odpowiedź");
   await say(page, "Przełożony był rzadko dostępny.", "Twoja odpowiedź");
   await say(page, "Jeden przykład to odwołane spotkanie.", "Twoja odpowiedź");
   await expect(page.getByRole("heading", { name: "Zapis i szkice tekstów" })).toBeVisible();
   await expect(page.getByTestId("tiles-notice")).toContainText("To są propozycje tekstów, nie fakty.");
+});
+
+test("an English page can run a Polish interview: the conversation carries its own language", async ({ page, request }) => {
+  const name = accountName("interview");
+  await configure(request, name, "credits=1");
+  await openInterview(page, name);
+
+  await page.getByRole("radio", { name: "Polski" }).check();
+  await expect(page.getByRole("heading", { name: "Exit interview with an AI" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Start the interview" }).click();
+  const log = page.getByRole("log", { name: "Conversation" });
+  await expect(log).toContainText("Dzień dobry. Jestem rozmówcą AI.");
+  await expect(log).toHaveAttribute("lang", "pl");
+  expect(await page.evaluate(() => document.documentElement.lang)).toBe("en");
 });
 
 test("the interview pages have no axe violations on the start, consent, chat and result steps @smoke", async ({ page, request }) => {

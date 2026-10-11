@@ -31,6 +31,8 @@ export interface State {
   result: InterviewResult | null;
   /** Set after a successful deletion, so the start screen can say so once. */
   deleted: boolean;
+  /** When the interview completed (the page's clock, epoch ms), to say until when the result stays readable. */
+  endedAt: number | null;
   nextLine: number;
 }
 
@@ -44,7 +46,7 @@ export type Action =
   | { type: "starting" }
   | { type: "started"; started: InterviewStarted }
   | { type: "sending"; text: string }
-  | { type: "replied"; reply: ReplyResult }
+  | { type: "replied"; reply: ReplyResult; at?: number }
   | { type: "failed"; failure: InterviewFailure }
   | { type: "resultLoaded"; result: InterviewResult }
   | { type: "resultFailed"; failure: InterviewFailure }
@@ -64,6 +66,7 @@ export function initialState(): State {
     ended: null,
     result: null,
     deleted: false,
+    endedAt: null,
     nextLine: 1,
   };
 }
@@ -84,7 +87,7 @@ export function reduce(s: State, action: Action): State {
     case "creditsFailed":
       return { ...s, credits: { kind: "failed", failure: action.failure.kind } };
     case "toConsent":
-      return { ...s, phase: "consent", notice: null };
+      return { ...s, phase: "consent", notice: null, deleted: false };
     case "toStart":
       return { ...s, phase: "start", notice: null };
     case "starting":
@@ -99,7 +102,7 @@ export function reduce(s: State, action: Action): State {
     case "replied": {
       const withTurn = action.reply.turn ? addLine(s, "interviewer", action.reply.turn.text, action.reply.turn.kind) : s;
       const status = action.reply.status;
-      if (status === "completed") return { ...withTurn, pending: false, phase: "result", ended: "completed" };
+      if (status === "completed") return { ...withTurn, pending: false, phase: "result", ended: "completed", endedAt: action.at ?? null };
       if (status === "stopped" || status === "failed") return { ...withTurn, pending: false, phase: "ended", ended: status };
       return { ...withTurn, pending: false };
     }
@@ -111,7 +114,8 @@ export function reduce(s: State, action: Action): State {
           // The service no longer has this interview (410, or 404 after a delete or a restart): the chat is over, a new one can start.
           return { ...base, phase: "start", interview: null, lines: [], result: null };
         case "payment_required":
-          return { ...base, phase: "start" };
+          // The service says there is no credit: the balance shown agrees at once, before the page asks for the balance again.
+          return { ...base, phase: "start", credits: { kind: "ok", balance: 0 } };
         case "interview_ended":
           return { ...base, phase: "result", ended: "completed" };
         default:
@@ -125,4 +129,24 @@ export function reduce(s: State, action: Action): State {
     case "deleted":
       return { ...initialState(), language: s.language, tenure: s.tenure, credits: s.credits, deleted: true };
   }
+}
+
+/** The turn kinds after which the person is answering a question, so asking to finish is understood (not during the opening). */
+const QUESTION_KINDS: ReadonlySet<TurnKind> = new Set<TurnKind>(["topic", "probe", "clarification", "deep_probe", "redirect"]);
+
+export function lastInterviewerKind(lines: readonly Line[]): TurnKind | undefined {
+  for (let i = lines.length - 1; i >= 0; i--) if (lines[i].from === "interviewer") return lines[i].kind;
+  return undefined;
+}
+
+/** "Finish interview" is offered once the interviewer has asked a topic question, and not while a reply is pending. */
+export function canFinish(s: State): boolean {
+  const kind = lastInterviewerKind(s.lines);
+  return s.phase === "chat" && !s.pending && kind !== undefined && QUESTION_KINDS.has(kind);
+}
+
+/** The protocol has six topics. The progress line counts the topic questions asked so far; 0 means the introduction. */
+export const TOPIC_TOTAL = 6;
+export function topicNumber(lines: readonly Line[]): number {
+  return Math.min(TOPIC_TOTAL, lines.filter((l) => l.from === "interviewer" && l.kind === "topic").length);
 }

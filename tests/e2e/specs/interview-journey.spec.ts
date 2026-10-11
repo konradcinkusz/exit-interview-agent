@@ -64,8 +64,10 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
 
   // (1) No credit: the start is closed, and the purchase opens the payment page.
   await openInterview(page, name);
-  await expect(page.getByText("You have no interview credit. Buy one to start an interview.")).toBeVisible();
+  await expect(page.getByTestId("credit-status")).toContainText("No interview available: you have no interview credit");
   await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  // The disabled button says why: its description is the reason, not a tooltip.
+  await expect(page.getByRole("button", { name: "Continue" })).toHaveAccessibleDescription("Continue needs an interview credit.");
 
   let checkoutUrl = "";
   await page.route(`${CHECKOUT_ORIGIN}**`, (route) => {
@@ -90,7 +92,7 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
   expect((await stubState(request, name)).credits).toBe(1);
 
   await page.goto("/interview");
-  await expect(page.getByText("Interview credits you have: 1.")).toBeVisible();
+  await expect(page.getByTestId("credit-status")).toContainText("1 interview ready");
 
   // (3) Consent, then the chat. The closing turn comes back before the record is ready; the page waits for the service's status.
   await page.getByRole("radio", { name: "English" }).check();
@@ -121,10 +123,11 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
     "Onboarding was chaotic, but the team helped. Contact with the manager was rare.",
   );
 
-  // (6) The download of the drafts is a self-contained page with the notice in it and no script.
+  // (6) The download of the drafts is a self-contained page with the notice in it and no script. The downloads sit under one control.
+  await page.getByTestId("save").getByText("Save a copy").click();
   const [tilesDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download the draft texts (tiles.html)" }).click(),
+    page.getByRole("button", { name: "The draft texts, as a page (tiles.html)" }).click(),
   ]);
   const html = readFileSync((await tilesDownload.path()) as string, "utf8");
   expect(html).not.toMatch(/<script/i);
@@ -135,8 +138,9 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
   const sessionBefore = (await stubState(request, name)).session;
   expect(sessionBefore?.status).toBe("completed");
   await page.getByRole("button", { name: "Delete everything now" }).click();
-  await page.getByRole("button", { name: "Yes, delete it" }).click();
+  await page.getByRole("dialog", { name: "Delete this interview?" }).getByRole("button", { name: "Yes, delete it" }).click();
   await expect(page.getByText("The interview was deleted. Nothing from it is kept.")).toBeVisible();
+  await expect(page.getByTestId("deleted-notice")).toContainText("The credit it used is not returned");
   expect(await stubState(request, name)).toEqual({ credits: 0, session: null });
   const afterDelete = await page.request.get(`/api/proxy/v1/interviews/${sessionBefore?.id}/result`);
   expect(afterDelete.status()).toBe(404);
@@ -166,7 +170,7 @@ test("declining the consent uses no credit and creates no interview", async ({ p
   await page.getByRole("button", { name: "Back" }).click();
 
   await expect(page.getByRole("heading", { name: "Exit interview with an AI" })).toBeVisible();
-  await expect(page.getByText("Interview credits you have: 1.")).toBeVisible();
+  await expect(page.getByTestId("credit-status")).toContainText("1 interview ready");
   expect(await stubState(request, name)).toEqual({ credits: 1, session: null });
   await expect(page.getByRole("heading", { name: "Your record and draft texts" })).toHaveCount(0);
 });
@@ -212,9 +216,10 @@ test("an unverified email is refused: no interview starts and the credit is kept
   await openInterview(page, name);
   await consentAndStart(page);
 
-  const notice = alertWith(page, "To start an interview, confirm your email address in your account settings.");
+  const notice = alertWith(page, "To start an interview, confirm your email address first.");
   await expect(notice).toBeVisible();
-  await expect(notice.getByRole("link", { name: "Confirm your email address" })).toHaveAttribute("href", "/verify-email");
+  // The way out is its own line under the message, not run into it.
+  await expect(page.getByTestId("interview-notice").getByRole("link", { name: "Confirm your email address" })).toHaveAttribute("href", "/verify-email");
   expect(await stubState(request, name)).toEqual({ credits: 1, session: null });
 });
 

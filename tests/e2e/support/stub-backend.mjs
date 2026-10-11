@@ -161,7 +161,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // billing_disabled, 400 bad_signature (no Stripe-Signature header; the signature itself is verified by the service's tests),
 // 204 delete. A closing or stop turn comes back with status in_progress; the status turns completed or stopped on the next GET.
 // Checkout sessions are https addresses that the browser suite intercepts; a paid event adds its quantity once per event id. Errors are problem documents with a lowercase stable `code`. The conversation is a SCRIPT, not a
-// model: two interviewer questions after the opening, then the close on the third reply; the word "stop" ends it without a record.
+// model: two interviewer questions after the opening, then the close on the third reply (or on a request to finish after the first);
+// the word "stop" ends it without a record.
 // The record matches the shape of schemas/exit-interview-record.v1.schema.json as the page reads it; the tiles use the six kinds of
 // the contract and the CLI's notice, verbatim (ExitInterviewAgent.Cli/Tiles/TileRenderer.cs). All of it is synthetic.
 const INTERVIEW_SCRIPT = {
@@ -345,7 +346,10 @@ async function interviewRoute(req, res, url) {
     }
     s.replies += 1;
     s.index += 1;
-    if (s.replies > script.turns.length) {
+    // A request to finish and keep the record (the agent's FinishRequestCue, ReplySignals.cs: "can we finish", "możemy już
+    // skończyć") closes the interview early, like the last reply does.
+    const finishRequest = /\bcan\s+we\s+(please\s+)?(finish|wrap\s+up|end)\b|\b(czy\s+)?mo[żz]emy\s+(ju[żz]\s+)?(sko[ńn]czy[ćc]|zako[ńn]czy[ćc])/i;
+    if (s.replies > script.turns.length || (s.replies > 1 && finishRequest.test(text))) {
       s.finishing = "completed";
       return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: "close", text: script.close }, ending: null });
     }

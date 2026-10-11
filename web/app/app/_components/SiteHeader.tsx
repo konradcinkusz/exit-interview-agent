@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getMessages } from "@/lib/i18n";
 import { hasSessionCookie } from "@/lib/session-hint";
+import { BrandMark } from "./Icon";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { NavLink } from "./NavLink";
 import { SignOutButton } from "./SignOutButton";
@@ -15,7 +16,10 @@ export async function SiteHeader() {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <Link className="brand" href="/">{t.site.name}</Link>
+        <Link className="brand" href="/">
+          <BrandMark />
+          {t.site.name}
+        </Link>
         <nav aria-label={t.nav.label}>
           <ul className="site-nav">
             <li><NavLink href="/interview" gated>{t.nav.interview}</NavLink></li>
