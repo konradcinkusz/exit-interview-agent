@@ -56,3 +56,6 @@ docs/papers/*.aux
 docs/papers/*.fls
 docs/papers/*.fdb_latexmk
 docs/papers/*.toc
+
+# W9 real-model run output (transcripts of real interviews stay local, docs/eval/w9)
+w9-out/

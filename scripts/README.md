@@ -7,6 +7,7 @@
 | `hooks/pre-commit` | Runs `scan-secrets.sh --staged`. Installed by `setup.*` via `core.hooksPath`. |
 | `check-kernel-size.sh` | P2's ceiling: fails if `ExitInterviewAgent.ServiceDefaults` exceeds 800 lines. CI runs it. |
 | `smoke-local.sh` / `smoke-local.ps1` | Checks a running local stack: `/health` of interview-service, `/healthz` of web, `/health/ready` of authservice; prints PASS, WARN (a degraded integration, such as the mock model) or FAIL and exits 0 or 1. With `--token` / `-Token` it also runs one scripted interview through the API (start, reply to the end, result, delete). Needs `--interview-url` / `-InterviewUrl`: interview-service's port is assigned by Aspire, so read it from the dashboard. `--dry-run` / `-DryRun` prints the checks and sends nothing. Web and authservice use their fixed ports (3000, 5100). Runbook: [`../docs/runbooks/local-run.md`](../docs/runbooks/local-run.md) |
+| `w9-run.sh` / `w9-summarize.py` | W9 (docs/eval/w9): one command runs one of the ten Polish real-model interviews and appends a row to `w9-out/results.csv`; the summarizer turns that and your scorecard into the report numbers and the pass verdict. Needs your key in `ANTHROPIC_API_KEY`; `--provider mock --model scripted` rehearses without one. Output is git-ignored. Protocol: [`../docs/eval/w9/README.md`](../docs/eval/w9/README.md) |
 
 Start the stack first (`dotnet run --project src/ExitInterviewAgent.AppHost`), then, for example:
 
