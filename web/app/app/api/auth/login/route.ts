@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authConfig, identityConfigured } from "@/lib/runtime-config";
-import { fetchConsentStatus } from "@/lib/identity";
+import { describeIdentityFailure, fetchConsentStatus } from "@/lib/identity";
 import { clearTwoFactorChallenge, setTwoFactorChallenge } from "@/lib/session";
 import { establishSession } from "@/lib/session-flow";
 
@@ -35,7 +35,8 @@ export async function POST(request: Request) {
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  } catch (error) {
+    console.error(describeIdentityFailure(error, cfg));
     return NextResponse.json({ error: "identity_unreachable" }, { status: 502 });
   }
 

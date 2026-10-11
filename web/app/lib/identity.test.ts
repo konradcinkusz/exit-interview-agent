@@ -3,6 +3,7 @@ import {
   acceptCurrentConsents,
   callRefresh,
   deleteAccount,
+  describeIdentityFailure,
   fetchConsentStatus,
   fetchConsentVersions,
   fetchExport,
@@ -194,5 +195,33 @@ describe("export", () => {
 
     expect(response?.status).toBe(200);
     expect(await fetchExport(cfg, "t", fetchOf(new TypeError("down")))).toBeNull();
+  });
+});
+
+describe("failure logging (ADR-0081)", () => {
+  it("logs the error name, the cause code and the host and port, never the path or a body", async () => {
+    const error = Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("connect"), { code: "ECONNREFUSED" }) });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const versions = await fetchConsentVersions({ ...cfg, url: "http://localhost:5100" }, fetchOf(error));
+      expect(versions).toBeNull();
+      expect(spy).toHaveBeenCalledTimes(1);
+      const line = String(spy.mock.calls[0]?.[0]);
+      expect(line).toBe("identity call failed: name=TypeError cause=ECONNREFUSED endpoint=localhost:5100");
+      expect(line).not.toMatch(/consents|password|token|@/);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("reads a timeout by its name and says so when the cause has no code", () => {
+    const timeout = Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
+    expect(describeIdentityFailure(timeout, cfg)).toBe("identity call failed: name=TimeoutError cause=none endpoint=identity.invalid");
+  });
+
+  it("names an unparsable address as such, without echoing it", () => {
+    expect(describeIdentityFailure(new Error("x"), { ...cfg, url: "not a url" })).toBe(
+      "identity call failed: name=Error cause=none endpoint=unparsable",
+    );
   });
 });

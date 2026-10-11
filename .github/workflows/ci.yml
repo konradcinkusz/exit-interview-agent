@@ -228,6 +228,21 @@ jobs:
           path: resource-logs
           if-no-files-found: ignore
           retention-days: 7
+      # Diagnostics of the web-to-authservice hop (ADR-0081, 'Open'): the stack is started again by hand, outside the test host,
+      # and probed from the runner. Runs whether or not the journeys passed, so the evidence is there on every run.
+      - name: Live diagnostics of the web-to-authservice hop
+        if: ${{ !cancelled() }}
+        timeout-minutes: 25
+        env:
+          DIAGNOSTICS_DIR: ${{ github.workspace }}/diagnostics
+        run: bash scripts/diagnose-full-stack.sh "$DIAGNOSTICS_DIR"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: full-stack-diagnostics
+          path: diagnostics
+          if-no-files-found: ignore
+          retention-days: 7
 
   images:
     name: images build and answer their health endpoint on the declared port
