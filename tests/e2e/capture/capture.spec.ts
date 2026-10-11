@@ -17,6 +17,8 @@ type Lang = "en" | "pl";
 interface State {
   name: string;
   lang: Lang;
+  /** Viewports other than the default desktop and mobile pair (for example 200% zoom: half the CSS width at scale 2). */
+  viewports?: readonly { name: string; width: number; height: number; scale?: number }[];
   /** Skip the state when the page ends somewhere else (the route does not exist on this build). */
   expectPath?: string;
   run: (page: Page, request: APIRequestContext) => Promise<void>;
@@ -186,13 +188,62 @@ const STATES: State[] = [
     },
   },
   { name: "interview-result-pl", lang: "pl", run: async (p, r) => { await interview(p, r, "credits=1"); await toResult(p); } },
+  // accessibility evidence (phase 3): the keyboard focus, and 200% zoom of a 1280 px window
+  {
+    name: "focus-start-continue",
+    lang: "en",
+    viewports: [{ name: "desktop", width: 1280, height: 800 }],
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await p.locator("main button").filter({ hasText: "Continue" }).focus();
+      await p.keyboard.press("Shift+Tab");
+      await p.keyboard.press("Tab");
+    },
+  },
+  {
+    name: "focus-choice-row",
+    lang: "pl",
+    viewports: [{ name: "desktop", width: 1280, height: 800 }],
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await p.locator("#tenure").focus();
+      await p.keyboard.press("Shift+Tab");
+    },
+  },
+  {
+    name: "focus-dialog-cancel",
+    lang: "en",
+    viewports: [{ name: "desktop", width: 1280, height: 800 }],
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+      await p.locator("main button").filter({ hasText: "Stop and delete" }).focus();
+      await p.keyboard.press("Enter");
+      await p.keyboard.press("Tab");
+      await p.keyboard.press("Shift+Tab");
+    },
+  },
+  ...(["interview-start", "interview-chat", "interview-result"] as const).map((base) => ({
+    name: `zoom200-${base}-pl`,
+    lang: "pl" as const,
+    viewports: [{ name: "desktop", width: 640, height: 400, scale: 2 }],
+    run: async (p: Page, r: APIRequestContext) => {
+      await interview(p, r, "credits=1");
+      if (base === "interview-chat") {
+        await toChat(p);
+        await answer(p, "Wdrożenie było chaotyczne.");
+      }
+      if (base === "interview-result") await toResult(p);
+    },
+  })),
 ];
 
 for (const state of STATES) {
-  for (const viewport of VIEWPORTS) {
+  for (const viewport of state.viewports ?? VIEWPORTS) {
     test(`${state.name} ${viewport.name}`, async ({ browser, baseURL, request }) => {
       const context = await browser.newContext({
         viewport: { width: viewport.width, height: viewport.height },
+        deviceScaleFactor: "scale" in viewport ? viewport.scale : 1,
         locale: state.lang === "pl" ? "pl-PL" : "en-GB",
         colorScheme: process.env.CAPTURE_SCHEME === "dark" ? "dark" : "light",
         reducedMotion: "reduce", // stable captures: no animation or smooth scroll caught mid-way

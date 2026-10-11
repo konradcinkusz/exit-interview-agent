@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/messages";
 import { useMessages } from "../_components/I18n";
+import { Icon } from "../_components/Icon";
 import { SignOutButton } from "../_components/SignOutButton";
 
 type ErrorKey = keyof Messages["account"]["errors"];
@@ -64,7 +65,10 @@ export function Account() {
         {state.kind === "loading" && <p role="status">{t.site.loading}</p>}
         {state.kind === "ready" && (
           <>
-            <p>{A.signedIn}</p>
+            <div className="card-head">
+              <span className="icon-badge"><Icon name="user" size={20} /></span>
+              <p className="card-head-title">{A.signedIn}</p>
+            </div>
             <p className="hint">
               {A.accountId}: <code data-testid="account-subject">{state.subject}</code>
             </p>
@@ -75,13 +79,22 @@ export function Account() {
       </section>
 
       <section className="card" aria-labelledby="account-interview-heading">
-        <h2 id="account-interview-heading">{A.interviewTitle}</h2>
+        <div className="card-head">
+          <span className="icon-badge"><Icon name="chat" size={20} /></span>
+          <h2 id="account-interview-heading">{A.interviewTitle}</h2>
+        </div>
         <p>{A.interviewText}</p>
-        <Link className="button primary" href="/interview" prefetch={false}>{A.interviewLink}</Link>
+        <Link className="button primary" href="/interview" prefetch={false}>
+          {A.interviewLink}
+          <Icon name="arrow" size={18} />
+        </Link>
       </section>
 
       <section className="card" aria-labelledby="export-heading">
-        <h2 id="export-heading">{A.exportTitle}</h2>
+        <div className="card-head">
+          <span className="icon-badge"><Icon name="download" size={20} /></span>
+          <h2 id="export-heading">{A.exportTitle}</h2>
+        </div>
         <p>{A.exportIntro}</p>
         <p className="notice" data-testid="export-note">{A.exportNot}</p>
         {/* A plain link: the browser downloads the attachment itself, so the data never passes through page JavaScript. */}
@@ -89,7 +102,10 @@ export function Account() {
       </section>
 
       <section className="card danger-zone" aria-labelledby="delete-heading">
-        <h2 id="delete-heading">{A.deleteTitle}</h2>
+        <div className="card-head">
+          <span className="icon-badge"><Icon name="trash" size={20} /></span>
+          <h2 id="delete-heading">{A.deleteTitle}</h2>
+        </div>
         <div data-testid="deletion-facts">
           <h3 id="deletion-heading">{A.deletion.headline}</h3>
           <ul>

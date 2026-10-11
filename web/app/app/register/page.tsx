@@ -10,8 +10,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Page() {
   const { t } = await getMessages();
   return (
-    <Suspense fallback={<p role="status">{t.site.loading}</p>}>
-      <RegisterForm />
-    </Suspense>
+    <div className="auth">
+      <div className="card auth-card">
+        <Suspense fallback={<p role="status">{t.site.loading}</p>}>
+          <RegisterForm />
+        </Suspense>
+      </div>
+    </div>
   );
 }

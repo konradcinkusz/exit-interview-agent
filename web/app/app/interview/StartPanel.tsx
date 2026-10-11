@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TENURES, type Tenure } from "@/lib/interview-contract";
 import type { InterviewCopy } from "@/lib/messages/interview";
+import { Icon } from "../_components/Icon";
 import { Notice, failureText } from "./Notice";
 import styles from "./interview.module.css";
 import type { Action, State } from "./state";
@@ -36,17 +37,22 @@ export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits, devHi
         id="credit-status"
         data-testid="credit-status"
       >
-        {state.credits.kind === "loading" ? <p>{copy.loadingCredits}</p> : null}
+        {state.credits.kind === "loading" ? (
+          <>
+            <p>{copy.loadingCredits}</p>
+            <span className="skeleton mid" aria-hidden="true" />
+          </>
+        ) : null}
         {state.credits.kind === "failed" ? <p>{failureText({ kind: state.credits.failure }, copy)}</p> : null}
         {canContinue ? (
           <>
-            <p className={styles.statusTitle}>{copy.ready(balance)}</p>
+            <p className={styles.statusTitle}><Icon name="check" size={20} />{copy.ready(balance)}</p>
             <p>{copy.readyDetail}</p>
           </>
         ) : null}
         {noCredit ? (
           <>
-            <p className={styles.statusTitle}>{copy.noCredit}</p>
+            <p className={styles.statusTitle}><Icon name="info" size={20} />{copy.noCredit}</p>
             <p>{copy.noCreditDetail}</p>
           </>
         ) : null}
@@ -56,6 +62,7 @@ export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits, devHi
       ) : null}
       {noCredit && devHints ? <p className="dev-hints" data-testid="dev-no-credit">{copy.devNoCredit}</p> : null}
 
+      <div className={`card ${styles.form}`}>
       <fieldset>
         <legend>{copy.language}</legend>
         <div className={styles.choices}>
@@ -111,6 +118,7 @@ export function StartPanel({ state, dispatch, copy, onBuy, onRetryCredits, devHi
       </div>
       {!canContinue && state.credits.kind !== "loading" ? <p id="continue-why" className="hint">{copy.continueNeedsCredit}</p> : null}
       <p id="buy-note" className="hint">{copy.buyNote}</p>
+      </div>
     </section>
   );
 }

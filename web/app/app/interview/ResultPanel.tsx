@@ -40,7 +40,12 @@ export function ResultPanel({ copy, state, onDelete, notice, onRetry }: Props) {
             <button type="button" className="secondary" onClick={onRetry}>{copy.retry}</button>
           </>
         ) : (
-          <p role="status">{copy.loadingResult}</p>
+          <div className="card">
+            <p role="status">{copy.loadingResult}</p>
+            <span className="skeleton" aria-hidden="true" />
+            <span className="skeleton mid" aria-hidden="true" />
+            <span className="skeleton short" aria-hidden="true" />
+          </div>
         )}
       </section>
     );

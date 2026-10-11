@@ -223,11 +223,17 @@ shimmer), never fades text, and is off under `prefers-reduced-motion`.
 
 - Keyboard-only operable; a skip link; one `h1` per page; every control labelled; errors in `role="alert"`; focus moves
   to the new step (second factor, ticket) when it appears.
-- Contrast meets WCAG 2.1 AA in light and dark (`prefers-color-scheme`, the template's convention).
-- Responsive down to 320 px, no horizontal scroll; 200% zoom works.
+- Contrast meets WCAG 2.1 AA in light and dark (`prefers-color-scheme`, the template's convention): text 4.5:1 (axe), and control
+  borders and the focus ring 3:1 (WCAG 1.4.11, measured by `a11y-interview.spec.ts`, which axe does not do).
+- Every Tab stop shows a focus ring of at least 2 px; the order on `/interview` is skip link, the four header items, then the form.
+- Responsive down to 320 px, no horizontal scroll; at 390 px and at 200% zoom (640 CSS px) no page and no interview state scrolls
+  sideways, in Polish.
+- Nothing animates under `prefers-reduced-motion`; animations never fade text.
 - Every page has loading, empty and error states.
-- An automated check (axe-core, WCAG 2.0/2.1 A and AA rules) runs in the browser suite on every page. It finds a subset
-  of problems; keyboard and screen-reader testing by a person are still owed ([OP-16](../OPEN-PROBLEMS.md)).
+- An automated check (axe-core, WCAG 2.0/2.1 A and AA rules) runs in the browser suite on every page and on every interview state
+  the stub can reach, in both schemes and both languages. It finds a subset of problems; screen-reader testing by a person is still
+  owed ([OP-16](../OPEN-PROBLEMS.md)). What was and was not checked: [redesign phase 3](redesign-2026-10-11/phase3/README.md).
+- The former employee's journey runs end to end in Polish in the browser suite (`journey-pl.spec.ts`).
 
 ## Ranked backlog
 

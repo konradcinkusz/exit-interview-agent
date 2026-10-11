@@ -337,3 +337,23 @@ dialog.confirm-dialog::backdrop { background: rgb(10 12 16 / 55%); }
 dialog.confirm-dialog h2 { margin: 0 0 var(--s3); font-size: var(--text-xl); }
 dialog.confirm-dialog .actions { margin-bottom: 0; justify-content: flex-end; }
 summary.button { list-style: none; }
+
+/* sign-in, sign-up, consent and verification: one centred card */
+.auth { width: 100%; max-width: 31rem; margin: var(--s4) auto 0; }
+.auth-card { margin: 0; padding: var(--s6) var(--s6) var(--s5); box-shadow: var(--shadow-lg); }
+.auth-card h1 { font-size: clamp(1.6rem, 1.4rem + 0.8vw, 2rem); margin-bottom: var(--s2); }
+.auth-card .lead { color: var(--muted); font-size: var(--text-md); }
+.auth-card form > button[type="submit"], .auth-card .actions .primary { width: 100%; }
+.auth-card .actions { flex-direction: column; align-items: stretch; }
+.auth-card .actions > * { width: 100%; }
+.auth .dev-hints { margin-top: var(--s5); }
+@media (max-width: 30rem) { .auth-card { padding: var(--s5) var(--s4); } }
+
+/* a section heading with an icon badge (account) */
+.card-head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s3); }
+.card-head h2 { margin: 0; }
+.card-head .icon-badge { width: 2.5rem; height: 2.5rem; }
+.danger-zone .icon-badge { color: var(--danger); background: var(--danger-soft); }
+.card-head-title { margin: 0; font-weight: 600; }
+/* a panel heading right under the stepper needs no extra air */
+ol.stepper.compact + * > h2:first-child, ol.stepper.compact + .notice + * > h2:first-child { margin-top: var(--s4); }
