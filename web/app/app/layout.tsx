@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getMessages } from "@/lib/i18n";
+import { HydrationMarker } from "./_components/HydrationMarker";
 import { I18nProvider } from "./_components/I18n";
 import { SiteFooter } from "./_components/SiteFooter";
 import { SiteHeader } from "./_components/SiteHeader";
@@ -25,6 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <SiteHeader />
           <main id="main" tabIndex={-1}>{children}</main>
           <SiteFooter />
+          <HydrationMarker />
         </I18nProvider>
       </body>
     </html>
