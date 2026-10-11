@@ -6,11 +6,50 @@ using Microsoft.Extensions.Configuration;
 // Development only. Production is described by flyio/*.fly.toml, not by this file.
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Dev parameters and secrets. Source order for each: user-secrets (Parameters:<name>, written with `dotnet user-secrets`)
+// -> the default below, or a throwaway value generated for this run. Nothing here is a real credential; the full list, with
+// the user-secrets commands, is in the AppHost section of secrets.env.example and in the pull request that added it.
+string DevSecret(string name, Func<string> generate)
+{
+    var configured = builder.Configuration[$"Parameters:{name}"];
+    return string.IsNullOrWhiteSpace(configured) ? generate() : configured.Trim();
+}
+string DevSetting(string name, string fallback)
+{
+    var configured = builder.Configuration[$"Parameters:{name}"];
+    return string.IsNullOrWhiteSpace(configured) ? fallback : configured.Trim();
+}
+
+// Externally-contracted or documented ports do not float (P1). pgAdmin is for the developer's browser only; the web app's port
+// is fixed because the payment checkout returns the payer to it (Billing:SuccessUrl), and that address must be known in advance.
+const int PgAdminPort = 5050;
+const int WebPort = 3000;
+var webOrigin = $"http://localhost:{WebPort}";
+
 // One Postgres server, one logical database per service (P3). Dev-only: both databases share the
 // server's superuser; a deployment uses one role per database (flyio/SECRETS.md).
 // Same major as flyio/postgres.fly.toml (postgres:17-alpine), so development and deployment do not drift.
-var postgres = builder.AddPostgres("postgres").WithImageTag("17-alpine").WithDataVolume("exit-interview-agent-pgdata");
+// pgAdmin is part of this development stack only (never on Fly). Its server entry is registered automatically by Aspire.
+var pgAdminPassword = builder.AddParameter("pgadmin-password", DevSecret("pgadmin-password", () => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant()), secret: true);
+var postgres = builder.AddPostgres("postgres").WithImageTag("17-alpine").WithDataVolume("exit-interview-agent-pgdata")
+    .WithPgAdmin(pgAdmin => pgAdmin
+        .WithHostPort(PgAdminPort)
+        .WithEnvironment("PGADMIN_DEFAULT_PASSWORD", pgAdminPassword));
 var interviewDb = postgres.AddDatabase("interviewdb");
+
+// The interview model (ADR-0079). With an Anthropic key the service talks to the provider; without one it runs the scripted mock,
+// so the stack starts and the interview flow works offline. /health and the startup banner say which one is running.
+var anthropicKey = builder.Configuration["Parameters:anthropic-api-key"];
+var hasKey = !string.IsNullOrWhiteSpace(anthropicKey);
+var interviewsProvider = builder.AddParameter("interviews-provider", DevSetting("interviews-provider", hasKey ? "anthropic" : "mock"));
+// The mock ignores the model, but the resolver requires one: "scripted" is the placeholder, not a model. A real provider needs its model set (no default in code).
+var interviewsModel = builder.AddParameter("interviews-model", DevSetting("interviews-model", hasKey ? "" : "scripted"));
+var requireCredit = builder.AddParameter("interviews-require-credit", DevSetting("interviews-require-credit", "false"));
+
+// Development payments (ADR-0079): the fake provider, no money, a dev price and currency, and a generated webhook secret.
+var billingPrice = builder.AddParameter("billing-price-minor-units", DevSetting("billing-price-minor-units", "1000"));
+var billingCurrency = builder.AddParameter("billing-currency", DevSetting("billing-currency", "pln"));
+var fakeWebhookSecret = builder.AddParameter("billing-fake-webhook-secret", DevSecret("billing-fake-webhook-secret", () => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant()), secret: true);
 
 var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewService>("interview-service")
     .WithReference(interviewDb)
@@ -18,11 +57,32 @@ var interviewService = builder.AddProject<Projects.ExitInterviewAgent_InterviewS
     .WithEnvironment("DATABASE_PROVIDER", "PostgreSQL")
     .WithEnvironment("Jwt__Issuer", "ExitInterviewAgent")
     .WithEnvironment("Jwt__Audience", "ExitInterviewAgent")
+    // Development: authservice does not yet issue email_verified (L4), so the verified-email gate is off here. Also in appsettings.Development.json.
+    .WithEnvironment("Interviews__RequireVerifiedEmail", "false")
+    .WithEnvironment("Interviews__Provider", interviewsProvider)
+    .WithEnvironment("Interviews__Model", interviewsModel)
+    .WithEnvironment("Interviews__ApiKeyEnv", "ANTHROPIC_API_KEY") // the NAME of the variable below, never the key
+    .WithEnvironment("Interviews__RequireCredit", requireCredit)  // false: starts are free. true: a start needs a credit (grant one with POST /api/v1/dev/grant-credits).
+    .WithEnvironment("Billing__Provider", "fake")
+    .WithEnvironment("Billing__PriceMinorUnits", billingPrice)
+    .WithEnvironment("Billing__Currency", billingCurrency)
+    .WithEnvironment("Billing__SuccessUrl", $"{webOrigin}/interview")
+    .WithEnvironment("Billing__CancelUrl", $"{webOrigin}/interview")
+    .WithEnvironment("Billing__FakeWebhookSecret", fakeWebhookSecret)
     .WithHttpHealthCheck("/health");
+if (hasKey)
+{
+    interviewService.WithEnvironment("ANTHROPIC_API_KEY", builder.AddParameter("anthropic-api-key", anthropicKey!.Trim(), secret: true));
+}
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Parameters:anthropic-workspace-id"]))
+{
+    // Not a secret: an id that the provider's console shows. Read only by the anthropic provider.
+    interviewService.WithEnvironment("ANTHROPIC_WORKSPACE_ID", builder.AddParameter("anthropic-workspace-id", builder.Configuration["Parameters:anthropic-workspace-id"]!.Trim()));
+}
 
 var web = builder.AddJavaScriptApp("web", "../../web/app", "dev")
     .WithPnpm()
-    .WithHttpEndpoint(env: "PORT")
+    .WithHttpEndpoint(port: WebPort, env: "PORT")
     .WithReference(interviewService)
     .WaitFor(interviewService)
     .WithEnvironment("AUTH_ISSUER", "ExitInterviewAgent")
@@ -42,13 +102,7 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
 
     var authDb = postgres.AddDatabase("authdb");
 
-    // DEV-ONLY secrets. Source order for each: user-secrets (written by scripts/setup.*) -> a throwaway value
-    // generated for this run. They are held by the authservice container and nothing else.
-    string DevSecret(string name, Func<string> generate)
-    {
-        var configured = builder.Configuration[$"Parameters:{name}"];
-        return string.IsNullOrWhiteSpace(configured) ? generate() : configured;
-    }
+    // DEV-ONLY secrets: see DevSecret above. They are held by the authservice container and nothing else.
     var signingKey = builder.AddParameter("authservice-jwt-private-key", DevSecret("authservice-jwt-private-key", () =>
     {
         using var rsa = RSA.Create(2048);
