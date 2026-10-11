@@ -165,7 +165,9 @@ if (builder.Configuration.GetValue("Identity:Enabled", true))
         web.WithEnvironment("MCP_RESOURCE_URL", mcpResource);
     }
 
-    var authority = $"http://localhost:{AuthservicePort}";
+    // 127.0.0.1, not localhost: Node resolves localhost to IPv6 first, and the published port answers on IPv4 (the web
+    // app's identity calls failed as identity_unreachable with localhost on the CI runner; the test host reached it).
+    var authority = $"http://127.0.0.1:{AuthservicePort}";
     interviewService
         .WithEnvironment("Jwt__Authority", authority)
         .WaitFor(authservice);
