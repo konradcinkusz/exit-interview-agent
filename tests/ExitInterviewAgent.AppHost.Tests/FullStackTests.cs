@@ -209,7 +209,14 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
     {
         var session = new BffSession();
         using var login = await SendAsync(web, session, HttpMethod.Post, "/api/auth/login", new { email, password });
-        await login.EnsureStatusAsync(HttpStatusCode.OK, "BFF login");
+        if (login.StatusCode != HttpStatusCode.OK)
+        {
+            // The same web-to-authservice path, with a GET that needs no account: tells a network failure from a failure of the POST.
+            using var probe = await SendAsync(web, new BffSession(), HttpMethod.Get, "/api/auth/consent-versions");
+            throw new InvalidOperationException(
+                $"BFF login: expected 200, got {(int)login.StatusCode}. Body: {await login.BodyAsync()}. " +
+                $"Probe, the BFF's GET /api/auth/consent-versions (web to authservice): {(int)probe.StatusCode} {await probe.BodyAsync()}");
+        }
         return session;
     }
 
