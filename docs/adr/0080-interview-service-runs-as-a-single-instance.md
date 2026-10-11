@@ -49,3 +49,7 @@ The workflow never scales the service above one machine. `flyio-scale.yml` norma
 - [ADR-0077](0077-credits-ledger-and-payment-provider.md): a failed session returns its credit.
 - [ADR-0078](0078-cost-controls-for-the-hosted-interview.md): the start cap and the emergency switch, which apply to the one instance.
 - [Runbook](../runbooks/web-app-deploy.md): the table of apps, the first deployment order, and the commands as examples.
+
+## Implementation notes
+
+- **2026-10-11, L7 (before the first deployment).** The deviation register row for the pinned-image build source (point 7) is in [00-ARCHITECTURE.md](../architecture/00-ARCHITECTURE.md#deviation-register). The first-deploy gap recorded in `flyio/SECRETS.md` is closed for the ledger: `flyio.yml` sets `Ledger__*` for the interview service from `LEDGER_KEY_ID` and `LEDGER_KEY_SECRET`, and the job checks both before `flyctl deploy`. `scripts/check-fly.py` fails if `flyio/SECRETS.md` or the workflow stops naming those secrets. The MCP client secrets of authservice stay manual, and the runbook says what happens without them. NOT RUN: any `fly` command and any deployment; the checks above are offline.

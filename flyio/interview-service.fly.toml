@@ -49,6 +49,9 @@ primary_region = "fra"
   #   Billing__Provider = "stripe", Billing__StripeSecretKey, Billing__StripeWebhookSecret, Billing__StripePriceId
   #   Billing__PriceMinorUnits, Billing__Currency    price: a decision after W9, no default in code
   #   Billing__SuccessUrl, Billing__CancelUrl        the public web app's return pages (owner's domain)
+  # Set by flyio.yml from the GitHub environment secrets LEDGER_KEY_ID and LEDGER_KEY_SECRET (flyio/SECRETS.md), not by hand:
+  #   Ledger__ActiveKeyId, Ledger__Keys__0__Id, Ledger__Keys__0__Secret
+  #   fail-closed: the service does not start outside Development without them (ADR-0028); the deploy job checks them first.
 
 [http_service]
   internal_port = 8080

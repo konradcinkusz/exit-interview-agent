@@ -24,6 +24,7 @@ INTERVIEW = "flyio/interview-service.fly.toml"
 WEB = "flyio/web.fly.toml"
 AUTH = "flyio/authservice.fly.toml"
 POSTGRES = "flyio/postgres.fly.toml"
+WORKFLOW = ".github/workflows/flyio.yml"
 
 # (name, file, old text, new text, expected substring in one violation line)
 MUTATIONS = [
@@ -43,12 +44,16 @@ MUTATIONS = [
     ("pgAdmin deployed", "flyio/SECRETS.md", "# Secrets:", "# pgAdmin app: exit-interview-agent-pgadmin\n# Secrets:", "pgAdmin"),
     ("missing dockerfile", WEB, 'dockerfile = "../web/app/Dockerfile"', 'dockerfile = "../web/app/Missing.Dockerfile"', "dockerfile does not exist"),
     ("no http check", AUTH, 'path = "/health/ready"', 'path = "/"', "/health* check"),
+    # The required-secret rule: each name must be written in SECRETS.md and assigned by the deploy workflow.
+    ("ledger secret not in SECRETS.md", "flyio/SECRETS.md", "`Ledger__Keys__0__Secret`", "`Ledger__Keys__0__Sekret`", "Ledger__Keys__0__Secret"),
+    ("ledger key not set by the workflow", WORKFLOW, "Ledger__Keys__0__Secret=", "Ledger__Keys__0__Sekret=", "Ledger__Keys__0__Secret"),
+    ("active key id not set by the workflow", WORKFLOW, "Ledger__ActiveKeyId=", "Ledger__ActiveKey=", "Ledger__ActiveKeyId"),
 ]
 
 
 def build_copy(dst: pathlib.Path) -> None:
     shutil.copytree(REPO / "flyio", dst / "flyio")
-    for rel in ("src/ExitInterviewAgent.InterviewService/Dockerfile", "web/app/Dockerfile"):
+    for rel in ("src/ExitInterviewAgent.InterviewService/Dockerfile", "web/app/Dockerfile", WORKFLOW):
         (dst / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(REPO / rel, dst / rel)
     (dst / "src/ExitInterviewAgent.InterviewService").mkdir(parents=True, exist_ok=True)
