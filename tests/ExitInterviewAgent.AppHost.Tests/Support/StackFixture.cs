@@ -112,8 +112,35 @@ public sealed class Stack(DistributedApplication app, CancellationTokenSource? c
         catch (Exception e)
         {
             var report = await DescribeAsync(App);
-            throw new InvalidOperationException($"{e.Message}\n{report}", e);
+            var probes = await ProbeAuthorityAsync();
+            throw new InvalidOperationException($"{e.Message}\n{probes}{report}", e);
         }
+    }
+
+    /// <summary>
+    /// What the test host sees of authservice, probed from inside the test host (ADR-0081): the endpoint the AppHost resolves, and a GET
+    /// to the same health path on that endpoint and on the two loopback literals, each with its time. Written into the failure message,
+    /// so the job log shows which address answers at test time and which one does not.
+    /// </summary>
+    public async Task<string> ProbeAuthorityAsync()
+    {
+        var text = new StringBuilder($"Endpoints the test host resolves: authservice={Authority} web={Web}\n");
+        foreach (var target in new[] { Authority, new Uri("http://127.0.0.1:5100/"), new Uri("http://[::1]:5100/") })
+        {
+            var url = new Uri(target, "health/ready");
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            var started = DateTime.UtcNow;
+            try
+            {
+                using var response = await client.GetAsync(url);
+                text.AppendLine($"probe {url}: HTTP {(int)response.StatusCode} in {(DateTime.UtcNow - started).TotalMilliseconds:0} ms");
+            }
+            catch (Exception e)
+            {
+                text.AppendLine($"probe {url}: {e.GetType().Name} ({e.Message}) after {(DateTime.UtcNow - started).TotalMilliseconds:0} ms");
+            }
+        }
+        return text.ToString();
     }
 
     public async ValueTask DisposeAsync()
