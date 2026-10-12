@@ -28,7 +28,7 @@ const result = {
       reason_for_leaving: { status: "no_data" as const, rating: null, confidence: null, quotes: [] },
     },
   },
-  tiles: { items: [], dropped: [], notice: "Drafts." },
+  tiles: { items: [], dropped: [], notice: "Drafts.", drafts: [] },
   usage: { modelCalls: 3, tokensEstimated: 1200 },
 };
 

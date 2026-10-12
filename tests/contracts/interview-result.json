@@ -70,7 +70,8 @@
         "code": "too_long"
       }
     ],
-    "notice": "These are draft texts, not facts."
+    "notice": "These are draft texts, not facts.",
+    "drafts": []
   },
   "usage": {
     "modelCalls": 4,

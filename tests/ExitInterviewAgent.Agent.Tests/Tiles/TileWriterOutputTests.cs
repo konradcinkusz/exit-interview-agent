@@ -113,7 +113,9 @@ public class TileWriterOutputTests
         var kinds = Schema().GetProperty("$defs").GetProperty("tile").GetProperty("properties").GetProperty("kind").GetProperty("enum")
             .EnumerateArray().Select(e => e.GetString()!).ToList();
 
-        var expected = Enum.GetValues<TileKind>().Where(k => k != TileKind.Facts).Select(TileWriterOutput.KindName).ToList();
+        // Version 1 writes the generic and platform kinds. The four family kinds (ADR-0083) belong to version 2, which WP3 wires in.
+        var v1Kinds = Enum.GetValues<TileKind>().Where(k => k is not (TileKind.Facts or TileKind.StructuredReview or TileKind.Narrative or TileKind.ProfessionalPost or TileKind.ShortPost));
+        var expected = v1Kinds.Select(TileWriterOutput.KindName).ToList();
         Assert.Equal(expected, kinds);
         Assert.DoesNotContain("facts", kinds);
     }
