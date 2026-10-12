@@ -65,8 +65,12 @@ const en = {
   you: "You",
   interviewer: "Interviewer",
   interviewerTyping: "The interviewer is typing…",
-  progressIntro: "Introduction",
-  progress: (n: number, total: number) => `Topic ${n} of about ${total}`,
+  // The phase line says what kind of conversation this is and how long it takes. It does not count topics: the interview is not
+  // a fixed list of six questions, so a counter would promise a shape the conversation may not have.
+  phase: "Interview · usually 10–15 minutes · you can finish at any time",
+  // Shown on the consent turn only. Each button sends exactly its text as the person's answer; typing still works.
+  quickRepliesLabel: "Quick answers",
+  quickReplies: ["Yes", "No"],
   replyLabel: "Your answer",
   replyHint: "Press Enter to send. Shift+Enter starts a new line.",
   replyPlaceholder: "Write in your own words…",
@@ -252,8 +256,9 @@ const pl: InterviewCopy = {
   you: "Ty",
   interviewer: "Rozmówca",
   interviewerTyping: "Rozmówca pisze…",
-  progressIntro: "Wprowadzenie",
-  progress: (n: number, total: number) => `Temat ${n} z około ${total}`,
+  phase: "Rozmowa · zwykle 10–15 minut · można zakończyć w każdej chwili",
+  quickRepliesLabel: "Szybkie odpowiedzi",
+  quickReplies: ["Tak", "Tak, per Pani", "Tak, per Pan", "Tak, na Ty", "Nie"],
   replyLabel: "Twoja odpowiedź",
   replyHint: "Enter wysyła. Shift+Enter zaczyna nowy wiersz.",
   replyPlaceholder: "Napisz własnymi słowami…",

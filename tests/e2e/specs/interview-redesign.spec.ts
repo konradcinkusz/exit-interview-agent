@@ -77,16 +77,18 @@ test("the consent step puts the three facts that matter first, and the full term
   await expect(page.getByTestId("consent-terms-full")).toContainText("Nothing checks that you worked here.");
 });
 
-test("the chat shows where it is, and Finish interview ends it early and keeps the record @smoke", async ({ page, request }) => {
+test("the chat shows its phase line, with no topic count, and Finish interview ends it early and keeps the record @smoke", async ({ page, request }) => {
   const name = accountName("redesign");
   await configure(request, name, "credits=1");
   await openInterview(page, name);
   await start(page);
 
-  await expect(page.getByTestId("chat-progress")).toHaveText("Introduction");
+  await expect(page.getByTestId("chat-progress")).toHaveText("Interview · usually 10–15 minutes · you can finish at any time");
   await expect(page.getByRole("button", { name: "Finish interview" })).toBeDisabled(); // not before the first topic question
   await say(page, "Onboarding was rough.");
-  await expect(page.getByTestId("chat-progress")).toHaveText("Topic 1 of about 6");
+  // The phase line does not count topics: after a question it reads the same, and there is no "of about" anywhere on the page.
+  await expect(page.getByTestId("chat-progress")).toHaveText("Interview · usually 10–15 minutes · you can finish at any time");
+  await expect(page.getByText(/of about \d/)).toHaveCount(0);
 
   // Send is the only primary button; the two ways out are separate, and say what they do.
   await expect(page.locator("button.primary")).toHaveText(["Send"]);

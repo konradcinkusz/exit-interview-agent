@@ -8,7 +8,7 @@ import { ConfirmDialog } from "../_components/ConfirmDialog";
 import { BrandMark, Icon } from "../_components/Icon";
 import styles from "./interview.module.css";
 import { Notice } from "./Notice";
-import { TOPIC_TOTAL, canFinish, topicNumber, type State } from "./state";
+import { canFinish, canQuickReply, type State } from "./state";
 import { useCountdown } from "./useCountdown";
 
 interface Props {
@@ -26,7 +26,8 @@ interface Props {
 const RETRYABLE = new Set(["provider_unavailable", "unavailable", "generic", "rate_limited"]);
 
 /**
- * The chat: where the conversation is (topic n of about six), the transcript in a live log, one answer box with Send as the only
+ * The chat: what kind of conversation this is (a phase line, with no count of topics), the transcript in a live log, on the consent turn
+ * the quick answers, one answer box with Send as the only
  * primary action (Enter sends, Shift+Enter is a new line), and two ways out that do different things: "Finish interview" keeps the
  * record, "Stop and delete" wipes everything after a confirmation dialog. The transcript lives in memory only.
  */
@@ -51,8 +52,8 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
   const tooLong = text.length > MAX_REPLY_CHARS;
   const waiting = waitLeft > 0;
   const canSend = trimmed.length > 0 && !tooLong && !state.pending && !waiting;
-  const topic = topicNumber(state.lines);
   const finishable = canFinish(state) && !waiting;
+  const quickReplies = canQuickReply(state);
 
   async function submit() {
     if (!canSend) return;
@@ -60,6 +61,13 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
     setText("");
     const accepted = await onSend(value);
     if (!accepted) setText(value);
+    answer.current?.focus();
+  }
+
+  // A quick answer sends its text as it is and leaves what is typed in the box alone. The group goes once the interviewer has
+  // moved on, so focus moves to the answer box first: a keyboard user is not left on a button that has disappeared.
+  function quickReply(value: string) {
+    void onSend(value);
     answer.current?.focus();
   }
 
@@ -81,9 +89,7 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
             {copy.interviewer}
             <span className={styles.aiTag}>AI</span>
           </span>
-          <p className={styles.progress} data-testid="chat-progress">
-            {topic === 0 ? copy.progressIntro : copy.progress(topic, TOPIC_TOTAL)}
-          </p>
+          <p className={styles.progress} data-testid="chat-progress">{copy.phase}</p>
         </div>
         {/* A div, not a list: role="log" replaces the list semantics of an ol, and the lines are not list items for assistive tech.
             Focusable, because it scrolls: a keyboard user must be able to reach and scroll an earlier question (WCAG 2.1.1). */}
@@ -110,6 +116,16 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
           ) : null}
         </div>
         <p role="status" className={styles.typing}>{state.pending ? copy.interviewerTyping : ""}</p>
+
+      {quickReplies ? (
+        <div role="group" aria-label={copy.quickRepliesLabel} className={styles.quickReplies} data-testid="quick-replies">
+          {copy.quickReplies.map((reply) => (
+            <button key={reply} type="button" className="secondary" disabled={waiting} onClick={() => quickReply(reply)}>
+              {reply}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <form
         ref={composer}

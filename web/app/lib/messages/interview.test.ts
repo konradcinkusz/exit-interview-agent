@@ -85,3 +85,21 @@ describe("interview copy for the redesigned page (phase 2)", () => {
     expect(interviewCopy[language].deletedCredit).toMatch(/credit|kredyt/);
   });
 });
+
+describe("interview copy for the phase line and the consent quick answers (WP7)", () => {
+  it("sends exactly the agreed quick answers, in each language", () => {
+    expect(interviewCopy.en.quickReplies).toEqual(["Yes", "No"]);
+    expect(interviewCopy.pl.quickReplies).toEqual(["Tak", "Tak, per Pani", "Tak, per Pan", "Tak, na Ty", "Nie"]);
+  });
+
+  it.each(["en", "pl"] as const)("gives the phase line in %s without counting topics", (language) => {
+    const phase = interviewCopy[language].phase;
+    expect(phase).not.toMatch(/\d+ (of|z) (about |około )?\d+/);
+    expect(phase).not.toMatch(/topic|temat/i);
+  });
+
+  it("gives the phase line the agreed wording", () => {
+    expect(interviewCopy.en.phase).toBe("Interview · usually 10–15 minutes · you can finish at any time");
+    expect(interviewCopy.pl.phase).toBe("Rozmowa · zwykle 10–15 minut · można zakończyć w każdej chwili");
+  });
+});
