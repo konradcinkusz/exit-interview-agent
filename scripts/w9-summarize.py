@@ -8,13 +8,17 @@ at the top of this file, so a change of rule is a change of code that review can
 """
 import argparse, csv, statistics, sys
 
-CRITERIA = ["reacts_to_reply", "polish_language", "no_repeats", "neutral", "record_quality", "tiles_quality", "ending"]
-MEAN_MIN = 1.5            # the mean of the seven criterion means (overall quality)
+CRITERIA = ["reacts_to_reply", "polish_language", "no_repeats", "neutral", "record_quality", "tiles_quality", "ending", "natural_flow"]
+MEAN_MIN = 1.5            # the mean of the eight criterion means (overall quality)
 FLOOR_MIN = 1.0           # no single criterion may have a mean below this
-REPLACED_MAX = 0.20       # share of interviewer questions replaced by the fixed protocol text
+REPLACED_MAX = 0.20       # share of interviewer questions replaced by the fixed protocol text (gate)
+REPLACED_TARGET = 0.10    # protocol 1.3 target, reported, not gated
+STOCK_OPENER_TARGET = 0.15  # protocol 1.3 target: share of interviewer turns that open with a stock phrase, reported, not gated
 COST_MEDIAN_MAX = 0.40    # in the currency of --price-in/--price-out (USD in the plan)
 COST_MAX = 0.90
 MUST_PASS = {"5", "6"}    # the two scenarios that failed in pre.5/pre.6: both need >= 1.5 averaged over the criteria
+NATURAL_FLOW_SCENARIOS = {"1", "4"}   # protocol 1.3: the talkative and the vague interview must feel like a conversation that followed the person
+NATURAL_FLOW_MIN = 1.5
 SKIP_QUESTION_SCENARIOS = {"9"}   # withdrawn consent: no record, no tiles, no questions to judge
 
 
@@ -69,7 +73,7 @@ def main():
     print("|---|---|---|---|")
     means = []
     for c in CRITERIA:
-        vals = [num(r[c]) for r in sc if num(r[c]) is not None]
+        vals = [num(r.get(c)) for r in sc if num(r.get(c)) is not None]
         if not vals:
             print(f"| {c} | n/a | n/a | 0 |"); failures.append(f"{c}: no scores"); continue
         m = statistics.mean(vals); means.append(m)
@@ -81,9 +85,26 @@ def main():
         if overall < MEAN_MIN: failures.append(f"overall mean {overall:.2f} < {MEAN_MIN}")
     for r in sc:
         if r["scenario"] in MUST_PASS:
-            vals = [num(r[c]) for c in CRITERIA if num(r[c]) is not None]
+            vals = [num(r.get(c)) for c in CRITERIA if num(r.get(c)) is not None]
             m = statistics.mean(vals) if vals else None
             if m is None or m < MEAN_MIN: failures.append(f"scenario {r['scenario']} must pass: average {m if m is None else round(m, 2)} < {MEAN_MIN}")
+
+    print("\n### Natural flow (protocol 1.3)\n")
+    for r in sc:
+        if r["scenario"] in NATURAL_FLOW_SCENARIOS:
+            v = num(r.get("natural_flow"))
+            print(f"- scenario {r['scenario']}: natural_flow {'n/a' if v is None else f'{v:.0f}'}")
+            if v is None or v < NATURAL_FLOW_MIN: failures.append(f"scenario {r['scenario']} natural_flow {'not scored' if v is None else v} < {NATURAL_FLOW_MIN}")
+
+    print("\n## Protocol 1.3 targets (reported, not gated)\n")
+    print(f"- Questions replaced by fixed text: {share:.0%} against a target of {REPLACED_TARGET:.0%} ({'met' if share <= REPLACED_TARGET else 'not met'}).")
+    openers, turns = sum(num(r.get("stock_openers")) or 0 for r in res), sum(num(r.get("interviewer_turns")) or 0 for r in res)
+    if turns:
+        print(f"- Stock-phrase openers: {openers / turns:.0%} of interviewer turns against a target of {STOCK_OPENER_TARGET:.0%} ({'met' if openers / turns <= STOCK_OPENER_TARGET else 'not met'}).")
+    else:
+        print("- Stock-phrase openers: not recorded (no transcripts).")
+    words, answers = sum(num(r.get("interviewee_words")) or 0 for r in res), sum(num(r.get("interviewee_turns")) or 0 for r in res)
+    print(f"- Mean interviewee words per answer: {words / answers:.1f} (no target; a higher number is the signal that the interview draws people out)." if answers else "- Mean interviewee words per answer: not recorded.")
 
     print("\n## Verdict\n")
     if failures:

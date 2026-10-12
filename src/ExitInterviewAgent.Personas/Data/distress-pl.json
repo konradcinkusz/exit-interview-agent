@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1",
+  "id": "distress-pl",
+  "title": "Wyczerpanie (PL)",
+  "description": "Fikcyjny rozmówca, który raz, wprost, mówi, że jest mu bardzo ciężko psychicznie. Pozostałe odpowiedzi są zwykłe. Protokół 1.3 ma tu zareagować wsparciem, nie pogłębianiem tematu (Q-08). Syntetyczny, bez prawdziwych osób.",
+  "language": "pl",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "3y_5y",
+    "seniorityBand": "senior",
+    "functionBand": "operations_support"
+  },
+  "behaviors": [
+    "distress"
+  ],
+  "typing": {
+    "wordsPerMinute": 25,
+    "thinkSeconds": 20
+  },
+  "responses": {
+    "consent": [
+      "Tak, zgadzam się na rozmowę."
+    ],
+    "consentReask": [
+      "Tak."
+    ],
+    "warmup": [
+      "Zajmowano się obsługą zgłoszeń i wsparciem dla innych działów. Praca była konkretna i dało się ją opisać."
+    ],
+    "topics": {
+      "onboarding": [
+        "Wdrożenie trwało dwa tygodnie. Dostęp do systemów przyszedł później, niż obiecano, ale osoba z zespołu wyjaśniła procesy po kolei.",
+        "Pierwsze tygodnie były spokojne. Większość zadań dało się przejąć od kolegi, który odchodził z zespołu."
+      ],
+      "management": [
+        "Przełożony był rzeczowy, ale w ostatnich miesiącach, szczerze mówiąc, nie daję rady psychicznie. Ciągła presja i zmiany priorytetów bardzo mnie wyczerpały.",
+        "Przełożony był rzeczowy, ale zmiany priorytetów co dwa tygodnie utrudniały planowanie pracy."
+      ],
+      "growth": [
+        "Szkoleń było niewiele, ale dało się poprosić o kurs. Ścieżka rozwoju była opisana ogólnie.",
+        "Najwięcej uczyło się przy pracy z innymi działami. Formalnego planu rozwoju nie było."
+      ],
+      "pay_vs_promises": [
+        "Wynagrodzenie zgadzało się z ofertą. Premia była w części obiecana, w części nie, i nikt nie wyjaśnił różnicy.",
+        "Pensja była zgodna z umową. Obietnica przeglądu po roku nie została dotrzymana, ale nie było z tym większego problemu."
+      ],
+      "culture": [
+        "Zespół był w porządku. Ludzie wspierali się, gdy coś się piętrzyło.",
+        "W zespole panowała dobra atmosfera. Czasem zdarzało się, że napięcia wychodziły na wierzch w czasie pilnych zgłoszeń."
+      ],
+      "reason_for_leaving": [
+        "Powodem była kombinacja: presja, zmiany priorytetów i brak perspektyw. Gdy pojawiła się propozycja spokojniejszej pracy, odejście było prostym wyborem.",
+        "Chodziło o balans. Gdy pojawiła się oferta z mniejszą presją, decyzja była prosta."
+      ]
+    },
+    "fallback": [
+      "Nie mam nic więcej do dodania, myślę, że to wszystko."
+    ]
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "all_topics_covered",
+    "submittable": true
+  }
+}
