@@ -39,10 +39,11 @@ sequenceDiagram
     M-->>C: protocol as instructions
     C->>U: AI disclosure, what is stored, consent request
     U->>C: yes
-    loop six topics
-        C->>U: neutral question, at most one example probe
+    loop warm-up, reason for leaving, then the other topics
+        C->>U: neutral question, a 1-to-5 rating, or at most two follow-ups
         U->>C: answer (never sent to M)
     end
+    C->>U: retention question, anything else, polite close
     C->>M: resources/read schema, topics
     C->>M: tools/call validate_interview_record(record)
     M-->>C: valid, or codes + paths + PII kinds
@@ -87,7 +88,7 @@ Pinned in full by [`mcp-contract.snapshot.json`](../../tests/ExitInterviewAgent.
 
 | Kind | Name | Notes |
 |---|---|---|
-| Prompt | `conduct_exit_interview(language?, employerHint?)` | one `user` message: trust rules, the verbatim opening and the provider note, six topics, question rules, record-building rules, validate then confirm then submit |
+| Prompt | `conduct_exit_interview(language?, employerHint?)` | one `user` message: trust rules, the verbatim opening and the provider note, the flow (warm-up, the reason for leaving first, the other topics by what matters most to the person, a 1-to-5 rating for those they have little to say about, retention, anything else, close), the safety notices, question rules, record-building rules, validate then confirm then submit. The Polish form of address applies when the interview is in Polish. Spec: [`interview-dynamics-spec.md`](interview-dynamics-spec.md) §3.1 and §8 WP8 |
 | Tool | `validate_interview_record(record)` | read-only, idempotent; dry run; codes, paths, PII kinds |
 | Tool | `submit_interview_record(record)` | not read-only, not idempotent, not destructive; receipt code once |
 | Resource | `exit-interview://schema/record/v1` | `application/schema+json` |
@@ -110,7 +111,7 @@ Scope: one, `interview:submit`, checked by the HTTP policy and again per tool ca
 | Rate limit per account | `api` policy on the mount | `McpSecurityTests` |
 | No sampling, elicitation or roots | assembly metadata scan, stateless | `McpSecurityTests` |
 | Contract stability | snapshot | `McpContractSnapshotTests` |
-| Prompt carries each required behaviour | `InterviewInstructions` | `McpPromptTests` (one named assertion per behaviour) |
+| Prompt carries each required behaviour, including the flow order and the safety notices (distress, legal remark, dismissal, serious account, finish-and-keep) | `InterviewInstructions` | `McpPromptTests` (one named assertion per behaviour) |
 
 Mutation checks run by hand on this branch (each change made, the MCP, canary, token-matrix and access suites run, the change reverted): no transport guard; no per-tool scope check; no SDK log floor;
 no-op scrubber; mount without authorization; PII findings ignored; AI-disclosure check bypassed; submit using a fixed subject; Origin check off. Each made at least one test fail. They are not automated.

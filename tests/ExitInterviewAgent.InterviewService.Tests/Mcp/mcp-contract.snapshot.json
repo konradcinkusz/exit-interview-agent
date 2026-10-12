@@ -88,7 +88,7 @@
       "name": "interview_protocol_v1",
       "title": "Interview protocol v1",
       "uri": "exit-interview://protocol/v1",
-      "description": "The interview protocol document: the fixed opening, the six topics with neutral opening questions, wording for probes, limits and rules.",
+      "description": "The interview protocol document: the fixed opening, the six topics with neutral opening questions, the wording of warm-up, follow-up, rating, closing and safety notices, limits and rules.",
       "mimeType": "application/json"
     },
     {
@@ -102,18 +102,18 @@
       "name": "topics_v1",
       "title": "Topics and rating anchors v1",
       "uri": "exit-interview://topics/v1",
-      "description": "The six topics in order, what each covers, and how to set rating and confidence.",
+      "description": "The six topics with their neutral opening questions and rating labels (the interview order is set by the prompt), and how to set rating and confidence.",
       "mimeType": "text/markdown"
     }
   ],
   "resourceTextSha256": {
     "exit-interview://protocol/v1": "dd8b18ebff7bbc7a",
     "exit-interview://schema/record/v1": "b58dfaab166bd30a",
-    "exit-interview://topics/v1": "2d466745dd905fc1"
+    "exit-interview://topics/v1": "25e1819f1472efdf"
   },
   "promptTextSha256": {
-    "default": "146b196b8ece2587",
-    "pl+hint": "765491672db68810"
+    "default": "8ec949244c5ad5d2",
+    "pl+hint": "568070ae13fb4ab1"
   },
   "protocolVersion": "1.3"
 }
