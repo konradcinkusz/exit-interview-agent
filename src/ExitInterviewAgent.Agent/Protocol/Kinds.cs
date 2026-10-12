@@ -17,3 +17,15 @@ public enum StopReason { ConsentWithdrawn, ConsentDeclined, ConsentUnclear, Disc
 /// <c>deepeningSeeds</c>, index for index.
 /// </summary>
 public enum DeepFocus { WhatHappened, WhenHowOften, WhoByRole, WhatTheyDidAndResponse, HowItEndedAndMeaning }
+
+/// <summary>
+/// What the next interviewer turn does (interview dynamics spec §3.2). The move decides the seed and the prompt instructions; it maps to an
+/// existing <see cref="TurnKind"/> on the wire, so the API contract does not change shape. The program chooses the move; the model only words it.
+/// </summary>
+public enum Move { Warmup, Open, Scale, ScaleFollowUp, Example, Elaborate, Ladder, Consequence, Retention, AnythingElse, Deep, Clarify, Redirect }
+
+/// <summary>
+/// The grammatical register the person chose at consent (spec §3.6). It is passed to the prompts and is never written to a record, a trace or a log.
+/// English has no register and always uses <see cref="Neutral"/>.
+/// </summary>
+public enum AddressForm { Neutral, Pan, Pani, Ty }
