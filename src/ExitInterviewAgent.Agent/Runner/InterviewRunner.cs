@@ -209,7 +209,8 @@ public sealed class InterviewRunner
             }
         }
 
-        var verdict = proposed is null ? new GuardVerdict(false, "model_error") : QuestionGuard.Check(proposed, step.Kind, _pii);
+        var lastSaid = request.History.Turns.LastOrDefault(t => t.Speaker == Speaker.Interviewee)?.Text;
+        var verdict = proposed is null ? new GuardVerdict(false, "model_error") : QuestionGuard.Check(proposed, step.Kind, _pii, lastInterviewee: lastSaid);
         var text = seed;
         if (verdict.Ok) text = proposed!.Trim();
         else

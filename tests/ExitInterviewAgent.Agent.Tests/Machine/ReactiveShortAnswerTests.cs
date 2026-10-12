@@ -31,12 +31,22 @@ public class ReactiveShortAnswerTests
     [InlineData("Nie wiem.")]
     public void A_bare_non_answer_is_not_followed_up(string text) => Assert.False(Analyze(text).Short);
 
+    /// <remarks>
+    /// Interview dynamics 1.3 (spec §3.7, WP3): a dismissal is an <c>ExitEvent</c>, not a serious account, so it no longer opens the
+    /// deepening by itself. The earlier expectation (Serious) is replaced; the signal is still read, and <c>ReplySignalsV13Tests</c>
+    /// covers it.
+    /// </remarks>
     [Theory]
     [InlineData("zwolnili mnie")]
     [InlineData("Zostałem zwolniony po roku.")]
     [InlineData("wyrzucili mnie")]
     [InlineData("I was fired")]
-    public void Being_dismissed_opens_the_deepening(string text) => Assert.True(Analyze(text).Serious);
+    public void Being_dismissed_is_an_exit_event_and_not_a_serious_account(string text)
+    {
+        var s = Analyze(text);
+        Assert.True(s.ExitEvent);
+        Assert.False(s.Serious);
+    }
 
     [Theory]
     [InlineData("zwolniłem się sam")]
@@ -49,6 +59,10 @@ public class ReactiveShortAnswerTests
     [InlineData("grozono mi zwolnieniem")]
     public void Polish_typed_without_diacritics_is_still_read(string text) => Assert.True(Analyze(text).Serious);
 
+    /// <remarks>
+    /// Interview dynamics 1.3 (spec §3.7, WP3): "zwolnili mnie" is an exit event and opens no deepening, so the DeepProbe expectation
+    /// is inverted. The run still goes on with ordinary probes. The machine's own rule for exit events lands in WP5.
+    /// </remarks>
     [Fact]
     public void The_run_that_failed_goes_on_instead_of_closing()
     {
@@ -63,7 +77,7 @@ public class ReactiveShortAnswerTests
             Assert.NotEqual(TurnKind.Close, step.Kind);
         }
         Assert.Contains(TurnKind.Probe, kinds);
-        Assert.Contains(TurnKind.DeepProbe, kinds);
+        Assert.DoesNotContain(TurnKind.DeepProbe, kinds);
     }
 
     [Fact]

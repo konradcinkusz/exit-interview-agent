@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Tiles } from "./interview-contract";
+import { interviewCopy } from "./messages/interview";
+import { draftsEn, draftsPl, glassdoorDraftEn, goWorkDraftPl } from "./interview-drafts.fixtures";
 import { tileCopyText, tileLabel, tilesToHtml, tilesToJson } from "./interview-render";
 
 // The downloadable tiles.html is rendered in the browser from the same JSON the page shows, after the TileRenderer.cs pattern:
@@ -78,5 +80,77 @@ describe("tileCopyText and tilesToJson", () => {
 
   it("serialises the same JSON the page shows", () => {
     expect(JSON.parse(tilesToJson(tiles))).toEqual(tiles);
+  });
+});
+
+// Platform drafts (platform-drafts-spec §3.5): the saved page carries each draft with its warning, its sections with their labels,
+// the fields the person fills in on the site, and the site as plain text. The saved file never links out (its CSP has no network).
+describe("tilesToHtml: platform drafts", () => {
+  const generic: Tiles = { ...tiles, items: [{ kind: "overview", text: "A generic overview." }] };
+
+  it("renders one card per draft after the generic tiles, with the platform name and its risk in words", () => {
+    const html = tilesToHtml({ ...generic, drafts: draftsEn }, "en");
+    expect(html).toContain("<h2>Drafts for a platform</h2>");
+    expect(html.indexOf("A generic overview.")).toBeLessThan(html.indexOf("Glassdoor"));
+    expect(html.indexOf("Glassdoor")).toBeLessThan(html.indexOf("LinkedIn"));
+    expect(html).toContain("Higher risk"); // LinkedIn
+    expect(html).toContain("Medium risk"); // Glassdoor
+  });
+
+  it("shows each section with its own label and text, and the fields to fill in on the site", () => {
+    const html = tilesToHtml({ ...generic, drafts: [glassdoorDraftEn] }, "en");
+    expect(html).toContain("Headline");
+    expect(html).toContain("Promotion criteria were never written down.");
+    expect(html).toContain("You fill in on the site:");
+    expect(html).toContain("Star ratings");
+  });
+
+  it("gives the warning of each draft, with the notice still at the top", () => {
+    const html = tilesToHtml({ ...generic, drafts: draftsEn }, "en");
+    expect(html).toContain("Draft, not fact. Not legal advice.");
+    expect(html).toContain("These are draft texts, not facts. This is not legal advice.");
+  });
+
+  it("writes the Polish words, labels and warnings for a Polish result", () => {
+    const html = tilesToHtml({ ...generic, drafts: draftsPl }, "pl");
+    expect(html).toContain('<html lang="pl">');
+    expect(html).toContain("Szkice dla serwisów");
+    expect(html).toContain("Wyższe ryzyko"); // GoWork
+    expect(html).toContain("Plusy");
+    expect(html).toContain("Uzupełnisz w serwisie:");
+    expect(html).toContain("To szkic, nie fakt. To nie jest porada prawna.");
+  });
+
+  it("encodes draft sections and labels: no markup from a draft ever becomes markup", () => {
+    const html = tilesToHtml({ ...generic, drafts: [goWorkDraftPl] }, "pl");
+    expect(html).not.toContain("<b>Nie</b>");
+    expect(html).toContain("&lt;b&gt;Nie&lt;/b&gt; &amp; &quot;zawsze&quot;");
+  });
+
+  it("shows the site as plain text, never as a link, and keeps the no-network rule", () => {
+    const html = tilesToHtml({ ...generic, drafts: draftsPl }, "pl");
+    expect(html).toContain("www.gowork.pl");
+    expect(html).not.toMatch(/href=/i);
+    expect(html).not.toMatch(/https?:\/\//i);
+  });
+
+  it("has no drafts heading when there are no drafts", () => {
+    expect(tilesToHtml({ ...generic, drafts: [] }, "en")).not.toContain("Drafts for a platform");
+  });
+});
+
+describe("tilesToJson: platform drafts", () => {
+  it("keeps the notice and the drafts, so the JSON file says what the page shows", () => {
+    const parsed = JSON.parse(tilesToJson({ ...tiles, drafts: draftsEn })) as Tiles;
+    expect(parsed.notice).toBe(tiles.notice);
+    expect(parsed.drafts).toEqual(draftsEn);
+  });
+});
+
+describe("generic kinds have labels in both languages", () => {
+  it.each(["what_worked", "what_could_improve", "for_the_next_person"])("%s", (kind) => {
+    expect(interviewCopy.en.kinds).toHaveProperty(kind);
+    expect(interviewCopy.pl.kinds).toHaveProperty(kind);
+    expect(interviewCopy.pl.kinds[kind as keyof typeof interviewCopy.pl.kinds]).not.toBe(interviewCopy.en.kinds[kind as keyof typeof interviewCopy.en.kinds]);
   });
 });

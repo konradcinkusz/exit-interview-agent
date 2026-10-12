@@ -4,6 +4,14 @@ Status: **implemented** on `main` (ADR-0074): the `tiles` command, guard, writer
 merged. It has **not been run with a real model**, and no provider has been called by a test. Section
 [What was measured and what was not](#what-was-measured-and-what-was-not) lists the evidence.
 
+**Status update (2026-10-12), partly superseded.** The platform-shaped tiles are being replaced by one draft per platform.
+The plan is [platform-drafts-spec.md](platform-drafts-spec.md), recorded as [ADR-0083](../adr/0083-per-platform-draft-profiles.md),
+which amends ADR-0074 and ADR-0075. The `google_review` tile is **retired**: Google's contribution policy names current or
+former employment as a conflict of interest (see [research §3.11](../research/review-platforms-2026-10-12.md)). The code still
+has the old kinds (`Glassdoor`, `GoogleReview`, `Reddit`, `ShortNote`) until WP3 and WP4 are merged, so the behaviour
+described below is the current one. The platform rules the new drafts cite were read from search summaries, not from the
+platforms' pages; that is an open problem ([OP-32](../OPEN-PROBLEMS.md)).
+
 ## What it is
 
 After a CLI interview the person has a validated record (six topics, ratings, short quotes). The `tiles` command turns that

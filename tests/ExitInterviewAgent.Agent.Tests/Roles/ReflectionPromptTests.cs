@@ -7,8 +7,9 @@ using ExitInterviewAgent.Records;
 namespace ExitInterviewAgent.Agent.Tests.Roles;
 
 /// <summary>
-/// The optional reflective sentence (Y2): the interviewer or prober may open with ONE short sentence that reflects the interviewee's words;
-/// it has no question mark, and the guard still allows exactly one question in the whole output.
+/// The optional acknowledgement (prompts v2, spec §4.1): the interviewer or prober may open with a short acknowledgement of at most 15
+/// words, only after a substantive reply. The guard still allows exactly one question in the whole output. v1 forced a reflective sentence
+/// after every reply; that produced stock openers, so the rule was replaced on purpose (WP4).
 /// </summary>
 public class ReflectionPromptTests
 {
@@ -17,23 +18,23 @@ public class ReflectionPromptTests
     [Theory]
     [InlineData("en")]
     [InlineData("pl")]
-    public void The_interviewer_rule_allows_one_reflective_sentence_and_forbids_judgement(string language)
+    public void The_turn_rule_allows_a_short_optional_acknowledgement_and_forbids_judgement(string language)
     {
         var system = Prompts.InterviewerSystem(InterviewProtocol.For(language));
 
-        Assert.Contains("ONE short sentence that reflects", system);
-        Assert.Contains("no judgement", system);
-        Assert.Contains("no reassurance", system);
-        Assert.Contains("no question mark", system);
+        Assert.Contains("an optional short acknowledgement (at most 15 words), then exactly one question", system);
+        Assert.Contains("Never judge, reassure, advise, diagnose or draw a legal conclusion.", system);
+        Assert.Contains("After a short or neutral reply, just ask.", system);
+        Assert.DoesNotContain("ONE short sentence that reflects", system);
         Assert.DoesNotContain("Do not comment on, judge or reassure", system);
     }
 
     [Fact]
-    public void The_prober_rule_carries_the_same_reflection_and_the_gender_rule()
+    public void The_prober_shares_the_turn_rule_and_the_gender_rule()
     {
         var system = Prompts.ProberSystem(Helpers.Proto);
 
-        Assert.Contains("ONE short sentence that reflects", system);
+        Assert.Contains("an optional short acknowledgement (at most 15 words), then exactly one question", system);
         Assert.Contains("Do not guess the interviewee's gender", system);
     }
 
@@ -63,7 +64,7 @@ public class ReflectionPromptTests
 
         Assert.Contains("FOCUS: how_it_ended_and_meaning", user);
         Assert.Contains("SEED: How did this end for you?", user);
-        Assert.Contains("never a name", user);
+        Assert.Contains("Never ask for, repeat or guess a name", Prompts.ProberSystem(Helpers.Proto));
     }
 
     [Fact]

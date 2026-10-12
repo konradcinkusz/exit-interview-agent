@@ -10,6 +10,20 @@ public readonly record struct GuardVerdict(bool Ok, string Reason)
 }
 
 /// <summary>
+/// What a turn is for, when its move is known (interview-dynamics spec §3.8). The machine maps a move to a shape in WP5; the default is the
+/// rule for the turn kind alone, so every existing caller keeps its verdicts.
+/// </summary>
+public enum QuestionShape
+{
+    /// <summary>The rule for the turn kind: a probe must ask for a concrete example.</summary>
+    Default,
+    /// <summary>A 1-to-5 rating of a light topic: a closed question is allowed, and it must name both anchors, 1 and 5.</summary>
+    Scale,
+    /// <summary>A deepening follow-up that is not an example request (elaborate, ladder, consequence, scale follow-up).</summary>
+    Follow,
+}
+
+/// <summary>
 /// The code-side check on every question a model words. A rejected question is replaced by the protocol's own
 /// wording, so a compromised or careless model can make the interview blander but not different: it cannot leak the
 /// prompt, echo a name or address, lead the interviewee, or ask two things at once. The English and Polish rules are
@@ -19,11 +33,21 @@ public static partial class QuestionGuard
 {
     public const int MaxChars = 500;
 
-    public static GuardVerdict Check(string? text, TurnKind kind, IPiiGuard pii)
+    /// <summary>The most words one model turn may use (interview-dynamics spec §3.8). A turn of 45 words or fewer is the target.</summary>
+    public const int MaxWords = 60;
+
+    /// <summary>
+    /// Checks one model-worded turn. Protocol 1.3 (spec §3.8) judges the question sentence and the acknowledgement apart: the question sentence
+    /// gets the full lint, the acknowledgement only the loaded and assumptive lints, and the interviewee's own quoted words (in „…” or "…")
+    /// are exempt from those two but must be verbatim from their last turn, when <paramref name="lastInterviewee"/> is given.
+    /// <paramref name="shape"/> adds the move's requirement; <see cref="QuestionShape.Default"/> is the rule for the turn kind alone.
+    /// </summary>
+    public static GuardVerdict Check(string? text, TurnKind kind, IPiiGuard pii, QuestionShape shape = QuestionShape.Default, string? lastInterviewee = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return new(false, "empty");
         var t = text.Trim();
         if (t.Length > MaxChars) return new(false, "too_long");
+        if (Token().Matches(t).Count > MaxWords) return new(false, "max_words");
         if (t.Contains('\n') && t.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length > 2) return new(false, "multi_paragraph");
         if (PromptLeak().IsMatch(t)) return new(false, "prompt_leak");
 
@@ -36,20 +60,68 @@ public static partial class QuestionGuard
             if (marks == 2 || SecondInterrogative().IsMatch(t)) return new(false, "double_barrelled");
         }
 
-        if (LeadingReason(t) is { } leading) return new(false, leading);
-        if (kind == TurnKind.Probe && !ExampleRequest().IsMatch(t)) return new(false, "probe_without_example");
+        var (acknowledgement, question) = Split(t);
+        if (LeadingReason(question, shape) is { } leading) return new(false, leading);
+        if (AcknowledgementReason(acknowledgement) is { } judged) return new(false, judged);
+        if (Misquoted(t, lastInterviewee)) return new(false, "misquote");
+        if (kind == TurnKind.Probe && shape == QuestionShape.Default && !ExampleRequest().IsMatch(question)) return new(false, "probe_without_example");
+        if (shape == QuestionShape.Scale && !(Anchor1().IsMatch(question) && Anchor5().IsMatch(question))) return new(false, "scale_without_anchors");
         if (pii.HasFindings(t)) return new(false, "pii");
         return GuardVerdict.Pass;
     }
 
     /// <summary>The leading-question lint on its own, for the protocol's fixed wording and for tests.</summary>
-    public static string? LeadingReason(string question)
+    public static string? LeadingReason(string question) => LeadingReason(question, QuestionShape.Default);
+
+    /// <summary>
+    /// The question sentence is the last sentence with a question mark (anything after it stays with it); the acknowledgement is what
+    /// comes before. A text without a question mark is all question: an invitation or a request.
+    /// </summary>
+    internal static (string Acknowledgement, string Question) Split(string t)
+    {
+        var mark = t.LastIndexOf('?');
+        if (mark < 0) return ("", t);
+        var start = 0;
+        for (var i = mark - 1; i >= 0; i--)
+        {
+            if (t[i] is ('.' or '!' or '?') && i + 1 < t.Length && char.IsWhiteSpace(t[i + 1]))
+            {
+                start = i + 1;
+                break;
+            }
+        }
+        return (t[..start].Trim(), t[start..].Trim());
+    }
+
+    private static string? LeadingReason(string question, QuestionShape shape)
     {
         if (NegativePolar().IsMatch(question) || TagQuestion().IsMatch(question) || Assumptive().IsMatch(question)) return "leading";
         if (Loaded().IsMatch(question)) return "loaded";
-        if (ClosedStarter().IsMatch(question) || PolishClosedStarter().IsMatch(question)) return "closed_question";
+        if (shape != QuestionShape.Scale && (ClosedStarter().IsMatch(question) || PolishClosedStarter().IsMatch(question))) return "closed_question";
         return null;
     }
+
+    /// <summary>The acknowledgement is not a question, but it can still lead or load ("Przecież …", "Jak okropnie …"). Quoted words are the person's own.</summary>
+    private static string? AcknowledgementReason(string acknowledgement)
+    {
+        if (acknowledgement.Length == 0) return null;
+        var unquoted = Quoted().Replace(acknowledgement, " ");
+        if (Assumptive().IsMatch(unquoted)) return "leading";
+        if (Loaded().IsMatch(unquoted)) return "loaded";
+        return null;
+    }
+
+    /// <summary>Every quoted span must be verbatim in the last interviewee turn (case and whitespace aside). With no turn to check against, any quote fails.</summary>
+    private static bool Misquoted(string text, string? lastInterviewee)
+    {
+        var spans = Quoted().Matches(text).Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).ToArray();
+        if (spans.Length == 0) return false;
+        if (lastInterviewee is null) return true;
+        var heard = Normalise(lastInterviewee);
+        return spans.Any(span => !heard.Contains(Normalise(span), StringComparison.Ordinal));
+    }
+
+    private static string Normalise(string s) => Spaces().Replace(s.Trim(), " ").ToLowerInvariant();
 
     private const RegexOptions Opt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
 
@@ -84,4 +156,20 @@ public static partial class QuestionGuard
 
     [GeneratedRegex(@"(^|\n)\s*(role|system|assistant|user)\s*:|<<<|>>>|system\s+prompt|\bdata\s+block\b|interview_data", Opt, 200)]
     private static partial Regex PromptLeak();
+
+    /// <summary>A quoted span: the interviewee's own words in „…” or "…". The first group is the Polish form, the second the straight one.</summary>
+    [GeneratedRegex(@"„([^”]+)”|""([^""]+)""", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex Quoted();
+
+    [GeneratedRegex(@"\S+", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex Token();
+
+    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex Spaces();
+
+    [GeneratedRegex(@"\b1\b", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex Anchor1();
+
+    [GeneratedRegex(@"\b5\b", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex Anchor5();
 }

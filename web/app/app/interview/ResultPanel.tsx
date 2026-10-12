@@ -10,6 +10,7 @@ import { tileCopyText, tileLabel, tilesToHtml, tilesToJson } from "@/lib/intervi
 import { downloadText } from "./download";
 import styles from "./interview.module.css";
 import { Notice } from "./Notice";
+import { CopyButton, PlatformDrafts } from "./PlatformDrafts";
 import type { State } from "./state";
 
 interface Props {
@@ -80,8 +81,14 @@ export function ResultPanel({ copy, state, onDelete, notice, onRetry }: Props) {
 
       <RecordView copy={copy} result={result} />
 
-      <h3>{copy.tilesTitle}</h3>
-      <TilesView copy={copy} language={language} result={result} />
+      {result.tiles.items.length > 0 || result.tiles.drafts.length === 0 ? (
+        <>
+          <h3>{copy.tilesTitle}</h3>
+          <TilesView copy={copy} language={language} result={result} />
+        </>
+      ) : null}
+      <PlatformDrafts copy={copy} language={language} drafts={result.tiles.drafts} />
+      {result.tiles.dropped.length > 0 ? <p className="hint" data-testid="tiles-dropped">{copy.dropped(result.tiles.dropped.length)}</p> : null}
 
       <div className={styles.resultActions}>
       <details className={styles.save} data-testid="save">
@@ -231,38 +238,13 @@ function TilesView({ copy, language, result }: { copy: InterviewCopy; language: 
             <li key={`${i}-${tile.kind}`} className={tile.kind === "reddit" ? `${styles.tile} ${styles.wide}` : styles.tile}>
               <div className={styles.tileHead}>
                 <h4>{label}</h4>
-                <TileCopy copy={copy} label={label} text={tileCopyText(tile)} />
+                <CopyButton copy={copy} label={label} text={tileCopyText(tile)} />
               </div>
               <p className={styles.text}>{tile.text}</p>
             </li>
           );
         })}
       </ul>
-      {result.tiles.dropped.length > 0 ? <p className="hint" data-testid="tiles-dropped">{copy.dropped(result.tiles.dropped.length)}</p> : null}
     </>
-  );
-}
-
-/** Copies one draft. The clipboard is the browser's; the copy says so when it is not available, instead of failing quietly. */
-function TileCopy({ copy, label, text }: { copy: InterviewCopy; label: string; text: string }) {
-  const [state, setState] = useState<"idle" | "done" | "failed">("idle");
-  async function copyText() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setState("done");
-    } catch {
-      setState("failed");
-    }
-  }
-  return (
-    <div className={styles.copy}>
-      <span role="status" className="hint-inline">
-        {state === "done" ? copy.copied : state === "failed" ? copy.copyFailed : ""}
-      </span>
-      <button type="button" className="secondary small" aria-label={`${copy.copy}: ${label}`} onClick={() => void copyText()}>
-        <Icon name={state === "done" ? "check" : "copy"} size={16} />
-        {copy.copy}
-      </button>
-    </div>
   );
 }

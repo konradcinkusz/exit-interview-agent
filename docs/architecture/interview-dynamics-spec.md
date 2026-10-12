@@ -502,6 +502,8 @@ is reported as NOT RUN".
   and ≥ 40 bad Polish turns and 20 good English turns, each labelled with a move. Tests first. Do not touch the machine, the runner or the
   prompts. Report the false-reject rate and any changed guard expectation in the PR."
 
+**Status (PR #73).** WP1 is implemented in this PR. Decisions taken where the spec was silent, one line each: (1) the opening keeps the what-is-kept sentence (random identifier, broad bands), so the disclosure does not shrink; (2) the reason question avoids the feminine form that the gendered-form rule flags; (3) warm-up and deepening seeds 4 and 5 avoid feminine past forms about non-person subjects; (4) the scale move reads "jak ocenić {scaleLabel}?" with accusative labels; (5) English moves, topic questions and prefaces follow the spec's English column, and the English opening is unchanged; (6) the guard takes `QuestionShape`, not `Move`, which WP4 defines; (7) the 1.3 limit fields are parsed, while the machine keeps its 1.2 values until WP5; (8) `AddressForm` is defined only in `Protocol/Kinds.cs`; (9) the runner passes its last interviewee turn to the guard, so a quoted acknowledgement is not rejected as a misquote.
+
 ### WP2: TopicPlanner
 
 - **Scope.** §3.3 as a pure class with the cue lists, fold-aware matching, the injection skip and the fallback plan.

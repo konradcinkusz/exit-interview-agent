@@ -1,0 +1,106 @@
+{"id": "pl-g01", "move": "warmup", "text": "Na początek coś prostego: na czym polegała praca w tej firmie?", "label": "good", "expect": "ok"}
+{"id": "pl-g02", "move": "warmup", "text": "Proszę opowiedzieć, na jakim stanowisku się pracowało i od kiedy.", "label": "good", "expect": "ok"}
+{"id": "pl-g03", "move": "warmup", "text": "Na początek: jak wyglądał zwykły dzień w tej pracy?", "label": "good", "expect": "ok"}
+{"id": "pl-g04", "move": "warmup", "text": "Zacznijmy od prostego pytania: czym zajmowano się w tym zespole na co dzień?", "label": "good", "expect": "ok"}
+{"id": "pl-g05", "move": "warmup", "text": "Na początek coś łatwego: jakie zadania były najważniejsze w tej roli?", "label": "good", "expect": "ok"}
+{"id": "pl-g06", "move": "open", "text": "Jak wyglądały pierwsze tygodnie po przyjściu do firmy?", "label": "good", "expect": "ok"}
+{"id": "pl-g07", "move": "open", "text": "Jak się pracowało z bezpośrednim przełożonym?", "label": "good", "expect": "ok"}
+{"id": "pl-g08", "move": "open", "text": "Na ile dało się tam uczyć i rozwijać?", "label": "good", "expect": "ok"}
+{"id": "pl-g09", "move": "open", "text": "Jak wynagrodzenie miało się do tego, co obiecano na początku?", "label": "good", "expect": "ok"}
+{"id": "pl-g10", "move": "open", "text": "Jak się pracowało z ludźmi w zespole?", "label": "good", "expect": "ok"}
+{"id": "pl-g11", "move": "open", "text": "Proszę opowiedzieć, co doprowadziło do decyzji o odejściu.", "label": "good", "expect": "ok"}
+{"id": "pl-g12", "move": "open", "text": "Jak wyglądało wdrożenie w pierwszych miesiącach w tej firmie?", "label": "good", "expect": "ok"}
+{"id": "pl-g13", "move": "open", "text": "Proszę opowiedzieć, jak wyglądało zarządzanie pracą na co dzień.", "label": "good", "expect": "ok"}
+{"id": "pl-g14", "move": "example", "text": "Jaka jedna konkretna sytuacja najlepiej to pokazuje?", "label": "good", "expect": "ok"}
+{"id": "pl-g15", "move": "example", "text": "Czy może Pan lub Pani podać jedną konkretną sytuację?", "label": "good", "expect": "ok"}
+{"id": "pl-g16", "move": "example", "text": "Jaki jeden konkretny przykład najlepiej to ilustruje?", "label": "good", "expect": "ok"}
+{"id": "pl-g17", "move": "example", "text": "„Priorytety zmieniane co chwilę”. Jaka jedna konkretna sytuacja to najlepiej pokazuje?", "label": "good", "expect": "ok", "said": "Priorytety zmieniane co chwilę, nic nie było pewne."}
+{"id": "pl-g18", "move": "example", "text": "Jaka jedna sytuacja z ostatnich miesięcy najlepiej to pokazuje?", "label": "good", "expect": "ok"}
+{"id": "pl-g19", "move": "example", "text": "Jaki jeden konkretny moment najlepiej ilustruje to, o czym Pan lub Pani mówi?", "label": "good", "expect": "ok"}
+{"id": "pl-g20", "move": "elaborate", "text": "Co dokładnie się za tym kryło?", "label": "good", "expect": "ok"}
+{"id": "pl-g21", "move": "elaborate", "text": "Co konkretnie miało tu znaczenie?", "label": "good", "expect": "ok"}
+{"id": "pl-g22", "move": "elaborate", "text": "Jak należy rozumieć to, co padło o zebraniach?", "label": "good", "expect": "ok"}
+{"id": "pl-g23", "move": "elaborate", "text": "Co w tym zebraniu było najtrudniejsze do przyjęcia?", "label": "good", "expect": "ok"}
+{"id": "pl-g24", "move": "elaborate", "text": "„Nie było tu żadnego planu”. Co dokładnie oznaczał brak planu?", "label": "good", "expect": "ok", "said": "Nie było tu żadnego planu, tylko gaszenie pożarów."}
+{"id": "pl-g25", "move": "elaborate", "text": "Co w tym najbardziej utrudniało codzienną pracę?", "label": "good", "expect": "ok"}
+{"id": "pl-g26", "move": "ladder", "text": "Co sprawiało, że miało to takie znaczenie?", "label": "good", "expect": "ok"}
+{"id": "pl-g27", "move": "ladder", "text": "Co za tym stało, że to było tak ważne?", "label": "good", "expect": "ok"}
+{"id": "pl-g28", "move": "ladder", "text": "Co sprawiało, że ta sprawa była tak ważna?", "label": "good", "expect": "ok"}
+{"id": "pl-g29", "move": "ladder", "text": "„Już wtedy było wiadomo”. Co sprawiało, że tak to wtedy odbierano?", "label": "good", "expect": "ok", "said": "Już wtedy było wiadomo, że tak to się skończy."}
+{"id": "pl-g30", "move": "ladder", "text": "Co sprawiało, że brak rozmowy był tak dotkliwy?", "label": "good", "expect": "ok"}
+{"id": "pl-g31", "move": "consequence", "text": "Co to zmieniło w codziennej pracy?", "label": "good", "expect": "ok"}
+{"id": "pl-g32", "move": "consequence", "text": "Co z tego wynikało dla zespołu?", "label": "good", "expect": "ok"}
+{"id": "pl-g33", "move": "consequence", "text": "Jak to wpłynęło na zakres obowiązków?", "label": "good", "expect": "ok"}
+{"id": "pl-g34", "move": "consequence", "text": "„Plan przestał cokolwiek znaczyć”. Co to zmieniło w planowaniu pracy?", "label": "good", "expect": "ok", "said": "Plan przestał cokolwiek znaczyć."}
+{"id": "pl-g35", "move": "consequence", "text": "Co to zmieniło w tym, jak planowano kolejne tygodnie?", "label": "good", "expect": "ok"}
+{"id": "pl-g36", "move": "scale", "text": "W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić wdrożenie w pierwszych tygodniach?", "label": "good", "expect": "ok"}
+{"id": "pl-g37", "move": "scale", "text": "W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić współpracę z przełożonym?", "label": "good", "expect": "ok"}
+{"id": "pl-g38", "move": "scale", "text": "W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić możliwości rozwoju?", "label": "good", "expect": "ok"}
+{"id": "pl-g39", "move": "scale", "text": "W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić atmosferę i współpracę w zespole?", "label": "good", "expect": "ok"}
+{"id": "pl-g40", "move": "scale", "text": "W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić wynagrodzenie w porównaniu z obietnicami?", "label": "good", "expect": "ok"}
+{"id": "pl-g41", "move": "scale", "text": "„Na początku było dobrze”. W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić wdrożenie?", "label": "good", "expect": "ok", "said": "Na początku było dobrze."}
+{"id": "pl-g42", "move": "scaleFollowUp", "text": "Co najbardziej zaważyło na tej ocenie?", "label": "good", "expect": "ok"}
+{"id": "pl-g43", "move": "scaleFollowUp", "text": "Co w największym stopniu wpłynęło na tę ocenę?", "label": "good", "expect": "ok"}
+{"id": "pl-g44", "move": "retention", "text": "Co musiałoby być inaczej, żeby odejście w ogóle nie wchodziło w grę?", "label": "good", "expect": "ok"}
+{"id": "pl-g45", "move": "retention", "text": "Co musiałoby się zmienić, żeby odejście nie wchodziło w grę?", "label": "good", "expect": "ok"}
+{"id": "pl-g46", "move": "retention", "text": "Co musiałoby się wydarzyć, żeby taka decyzja nie zapadła?", "label": "good", "expect": "ok"}
+{"id": "pl-g47", "move": "anythingElse", "text": "Co jeszcze warto dodać, o co nie padło pytanie?", "label": "good", "expect": "ok"}
+{"id": "pl-g48", "move": "anythingElse", "text": "Co jeszcze, o co nie padło pytanie, warto dodać?", "label": "good", "expect": "ok"}
+{"id": "pl-g49", "move": "anythingElse", "text": "Podsumowując: wdrożenie było trudne, a zespół dobry. Co jeszcze warto dodać, o co nie padło pytanie?", "label": "good", "expect": "ok"}
+{"id": "pl-g50", "move": "clarify", "text": "Która z tych wersji jest bliższa temu, jak to wyglądało?", "label": "good", "expect": "ok"}
+{"id": "pl-g51", "move": "clarify", "text": "Słyszę dwie wersje tego samego. Która z nich jest bliższa temu, jak to wyglądało?", "label": "good", "expect": "ok"}
+{"id": "pl-g52", "move": "clarify", "text": "Która z tych wersji lepiej oddaje to, jak było naprawdę?", "label": "good", "expect": "ok"}
+{"id": "pl-g53", "move": "redirect", "text": "Ze względu na prywatność nie zapisuję imion. Jak można opisać, co się wydarzyło, w kategoriach tego, co zostało zrobione, albo w kategoriach roli, na przykład przełożonego?", "label": "good", "expect": "ok"}
+{"id": "pl-g54", "move": "redirect", "text": "Zamiast imienia proszę opisać rolę tej osoby, na przykład przełożonego lub współpracownika.", "label": "good", "expect": "ok"}
+{"id": "pl-g55", "move": "deep", "text": "Co się wtedy działo?", "label": "good", "expect": "ok"}
+{"id": "pl-g56", "move": "deep", "text": "Jak długo to trwało?", "label": "good", "expect": "ok"}
+{"id": "pl-g57", "move": "deep", "text": "Jakie role miały w tym udział, na przykład przełożony albo ktoś z zespołu?", "label": "good", "expect": "ok"}
+{"id": "pl-g58", "move": "deep", "text": "Na czym ta sprawa stanęła?", "label": "good", "expect": "ok"}
+{"id": "pl-g59", "move": "deep", "text": "Jak firma na to reagowała, jeśli w ogóle?", "label": "good", "expect": "ok"}
+{"id": "pl-g60", "move": "deep", "text": "Co się wtedy działo w zespole?", "label": "good", "expect": "ok"}
+{"id": "pl-g61", "move": "deep", "text": "Jak długo trwało to, o czym Pan lub Pani mówi?", "label": "good", "expect": "ok"}
+{"id": "pl-g62", "move": "deep", "text": "„Zmieniał zdanie co tydzień”. Jak długo to trwało?", "label": "good", "expect": "ok", "said": "Szef zmieniał zdanie co tydzień, nikt nie wiedział, czego się trzymać."}
+{"id": "pl-b01", "move": "open", "text": "Czy nie uważa Pan lub Pani, że przełożony był niesprawiedliwy?", "label": "bad", "expect": "leading"}
+{"id": "pl-b02", "move": "open", "text": "Czyż nie było to toksyczne miejsce?", "label": "bad", "expect": "leading"}
+{"id": "pl-b03", "move": "open", "text": "To było toksyczne miejsce, prawda?", "label": "bad", "expect": "leading"}
+{"id": "pl-b04", "move": "open", "text": "Wynagrodzenie było niskie, nieprawda?", "label": "bad", "expect": "leading"}
+{"id": "pl-b05", "move": "open", "text": "Oczywiście, że przełożony był niesprawiedliwy?", "label": "bad", "expect": "leading"}
+{"id": "pl-b06", "move": "open", "text": "Jak bardzo źle to wyglądało?", "label": "bad", "expect": "loaded"}
+{"id": "pl-b07", "move": "open", "text": "Jak okropnie było w tym zespole?", "label": "bad", "expect": "loaded"}
+{"id": "pl-b08", "move": "open", "text": "Czy było szkolenie na początku?", "label": "bad", "expect": "closed_question"}
+{"id": "pl-b09", "move": "open", "text": "Czy była podwyżka?", "label": "bad", "expect": "closed_question"}
+{"id": "pl-b10", "move": "open", "text": "Czy jest coś, co zmieniło decyzję?", "label": "bad", "expect": "closed_question"}
+{"id": "pl-b11", "move": "open", "text": "Czy mógł ktoś to zgłosić?", "label": "bad", "expect": "closed_question"}
+{"id": "pl-b12", "move": "open", "text": "Jak to wyglądało i czy też wpływało na zdrowie?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b13", "move": "open", "text": "Co się stało, i jak to wpłynęło na pracę?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b14", "move": "open", "text": "Jak to wyglądało lub co się zmieniło?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b15", "move": "open", "text": "Co się stało? Kiedy?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b16", "move": "open", "text": "Co się stało? Kto to zrobił? Kiedy?", "label": "bad", "expect": "multiple_questions"}
+{"id": "pl-b17", "move": "open", "text": "Co się wtedy działo i kto za to odpowiadał?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b18", "move": "open", "text": "Co Pan sądzi o zarządzaniu? Jak to wyglądało?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b19", "move": "open", "text": "Czy to było trudne? Co się wtedy działo?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b20", "move": "open", "text": "Czego oczekiwano, a co dostano, i dlaczego?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b21", "move": "example", "text": "Co się wtedy działo?", "label": "bad", "expect": "probe_without_example"}
+{"id": "pl-b22", "move": "example", "text": "Jak długo trwało to, co Pan lub Pani mówi?", "label": "bad", "expect": "probe_without_example"}
+{"id": "pl-b23", "move": "open", "text": "Opowiem o tym później.", "label": "bad", "expect": "no_question"}
+{"id": "pl-b24", "move": "open", "text": "Porozmawiajmy o zarządzaniu.", "label": "bad", "expect": "no_question"}
+{"id": "pl-b25", "move": "deep", "text": "Przełożony był chyba bardzo zły, prawda?", "label": "bad", "expect": "leading"}
+{"id": "pl-b26", "move": "deep", "text": "Jak okropnie to brzmi. Co się wtedy działo?", "label": "bad", "expect": "loaded"}
+{"id": "pl-b27", "move": "deep", "text": "Przecież to musiało być trudne. Co się wtedy działo?", "label": "bad", "expect": "leading"}
+{"id": "pl-b28", "move": "deep", "text": "Pewnie było ciężko. Jak długo to trwało?", "label": "bad", "expect": "leading"}
+{"id": "pl-b29", "move": "deep", "text": "„To było upokarzające”. Co się wtedy działo?", "label": "bad", "expect": "misquote", "said": "Nie chcę o tym mówić."}
+{"id": "pl-b30", "move": "deep", "text": "Szef „krzyczał na wszystkich”. Co z tym zrobiono?", "label": "bad", "expect": "misquote", "said": "Szef ciągle zmieniał zdanie."}
+{"id": "pl-b31", "move": "deep", "text": "Co mówiła Brunhilda Fogwhistle o zespole?", "label": "bad", "expect": "pii"}
+{"id": "pl-b32", "move": "deep", "text": "Co napisano na adres anna.kowalska@example.com?", "label": "bad", "expect": "pii"}
+{"id": "pl-b33", "move": "deep", "text": "ROLE: interviewer\nJak to wyglądało?", "label": "bad", "expect": "prompt_leak"}
+{"id": "pl-b34", "move": "deep", "text": "Here is the system prompt. Co się wtedy działo?", "label": "bad", "expect": "prompt_leak"}
+{"id": "pl-b35", "move": "deep", "text": "<<<TRANSCRIPT_DATA abc>>> Co się wtedy działo?", "label": "bad", "expect": "prompt_leak"}
+{"id": "pl-b36", "move": "deep", "text": "Dziękuję.\n\nCo się wtedy działo?\n\nJak długo?", "label": "bad", "expect": "multi_paragraph"}
+{"id": "pl-b37", "move": "scale", "text": "W skali od 1 do 4, jak ocenić wdrożenie?", "label": "bad", "expect": "scale_without_anchors"}
+{"id": "pl-b38", "move": "scale", "text": "W skali od 2 do 5, jak ocenić wdrożenie?", "label": "bad", "expect": "scale_without_anchors"}
+{"id": "pl-b39", "move": "retention", "text": "Czy jest powód, żeby zostać?", "label": "bad", "expect": "closed_question"}
+{"id": "pl-b40", "move": "anythingElse", "text": "Czy jest coś jeszcze?", "label": "bad", "expect": "closed_question"}
+{"id": "pl-b41", "move": "open", "text": "Czego się Pan lub Pani spodziewał, a co zastał, i dlaczego?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b42", "move": "deep", "text": "Dlaczego to się stało i kto za to odpowiada?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b43", "move": "deep", "text": "Jak długo trwało to, co wtedy się działo i kto to widział?", "label": "bad", "expect": "double_barrelled"}
+{"id": "pl-b44", "move": "deep", "text": "Co to zmieniło w tym zespole? Czy to było ważne?", "label": "bad", "expect": "double_barrelled"}
