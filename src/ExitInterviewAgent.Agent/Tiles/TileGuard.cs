@@ -5,10 +5,10 @@ using ExitInterviewAgent.Records;
 namespace ExitInterviewAgent.Agent.Tiles;
 
 /// <summary>
-/// The deterministic, model-free check on every candidate tile (ADR-0074, amended by ADR-0075). Checks run in this order and the
-/// first failure decides the drop code: empty, too long for its kind, banned term (absolute, then the tiered experience terms),
-/// PII (fail closed), grounding, copied quote. A failing tile is dropped, never edited: <see cref="Tile.Text"/> and
-/// <see cref="Tile.Title"/> are the candidate's own strings.
+/// The deterministic, model-free check on every candidate tile (ADR-0074, amended by ADR-0075 and ADR-0083). Checks run in this order
+/// and the first failure decides the drop code: empty, too long or too short (per section for a family), banned term (absolute,
+/// then the tiered experience terms), PII (fail closed), identifying detail, grounding, copied quote. A failing tile is dropped,
+/// never edited: <see cref="Tile.Text"/>, <see cref="Tile.Title"/> and each section are the candidate's own strings.
 /// </summary>
 public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
 {
@@ -18,7 +18,7 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
     private static readonly Dictionary<string, Topic> TopicByKey = Enum.GetValues<Topic>().ToDictionary(t => Wire.Name(t), t => t);
 
     /// <summary>
-    /// The experience terms, one family per root. Allowed only in the Reddit kind, and only when the same family occurs in the
+    /// The experience terms, one family per root. Allowed only in the narrative family, and only when the same family occurs in the
     /// interviewee's own words and every sentence that uses it is framed as the author's experience (see <see cref="FirstPerson"/>).
     /// </summary>
     private static readonly Regex[] ExperienceFamilies =
@@ -51,7 +51,7 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
         {
             // Structural rule first: one tile per kind, the first candidate of a kind wins.
             var reason = seenKinds.Add(candidate.Kind) ? Evaluate(input.Record, candidate, haystack) : TileDropReason.SchemaInvalid;
-            if (reason is null) accepted.Add(new Tile(IdFor(candidate.Kind), candidate.Kind, candidate.Title, candidate.Text, (candidate.BasedOn ?? []).ToArray()));
+            if (reason is null) accepted.Add(new Tile(IdFor(candidate.Kind), candidate.Kind, candidate.Title, candidate.Text, (candidate.BasedOn ?? []).ToArray(), candidate.Sections?.ToArray()));
             else dropped.Add(new DroppedTile(candidate.Kind, reason));
         }
         return new TileGuardResult(accepted, dropped);
@@ -63,15 +63,19 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
         var title = candidate.Title ?? string.Empty;
         var text = candidate.Text ?? string.Empty;
 
-        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(text)) return TileDropReason.Empty;
-
-        if (CodePoints(title) > TileLimits.MaxTitleChars || CodePoints(text) > TileLimits.MaxTextCharsFor(candidate.Kind)) return TileDropReason.TooLong;
+        // A family kind is checked section by section; the two post families have no title, so their title may be empty.
+        var lengthReason = TileFamilies.Find(candidate.Kind) is { } family
+            ? FamilyLength(family, candidate.Sections ?? [], text)
+            : GenericLength(title, text, candidate.Kind);
+        if (lengthReason is not null) return lengthReason;
 
         var combined = $"{title}\n{text}";
         if (AbsoluteBannedTerms().IsMatch(combined)) return TileDropReason.BannedTerm;
         if (UsesExperienceTermWrongly(candidate.Kind, combined, haystack.Interviewee)) return TileDropReason.BannedTerm;
 
-        if (HasPii(title) || HasPii(text)) return TileDropReason.PiiFound;
+        if ((title.Length > 0 && HasPii(title)) || HasPii(text)) return TileDropReason.PiiFound;
+
+        if (IdentifyingDetail().IsMatch(combined)) return TileDropReason.IdentifyingDetail;
 
         if (IsUngrounded(record, candidate, combined)) return TileDropReason.Ungrounded;
 
@@ -83,21 +87,58 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
     }
 
     /// <summary>
-    /// The tiered experience rule. Any family that occurs in a tile other than Reddit is a ban. In Reddit, the family must occur
-    /// in the interviewee's words, and every sentence that uses it must carry a first-person framing ("in my experience", "moim
-    /// zdaniem"). Interviewer lines are never evidence.
+    /// The tiered experience rule. Any family that occurs in a tile outside the narrative family is a ban. In the narrative, the
+    /// family must occur in the interviewee's words, and every sentence that uses it must carry a first-person framing ("in my
+    /// experience", "moim zdaniem"). Interviewer lines are never evidence.
     /// </summary>
     private static bool UsesExperienceTermWrongly(TileKind kind, string text, string interviewee)
     {
+        var allowed = TileFamilies.Find(kind) is { ExperienceTerms: true };
         foreach (var family in ExperienceFamilies)
         {
             if (!family.IsMatch(text)) continue;
-            if (kind != TileKind.Reddit) return true;
+            if (!allowed) return true;
             if (!family.IsMatch(interviewee)) return true;
             foreach (var sentence in Sentences(text))
                 if (family.IsMatch(sentence) && !FirstPerson().IsMatch(sentence)) return true;
         }
         return false;
+    }
+
+    /// <summary>The length rule of a generic kind: a title and a text, each within its limit.</summary>
+    private static string? GenericLength(string title, string text, TileKind kind)
+    {
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(text)) return TileDropReason.Empty;
+        if (CodePoints(title) > TileLimits.MaxTitleChars || CodePoints(text) > TileLimits.MaxTextCharsFor(kind)) return TileDropReason.TooLong;
+        return null;
+    }
+
+    /// <summary>
+    /// The length rule of a family draft (ADR-0083). A required section must be present and non-empty (<c>empty</c>); a
+    /// non-empty section is checked against its own minimum (<c>too_short</c>) and maximum (<c>too_long</c>); a blank optional
+    /// section is left out; the sections together must fit the family's whole-draft limit. Keys must be unique and known.
+    /// </summary>
+    private static string? FamilyLength(FamilySpec family, IReadOnlyList<TileSection> sections, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return TileDropReason.Empty;
+        if (sections.Select(s => s.Key).Distinct().Count() != sections.Count) return TileDropReason.SchemaInvalid;
+
+        foreach (var rule in family.Sections.Where(r => r.Required))
+            if (!sections.Any(s => s.Key == rule.Key && !string.IsNullOrWhiteSpace(s.Text))) return TileDropReason.Empty;
+
+        var total = 0;
+        foreach (var section in sections)
+        {
+            var rule = family.Sections.FirstOrDefault(r => r.Key == section.Key);
+            if (rule is null) return TileDropReason.SchemaInvalid;
+            if (string.IsNullOrWhiteSpace(section.Text)) continue;
+
+            var length = CodePoints(section.Text);
+            if (length > rule.Max) return TileDropReason.TooLong;
+            if (length < rule.Min) return TileDropReason.TooShort;
+            total += length;
+        }
+        return total > family.TotalMax ? TileDropReason.TooLong : null;
     }
 
     private static IEnumerable<string> Sentences(string text) => SentenceEnd().Split(text);
@@ -155,10 +196,10 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
         TileKind.WhatWorked => "what-worked",
         TileKind.WhatCouldImprove => "what-could-improve",
         TileKind.ForTheNextPerson => "for-the-next-person",
-        TileKind.ShortNote => "short-note",
-        TileKind.Glassdoor => "glassdoor",
-        TileKind.GoogleReview => "google-review",
-        TileKind.Reddit => "reddit",
+        TileKind.StructuredReview => "structured-review",
+        TileKind.Narrative => "narrative",
+        TileKind.ProfessionalPost => "professional-post",
+        TileKind.ShortPost => "short-post",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -166,9 +207,9 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
     /// What the copy check compares against: the record's quotes and the interviewee's lines of the masked transcript, as runs
     /// of words of each length a kind may not repeat. Built once per check.
     /// </summary>
-    private sealed record Haystack(string Interviewee, HashSet<string> ShortRuns, HashSet<string> RedditRuns)
+    private sealed record Haystack(string Interviewee, HashSet<string> ShortRuns, HashSet<string> NarrativeRuns)
     {
-        public HashSet<string> RunsFor(TileKind kind) => kind == TileKind.Reddit ? RedditRuns : ShortRuns;
+        public HashSet<string> RunsFor(TileKind kind) => kind == TileKind.Narrative ? NarrativeRuns : ShortRuns;
 
         public static Haystack For(TileInput input)
         {
@@ -176,7 +217,7 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
             var interviewee = IntervieweeText(input.MaskedTranscript);
             var sources = quotes.Append(interviewee).ToArray();
             // The interviewee's words are the transcript's interviewee lines and the record's quotes, which are their words too.
-            return new Haystack(string.Join('\n', quotes.Append(interviewee)), Runs(sources, TileLimits.QuoteRunWordsForbidden), Runs(sources, TileLimits.RedditQuoteRunWordsForbidden));
+            return new Haystack(string.Join('\n', quotes.Append(interviewee)), Runs(sources, TileLimits.QuoteRunWordsForbidden), Runs(sources, TileLimits.NarrativeQuoteRunWordsForbidden));
         }
 
         /// <summary>Every run of <paramref name="length"/> words that occurs in any source.</summary>
@@ -235,6 +276,20 @@ public sealed partial class TileGuard(IPiiGuard pii) : ITileGuard
         @"on\s+purpose|celowo|deliberately|intentionally" +
         @")\b", Opt)]
     private static partial Regex AbsoluteBannedTerms();
+
+    /// <summary>
+    /// A full date (numeric, or a month name with a day, in English or Polish) or a team size. Either could point at a particular
+    /// person or group, so the tile is dropped (spec §3.3). A lexical floor, like the banned terms.
+    /// </summary>
+    [GeneratedRegex(
+        @"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b" +
+        @"|\b(?:" + Months + @")\s+\d{1,2}\b|\b\d{1,2}\s+(?:" + Months + @")\b" +
+        @"|\bteam of \d+\b|\bzesp[oó][łl]\s+\d+\b|\b\d+-osobow\w*", Opt)]
+    private static partial Regex IdentifyingDetail();
+
+    private const string Months =
+        "january|february|march|april|may|june|july|august|september|october|november|december|" +
+        "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|wrze[śs]nia|pa[źz]dziernika|listopada|grudnia";
 
     /// <summary>A first-person framing or hedge: the sentence reports the author's own experience, not a fact about others.</summary>
     [GeneratedRegex(

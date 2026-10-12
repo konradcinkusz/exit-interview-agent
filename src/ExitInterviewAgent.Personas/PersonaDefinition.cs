@@ -25,7 +25,13 @@ public sealed record PersonaResponses(
     IReadOnlyDictionary<string, IReadOnlyList<string>>? Redirects,
     IReadOnlyList<string> Fallback,
     /// <summary>Answers to the deepening questions (Y2), by topic or "*". Optional: a persona without them answers with the fallback.</summary>
-    IReadOnlyDictionary<string, IReadOnlyList<string>>? DeepProbes = null);
+    IReadOnlyDictionary<string, IReadOnlyList<string>>? DeepProbes = null,
+    /// <summary>Protocol 1.3 (WP6), optional: answers to the warm-up move, the retention question, the anything-else question and the 1–5 ratings by topic or "*".
+    /// A move without its answers falls back to the topic answers.</summary>
+    IReadOnlyList<string>? Warmup = null,
+    IReadOnlyList<string>? Retention = null,
+    IReadOnlyList<string>? AnythingElse = null,
+    IReadOnlyDictionary<string, IReadOnlyList<string>>? Scale = null);
 
 /// <summary>What a correct agent run against this persona looks like. The e2e tests and the eval harness assert it.</summary>
 public sealed record PersonaExpectation(string Outcome, string EndReason, bool Submittable, int MinProbes = 0, int MinRedirects = 0, int MinClarifications = 0);
@@ -48,7 +54,9 @@ public sealed record PersonaDefinition(
     IReadOnlyList<string>? PlantedLiterals,
     PersonaTyping Typing,
     PersonaResponses Responses,
-    PersonaExpectation Expected)
+    PersonaExpectation Expected,
+    /// <summary>The topic this person most wants to talk about (protocol 1.3, Q-01). Optional; null means the persona is not measured for order.</summary>
+    string? Salient = null)
 {
     public IReadOnlyList<string> Planted => PlantedLiterals ?? [];
 }

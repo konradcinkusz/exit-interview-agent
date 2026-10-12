@@ -271,3 +271,6 @@ items:
     preceded_by: "Pay was fine, generally okay, I guess."
     label: 0
     rationale: "Suggests the content ('unfair') that the interviewee did not say."
+
+# Label stubs for R-03..R-05 (WP6): none yet. A label for these rubrics needs a human labeller under the owner's handle
+# (evals/rubrics/judge.yaml, calibration.owner_handle); an author-written set is not added, because it would count towards the same item total as R-01 and R-02.

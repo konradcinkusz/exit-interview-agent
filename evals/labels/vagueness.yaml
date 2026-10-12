@@ -303,6 +303,78 @@ replies:
   - text: "About average, I would say, nothing more."
     label: vague
     rationale: "A generality with a rating word and no event, number or situation to ask about."
+  - text: "Pierwsze tygodnie były chaotyczne. Laptop przyszedł dopiero w piątym dniu, a zespół nie wiedział, że ktoś nowy zaczyna. Potem koleżanka z zespołu przez całe popołudnie tłumaczyła kod, i to naprawdę pomogło."
+    label: specific
+    rationale: "Dated events: a laptop on day 5 and a colleague who spent an afternoon on the code."
+  - text: "Na pierwszy dzień nie było gotowego miejsca pracy, a dostęp do systemów zajął cztery dni. Gdy dostęp już był, dobra była lista rzeczy do przeczytania."
+    label: specific
+    rationale: "Numbers and a named situation: no desk on day one, four days to get access."
+  - text: "Przełożony był życzliwy i dało się z nim rozmawiać. Priorytety zmieniały się jednak co dwa tygodnie i nikt nie tłumaczył dlaczego."
+    label: specific
+    rationale: "A recurring pattern (priorities reset every two weeks) with a number."
+  - text: "Spotkania jeden na jeden były regularne. Trudne było to, że plany przestawiano bez wyjaśnienia."
+    label: specific
+    rationale: "A recurring practice (regular one-to-ones) and plans changed without explanation."
+  - text: "Były szkolenia i budżet na konferencje, ale ścieżka awansu była niejasna. Po trzech latach nikt nie umiał powiedzieć, czego brakuje do następnego poziomu."
+    label: specific
+    rationale: "Concrete: a training budget for conferences and three years without a promotion path."
+  - text: "Pracowało się na kilku projektach naraz, co dużo dawało. Gdy pytano o awans, odpowiedź nigdy nie była konkretna."
+    label: specific
+    rationale: "Borderline: several projects at once and a concrete pattern of promotion questions answered vaguely."
+  - text: "Najwięcej mam do powiedzenia o pieniądzach. W ofercie była obiecana podwyżka po sześciu miesiącach, a przegląd wynagrodzeń odbył się dopiero po czternastu. Podwyżka wyniosła trzy procent, choć przy rekrutacji mówiono o znacznie więcej. Premia opisana przy zatrudnieniu nigdy się nie pojawiła."
+    label: specific
+    rationale: "Concrete: a raise promised after six months, a review after fourteen, three per cent."
+  - text: "Stawka zgadzała się z umową od pierwszego dnia. Problem były obietnice: przegląd miał być po pół roku, a był po roku, i różnica między tym, co obiecano, a tym, co ostatecznie wypłacono, była duża."
+    label: specific
+    rationale: "Concrete: the review due after six months came after a year."
+  - text: "Ludzie byli uprzejmi i pomagali sobie, ale oczekiwano odpowiadania na wiadomości wieczorem. Po pewnym czasie to męczyło."
+    label: specific
+    rationale: "A practice with a situation: messages expected in the evening."
+  - text: "Większość osób była rzeczowa i dzieliła się wiedzą. Trudne było to, że późne wyjścia uchodziły za normę."
+    label: specific
+    rationale: "A practice with a situation: late leaving treated as normal."
+  - text: "Głównie z powodu wynagrodzenia. Obiecana podwyżka nie przyszła, a przegląd ciągle się przesuwał. Gdy pojawiła się oferta z jasną ścieżką i lepszą pensją, odejście stało się prostą decyzją."
+    label: specific
+    rationale: "Concrete: a raise promised in the offer that did not come, a review that kept slipping."
+  - text: "Przede wszystkim pieniądze. Przegląd wciąż się przesuwał, a bez konkretnej odpowiedzi o awansie nie było dokąd iść dalej."
+    label: specific
+    rationale: "Concrete: a review that kept slipping and no answer about promotion."
+  - text: "Wdrożenie trwało dwa tygodnie. Dostęp do systemów przyszedł później, niż obiecano, ale osoba z zespołu wyjaśniła procesy po kolei."
+    label: specific
+    rationale: "Dated and numbered: two weeks of onboarding, access that came late, a colleague who explained the processes."
+  - text: "Pierwsze tygodnie były spokojne. Większość zadań dało się przejąć od kolegi, który odchodził z zespołu."
+    label: specific
+    rationale: "Borderline: a concrete situation (a colleague leaving the team and tasks being taken over)."
+  - text: "Przełożony był rzeczowy, ale w ostatnich miesiącach, szczerze mówiąc, nie daję rady psychicznie. Ciągła presja i zmiany priorytetów bardzo mnie wyczerpały."
+    label: specific
+    rationale: "Borderline: a stated distress plus a concrete pattern (priority changes every few weeks). The distress is one explicit statement, labelled by its practice content."
+  - text: "Przełożony był rzeczowy, ale zmiany priorytetów co dwa tygodnie utrudniały planowanie pracy."
+    label: specific
+    rationale: "A recurring pattern (priorities changed every two weeks) with a number."
+  - text: "Szkoleń było niewiele, ale dało się poprosić o kurs. Ścieżka rozwoju była opisana ogólnie."
+    label: specific
+    rationale: "Borderline: asking for a course is a concrete practice; the rest is a generality."
+  - text: "Najwięcej uczyło się przy pracy z innymi działami. Formalnego planu rozwoju nie było."
+    label: specific
+    rationale: "Borderline: working with other departments is a situation; the missing development plan is a concrete fact."
+  - text: "Wynagrodzenie zgadzało się z ofertą. Premia była w części obiecana, w części nie, i nikt nie wyjaśnił różnicy."
+    label: specific
+    rationale: "Concrete: a bonus partly promised and partly not, with no explanation."
+  - text: "Pensja była zgodna z umową. Obietnica przeglądu po roku nie została dotrzymana, ale nie było z tym większego problemu."
+    label: specific
+    rationale: "Concrete: a promised review after a year, not kept."
+  - text: "Zespół był w porządku. Ludzie wspierali się, gdy coś się piętrzyło."
+    label: vague
+    rationale: "Only a generality: the team was fine and people helped when things piled up, no event or number."
+  - text: "W zespole panowała dobra atmosfera. Czasem zdarzało się, że napięcia wychodziły na wierzch w czasie pilnych zgłoszeń."
+    label: specific
+    rationale: "Borderline: a situation (tension surfacing during urgent tickets)."
+  - text: "Powodem była kombinacja: presja, zmiany priorytetów i brak perspektyw. Gdy pojawiła się propozycja spokojniejszej pracy, odejście było prostym wyborem."
+    label: specific
+    rationale: "A situation (pressure, priority changes) and an offer that made leaving simple; a listener could ask about either."
+  - text: "Chodziło o balans. Gdy pojawiła się oferta z mniejszą presją, decyzja była prosta."
+    label: vague
+    rationale: "No event, number or situation beyond an offer; the balance is a generality."
 pairs:
   - earlier: "My manager was great, really good, you know, generally fine."
     later: "Honestly there was no support at all, and decisions were chaotic and unfair, and nobody explained anything."

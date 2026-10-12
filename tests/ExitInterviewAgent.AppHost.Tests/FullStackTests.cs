@@ -133,7 +133,7 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
             var droppedCount = tiles.GetProperty("dropped").GetArrayLength();
             Assert.NotEmpty(kinds);
             Assert.Contains("facts", kinds);
-            foreach (var expected in new[] { "glassdoor", "google_review", "reddit", "short_note", "overview" })
+            foreach (var expected in new[] { "structured_review", "narrative", "professional_post", "short_post", "overview" })
             {
                 Assert.True(kinds.Contains(expected) || droppedCount > 0,
                     $"the tile {expected} is neither shown nor accounted for by a dropped code (shown: {string.Join(", ", kinds)})");
