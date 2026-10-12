@@ -14,8 +14,8 @@ const configure = (request: APIRequestContext, name: string, query: string) =>
   request.post(`${STUB_URL}/__test/interview-config?email=${encodeURIComponent(emailFor(name))}&${query}`);
 
 const T = {
-  en: { cont: "Continue", start: "Start the interview", answer: "Your answer", stop: "Stop and delete", delAll: "Delete everything now", yes: "Yes, delete it", terms: "Read the full terms", save: "Save a copy", log: "Conversation", typing: "The interviewer is typing" },
-  pl: { cont: "Dalej", start: "Rozpocznij rozmowę", answer: "Twoja odpowiedź", stop: "Przerwij i usuń", delAll: "Usuń wszystko teraz", yes: "Tak, usuń", terms: "Przeczytaj pełne warunki", save: "Zapisz kopię", log: "Rozmowa", typing: "Rozmówca pisze" },
+  en: { cont: "Continue", start: "Start the interview", answer: "Your answer", stop: "Stop and delete", delAll: "Delete everything now", yes: "Yes, delete it", terms: "Read the full terms", save: "Save a copy", log: "Conversation", typing: "The interviewer is typing", phase: "Interview · usually 10–15 minutes · you can finish at any time" },
+  pl: { cont: "Dalej", start: "Rozpocznij rozmowę", answer: "Twoja odpowiedź", stop: "Przerwij i usuń", delAll: "Usuń wszystko teraz", yes: "Tak, usuń", terms: "Przeczytaj pełne warunki", save: "Zapisz kopię", log: "Rozmowa", typing: "Rozmówca pisze", phase: "Rozmowa · zwykle 10–15 minut · można zakończyć w każdej chwili" },
 } as const;
 type Lang = keyof typeof T;
 
@@ -174,8 +174,8 @@ async function walk(page: Page, request: APIRequestContext, lang: Lang, check: (
   await expect(page.getByRole("log", { name: t.log })).toBeVisible();
   await at("chat");
   await say("Onboarding was chaotic.");
-  await expect(page.getByTestId("chat-progress")).toContainText(/1/);
-  await at("chat, topic 1");
+  await expect(page.getByTestId("chat-progress")).toHaveText(t.phase);
+  await at("chat, after the first answer");
 
   await configure(request, name, "replyRateLimited=1");
   await say("Kept through the wait.");

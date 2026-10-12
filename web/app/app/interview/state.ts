@@ -145,8 +145,11 @@ export function canFinish(s: State): boolean {
   return s.phase === "chat" && !s.pending && kind !== undefined && QUESTION_KINDS.has(kind);
 }
 
-/** The protocol has six topics. The progress line counts the topic questions asked so far; 0 means the introduction. */
-export const TOPIC_TOTAL = 6;
-export function topicNumber(lines: readonly Line[]): number {
-  return Math.min(TOPIC_TOTAL, lines.filter((l) => l.from === "interviewer" && l.kind === "topic").length);
+/** The turn kinds that ask the person whether they agree to talk with an AI (the opening, or a re-ask after an unclear answer). */
+const CONSENT_KINDS: ReadonlySet<TurnKind> = new Set<TurnKind>(["opening", "consent_reask"]);
+
+/** Quick replies are offered on the consent turn, while the interviewer waits for an answer and no reply is pending. */
+export function canQuickReply(s: State): boolean {
+  const kind = lastInterviewerKind(s.lines);
+  return s.phase === "chat" && !s.pending && kind !== undefined && CONSENT_KINDS.has(kind);
 }
