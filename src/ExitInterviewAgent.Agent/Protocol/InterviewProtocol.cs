@@ -6,13 +6,6 @@ using ExitInterviewAgent.Records;
 
 namespace ExitInterviewAgent.Agent.Protocol;
 
-/// <summary>
-/// How the interviewee wants to be addressed in Polish (interview-dynamics spec §3.6). It is set by the consent reply and kept in the runner's
-/// memory only: never written to the record, the transcript file, telemetry, logs or the web session. <see cref="Ty"/> is the informal form.
-/// TEMPORARY in this file (WP1): it moves to Protocol/Kinds.cs with WP4, and WP5 removes this copy.
-/// </summary>
-public enum AddressForm { Neutral, Pan, Pani, Ty }
-
 /// <summary>One of the six topics: the record topic, its wire id, its neutral opening question, and its label in a 1-to-5 rating question.</summary>
 public sealed record TopicSpec(Topic Topic, string Id, string Title, string Question, string ScaleLabel = "");
 
