@@ -18,7 +18,7 @@ public sealed class TileRendererTests
         language,
         [
             new Tile("t1", TileKind.Overview, "Krótki opis", "Odejście było spokojne.", ["onboarding", "culture"]),
-            new Tile("t2", TileKind.ShortNote, "Notka", "Dwa zdania bez nazw.", ["growth"]),
+            new Tile("t2", TileKind.WhatWorked, "Notka", "Dwa zdania bez nazw.", ["growth"]),
         ],
         [new DroppedTile(TileKind.WhatCouldImprove, TileDropReason.Ungrounded)]);
 
@@ -135,7 +135,7 @@ public sealed class TileRendererTests
             Dropped =
             [
                 new DroppedTile(TileKind.Overview, TileDropReason.PiiFound),
-                new DroppedTile(TileKind.ShortNote, TileDropReason.PiiFound),
+                new DroppedTile(TileKind.ShortPost, TileDropReason.PiiFound),
                 new DroppedTile(TileKind.Facts, TileDropReason.TooLong),
             ],
         };
@@ -183,11 +183,11 @@ public sealed class TileRendererTests
     {
         var json = TileRenderer.ToJson(Sample());
 
-        Assert.Contains("\"tilesVersion\": \"1\"", json);
+        Assert.Contains("\"tilesVersion\": \"2\"", json);
         Assert.Contains("\"basedOn\": [", json);
         Assert.Contains("\"reasonCode\": \"ungrounded\"", json);
         Assert.Contains("\"kind\": \"overview\"", json);
-        Assert.Contains("\"kind\": \"short_note\"", json);
+        Assert.Contains("\"kind\": \"what_worked\"", json);
         Assert.Contains("\"kind\": \"what_could_improve\"", json);
         Assert.DoesNotContain("ShortNote", json);
         Assert.DoesNotContain("TilesVersion", json);

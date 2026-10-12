@@ -7,7 +7,8 @@ using LateApexEarlySpeed.Json.Schema.Common;
 namespace ExitInterviewAgent.Agent.Tiles;
 
 /// <summary>
-/// Untrusted writer output, validated against <c>schemas/tile-writer-output.v1.schema.json</c> and mapped to candidates.
+/// Untrusted writer output, validated against <c>schemas/tile-writer-output.v2.schema.json</c> and mapped to candidates. A family
+/// kind keeps its sections; its text is the sections joined by a blank line (ADR-0083).
 /// Every failure is reported as <see cref="TileDropReason.SchemaInvalid"/>, a code only: a parse or schema message can
 /// quote the text it rejected, so none is kept. A reply with one bad tile is rejected whole; the retry asks again.
 /// </summary>
@@ -21,10 +22,10 @@ public sealed class TileWriterOutput
         ["what_worked"] = TileKind.WhatWorked,
         ["what_could_improve"] = TileKind.WhatCouldImprove,
         ["for_the_next_person"] = TileKind.ForTheNextPerson,
-        ["short_note"] = TileKind.ShortNote,
-        ["glassdoor"] = TileKind.Glassdoor,
-        ["google_review"] = TileKind.GoogleReview,
-        ["reddit"] = TileKind.Reddit,
+        ["structured_review"] = TileKind.StructuredReview,
+        ["narrative"] = TileKind.Narrative,
+        ["professional_post"] = TileKind.ProfessionalPost,
+        ["short_post"] = TileKind.ShortPost,
     }.ToFrozenDictionary();
 
     public static string SchemaText { get; } = LoadSchema();
@@ -62,9 +63,9 @@ public sealed class TileWriterOutput
             var tiles = new List<CandidateTile>();
             foreach (var e in doc.RootElement.GetProperty("tiles").EnumerateArray())
             {
-                var kind = Kinds[e.GetProperty("kind").GetString()!];
-                var basedOn = e.GetProperty("basedOn").EnumerateArray().Select(b => b.GetString()!).ToArray();
-                tiles.Add(new CandidateTile(kind, e.GetProperty("title").GetString()!, e.GetProperty("text").GetString()!, basedOn));
+                var candidate = Map(e);
+                if (candidate is null) { errorCodes = [TileDropReason.SchemaInvalid]; return false; }
+                tiles.Add(candidate);
             }
             if (tiles.Select(t => t.Kind).Distinct().Count() != tiles.Count) { errorCodes = [TileDropReason.SchemaInvalid]; return false; }
 
@@ -72,6 +73,28 @@ public sealed class TileWriterOutput
             errorCodes = [];
             return true;
         }
+    }
+
+    /// <summary>
+    /// One schema-valid tile element as a candidate. A generic kind carries its title and text. A family kind carries its sections:
+    /// the title is the <c>title</c> section (empty when there is none), and the text is the sections joined by a blank line.
+    /// Returns null when a section key repeats, which the schema alone does not forbid.
+    /// </summary>
+    private static CandidateTile? Map(JsonElement e)
+    {
+        var kind = Kinds[e.GetProperty("kind").GetString()!];
+        var basedOn = e.GetProperty("basedOn").EnumerateArray().Select(b => b.GetString()!).ToArray();
+        if (TileFamilies.Find(kind) is null)
+            return new CandidateTile(kind, e.GetProperty("title").GetString()!, e.GetProperty("text").GetString()!, basedOn);
+
+        var sections = e.GetProperty("sections").EnumerateArray()
+            .Select(s => new TileSection(s.GetProperty("key").GetString()!, s.GetProperty("text").GetString()!))
+            .ToArray();
+        if (sections.Select(s => s.Key).Distinct().Count() != sections.Length) return null;
+
+        var title = sections.FirstOrDefault(s => s.Key == "title")?.Text ?? string.Empty;
+        var text = string.Join("\n\n", sections.Select(s => s.Text));
+        return new CandidateTile(kind, title, text, basedOn, sections);
     }
 
     /// <summary>Takes the outermost JSON object out of a reply that may be wrapped in a code fence or a sentence.</summary>
@@ -85,7 +108,7 @@ public sealed class TileWriterOutput
 
     private static string LoadSchema()
     {
-        using var s = typeof(TileWriterOutput).Assembly.GetManifestResourceStream("tile-writer-output.v1.schema.json")
+        using var s = typeof(TileWriterOutput).Assembly.GetManifestResourceStream("tile-writer-output.v2.schema.json")
             ?? throw new InvalidOperationException("Embedded tile writer schema is missing.");
         using var r = new StreamReader(s);
         return r.ReadToEnd();

@@ -79,10 +79,10 @@ internal static class TileRenderer
     {
         /// <summary>Kind labels, indexed by <see cref="TileKind"/>.</summary>
         public static readonly Words Pl = new("Propozycje tekstów", "Brak kafelków.", "na podstawie", "Odrzucone", "kody", "Kopiuj", "Skopiowano", "wersja", NoticePl,
-            ["Fakty", "Przegląd", "Co się sprawdziło", "Co można poprawić", "Dla następnej osoby", "Krótka notatka", "Glassdoor", "Opinia Google", "Reddit"]);
+            ["Fakty", "Przegląd", "Co się sprawdziło", "Co można poprawić", "Dla następnej osoby", "Szkic: opinia", "Szkic: relacja", "Szkic: wpis", "Szkic: krótki wpis"]);
 
         public static readonly Words En = new("Draft texts", "No tiles.", "based on", "Dropped", "codes", "Copy", "Copied", "version", NoticeEn,
-            ["Facts", "Overview", "What worked", "What could improve", "For the next person", "Short note", "Glassdoor", "Google review", "Reddit"]);
+            ["Facts", "Overview", "What worked", "What could improve", "For the next person", "Draft: review", "Draft: narrative", "Draft: post", "Draft: short post"]);
 
         public static Words For(string language) =>
             language.Equals("pl", StringComparison.OrdinalIgnoreCase) || language.StartsWith("pl-", StringComparison.OrdinalIgnoreCase) ? Pl : En;
@@ -127,7 +127,7 @@ internal static class TileRenderer
         {
             var tile = set.Tiles[i];
             var id = "tile-" + (i + 1);
-            var wide = tile.Kind == TileKind.Reddit ? " wide" : string.Empty;
+            var wide = tile.Kind == TileKind.Narrative ? " wide" : string.Empty;
             html.Append("<article class=\"card").Append(wide).Append("\">\n<p class=\"kind\">").Append(E(w.KindLabels[(int)tile.Kind])).Append("</p>\n")
                 .Append("<h2>").Append(E(tile.Title)).Append("</h2>\n");
             if (tile.BasedOn.Count > 0) html.Append("<p class=\"meta\">(").Append(E(w.BasedOn)).Append(": ").Append(E(string.Join(", ", tile.BasedOn))).Append(")</p>\n");

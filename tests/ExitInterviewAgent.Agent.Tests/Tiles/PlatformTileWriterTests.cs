@@ -8,19 +8,27 @@ using static ExitInterviewAgent.Agent.Tests.Tiles.TileTestSupport;
 
 namespace ExitInterviewAgent.Agent.Tests.Tiles;
 
-/// <summary>Platform tiles (ADR-0075): the writer's transcript input, the output schema and parser, the scripted mock, the generator.</summary>
+/// <summary>
+/// Family drafts (ADR-0075, amended by ADR-0083): the writer's transcript input, the output parser for the family sections, the
+/// scripted mock in both languages, and the generator with the real guard.
+/// </summary>
 public class PlatformTileWriterTests
 {
     private const string Transcript =
         "Interviewer: What was the first month like?\n" +
         "Interviewee: I was bullied by my lead in the second month.\n";
 
-    private static string Tile(string kind, string text, string basedOn = "\"culture\"") =>
-        $$"""{"kind":"{{kind}}","title":"Title","text":"{{text}}","basedOn":[{{basedOn}}]}""";
-
     private static string Output(params string[] tiles) => $"{{\"tiles\":[{string.Join(",", tiles)}]}}";
 
-    private static string Chars(int n) => new('a', n);
+    /// <summary>A family element with the sections the family needs, long enough for the guard's minimums.</summary>
+    private static string Family(string kind, string body) => kind switch
+    {
+        "structured_review" =>
+            $$"""{"kind":"structured_review","sections":[{"key":"title","text":"Notes"},{"key":"pros","text":"{{body}}"},{"key":"cons","text":"{{body}}"}],"basedOn":["culture"]}""",
+        "narrative" =>
+            $$"""{"kind":"narrative","sections":[{"key":"title","text":"Notes"},{"key":"body","text":"{{body}}"}],"basedOn":["culture"]}""",
+        _ => $$"""{"kind":"{{kind}}","sections":[{"key":"body","text":"{{body}}"}],"basedOn":["culture"]}""",
+    };
 
     [Fact]
     public async Task With_a_transcript_the_writer_sends_it_inside_its_own_data_markers_and_still_sends_the_record()
@@ -58,69 +66,74 @@ public class PlatformTileWriterTests
         Assert.DoesNotContain(TilePrompts.TranscriptBegin, Assert.Single(model.Calls).User, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("glassdoor", TileKind.Glassdoor)]
-    [InlineData("google_review", TileKind.GoogleReview)]
-    [InlineData("reddit", TileKind.Reddit)]
-    public void The_three_platform_kinds_parse_to_their_tile_kinds(string wire, TileKind kind)
+    [Fact]
+    public void The_writer_prompt_lists_the_four_families_from_the_table_with_their_limits()
     {
-        Assert.True(TileWriterOutput.TryParse(Output(Tile(wire, "A short, neutral sentence.")), out var o, out var codes));
+        var system = TilePrompts.WriterSystem;
+
+        Assert.Contains("- structured_review:", system, StringComparison.Ordinal);
+        Assert.Contains("- narrative:", system, StringComparison.Ordinal);
+        Assert.Contains("- professional_post:", system, StringComparison.Ordinal);
+        Assert.Contains("- short_post:", system, StringComparison.Ordinal);
+        Assert.Contains("\"pros\" 40-500 characters", system, StringComparison.Ordinal);
+        Assert.Contains("Whole draft at most 1100 characters", system, StringComparison.Ordinal);
+        Assert.Contains("\"body\" 600-4000 characters", system, StringComparison.Ordinal);
+        Assert.Contains("\"body\" 80-270 characters", system, StringComparison.Ordinal);
+        Assert.DoesNotContain("glassdoor", system, StringComparison.Ordinal);
+        Assert.DoesNotContain("google_review", system, StringComparison.Ordinal);
+        Assert.DoesNotContain("short_note", system, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_writer_prompt_allows_the_experience_words_only_in_the_narrative()
+    {
+        var system = TilePrompts.WriterSystem;
+
+        Assert.Contains("ONLY in a narrative", system, StringComparison.Ordinal);
+        Assert.Contains("Do not use the experience words listed above.", system, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("structured_review", TileKind.StructuredReview)]
+    [InlineData("narrative", TileKind.Narrative)]
+    [InlineData("professional_post", TileKind.ProfessionalPost)]
+    [InlineData("short_post", TileKind.ShortPost)]
+    public void The_four_family_kinds_parse_to_their_tile_kinds(string wire, TileKind kind)
+    {
+        Assert.True(TileWriterOutput.TryParse(Output(Family(wire, "A short, neutral sentence.")), out var o, out var codes), string.Join(",", codes));
 
         Assert.Empty(codes);
         Assert.Equal(kind, Assert.Single(o!.Tiles).Kind);
     }
 
-    [Theory]
-    [InlineData("glassdoor", 900, true)]
-    [InlineData("glassdoor", 901, false)]
-    [InlineData("google_review", 500, true)]
-    [InlineData("google_review", 501, false)]
-    [InlineData("reddit", 4500, true)]
-    [InlineData("reddit", 4501, false)]
-    [InlineData("overview", 600, true)]
-    [InlineData("overview", 601, false)]
-    [InlineData("short_note", 280, true)]
-    [InlineData("short_note", 281, false)]
-    public void The_schema_limits_each_kind_to_its_own_length(string kind, int length, bool accepted)
-    {
-        var ok = TileWriterOutput.TryParse(Output(Tile(kind, Chars(length))), out _, out var codes);
-
-        Assert.Equal(accepted, ok);
-        if (!accepted) Assert.Equal([TileDropReason.SchemaInvalid], codes);
-    }
-
     [Fact]
-    public void The_schema_allows_at_most_eight_model_tiles()
-    {
-        var nine = Enumerable.Range(0, 9).Select(_ => Tile("reddit", "A short sentence.")).ToArray();
-
-        Assert.False(TileWriterOutput.TryParse(Output(nine), out _, out var codes));
-        Assert.Equal([TileDropReason.SchemaInvalid], codes);
-    }
-
-    [Fact]
-    public void The_schema_text_names_the_three_platform_kinds_and_the_eight_model_kinds()
+    public void The_schema_text_names_the_four_families_and_the_eight_model_tiles()
     {
         var schema = TileWriterOutput.SchemaText;
 
-        Assert.Contains("\"glassdoor\"", schema, StringComparison.Ordinal);
-        Assert.Contains("\"google_review\"", schema, StringComparison.Ordinal);
-        Assert.Contains("\"reddit\"", schema, StringComparison.Ordinal);
+        Assert.Contains("\"structured_review\"", schema, StringComparison.Ordinal);
+        Assert.Contains("\"narrative\"", schema, StringComparison.Ordinal);
+        Assert.Contains("\"professional_post\"", schema, StringComparison.Ordinal);
+        Assert.Contains("\"short_post\"", schema, StringComparison.Ordinal);
         Assert.Contains("\"maxItems\": 8", schema, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"glassdoor\"", schema, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"google_review\"", schema, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"reddit\"", schema, StringComparison.Ordinal);
     }
 
     [Theory]
     [MemberData(nameof(Golden_files_with_a_covered_topic))]
-    public async Task The_scripted_writer_offers_the_three_platform_tiles_for_every_golden_record_with_a_covered_topic(string name)
+    public async Task The_scripted_writer_offers_the_four_families_for_every_golden_record_with_a_covered_topic(string name)
     {
         var text = await new ModelTileWriter(new ScriptedChatClient()).WriteAsync(Golden(name), [], CancellationToken.None);
 
         Assert.True(TileWriterOutput.TryParse(text, out var output, out var codes), string.Join(",", codes));
         var kinds = output!.Tiles.Select(t => t.Kind).ToHashSet();
-        Assert.Contains(TileKind.Glassdoor, kinds);
-        Assert.Contains(TileKind.GoogleReview, kinds);
-        Assert.Contains(TileKind.Reddit, kinds);
-        Assert.All(output.Tiles.Where(t => t.Kind is TileKind.Glassdoor or TileKind.GoogleReview or TileKind.Reddit), t => Assert.NotEmpty(t.BasedOn));
+        Assert.Contains(TileKind.StructuredReview, kinds);
+        Assert.Contains(TileKind.Narrative, kinds);
+        Assert.Contains(TileKind.ProfessionalPost, kinds);
+        Assert.Contains(TileKind.ShortPost, kinds);
+        Assert.All(output.Tiles.Where(t => TileFamilies.Find(t.Kind) is not null), t => Assert.NotEmpty(t.BasedOn));
     }
 
     public static IEnumerable<object[]> Golden_files() => GoldenRecords();
@@ -138,38 +151,35 @@ public class PlatformTileWriterTests
     }
 
     [Fact]
-    public async Task The_scripted_glassdoor_entry_has_the_three_blocks_in_english_and_in_polish()
+    public async Task The_scripted_structured_review_has_pros_cons_and_advice_in_english_and_in_polish()
     {
-        var en = await GlassdoorText(Full());
-        var pl = await GlassdoorText(WithLanguage(Full(), "pl"));
+        var en = await SectionKeys(Full());
+        var pl = await SectionKeys(WithLanguage(Full(), "pl"));
 
-        Assert.Contains("Pros:", en, StringComparison.Ordinal);
-        Assert.Contains("Cons:", en, StringComparison.Ordinal);
-        Assert.Contains("Advice to management:", en, StringComparison.Ordinal);
-        Assert.Contains("Plusy:", pl, StringComparison.Ordinal);
-        Assert.Contains("Minusy:", pl, StringComparison.Ordinal);
-        Assert.Contains("Rada dla zarządu:", pl, StringComparison.Ordinal);
+        Assert.Equal(["title", "pros", "cons", "advice"], en);
+        Assert.Equal(["title", "pros", "cons", "advice"], pl);
     }
 
-    /// <summary>The decoded text of the scripted glassdoor tile (the JSON escapes non-ASCII letters, so the raw reply is not compared).</summary>
-    private static async Task<string> GlassdoorText(InterviewRecord record)
+    /// <summary>The section keys of the scripted structured review, in the writer's order.</summary>
+    private static async Task<string[]> SectionKeys(InterviewRecord record)
     {
         var text = await new ModelTileWriter(new ScriptedChatClient()).WriteAsync(record, [], CancellationToken.None);
         Assert.True(TileWriterOutput.TryParse(text, out var output, out _));
-        return output!.Tiles.Single(t => t.Kind == TileKind.Glassdoor).Text;
+        return output!.Tiles.Single(t => t.Kind == TileKind.StructuredReview).Sections!.Select(s => s.Key).ToArray();
     }
 
     [Fact]
-    public async Task The_generator_with_the_real_guard_yields_the_facts_tile_and_up_to_eight_model_tiles_with_no_drops()
+    public async Task The_generator_with_the_real_guard_yields_the_facts_tile_and_the_four_families_with_no_drops()
     {
         var generator = new TileGenerator(new ModelTileWriter(new ScriptedChatClient()), new TileGuard(new PiiGuard()));
 
         var set = await generator.GenerateAsync(new TileInput(Full(), Transcript), CancellationToken.None);
 
         Assert.Empty(set.Dropped);
-        Assert.Contains(TileKind.Glassdoor, set.Tiles.Select(t => t.Kind));
-        Assert.Contains(TileKind.GoogleReview, set.Tiles.Select(t => t.Kind));
-        Assert.Contains(TileKind.Reddit, set.Tiles.Select(t => t.Kind));
+        Assert.Contains(TileKind.StructuredReview, set.Tiles.Select(t => t.Kind));
+        Assert.Contains(TileKind.Narrative, set.Tiles.Select(t => t.Kind));
+        Assert.Contains(TileKind.ProfessionalPost, set.Tiles.Select(t => t.Kind));
+        Assert.Contains(TileKind.ShortPost, set.Tiles.Select(t => t.Kind));
         Assert.InRange(set.Tiles.Count, 1, 9);
         Assert.Equal(set.Tiles.Count, set.Tiles.Select(t => t.Id).Distinct().Count());
     }
@@ -209,9 +219,9 @@ public class PlatformTileWriterTests
     [Fact]
     public void The_default_input_overload_of_the_guard_delegates_to_the_record_overload()
     {
-        ITileGuard guard = new FakeGuard(c => c.Kind == TileKind.Reddit ? TileDropReason.BannedTerm : null);
+        ITileGuard guard = new FakeGuard(c => c.Kind == TileKind.Narrative ? TileDropReason.BannedTerm : null);
 
-        var result = guard.Check(new TileInput(Full()), [new CandidateTile(TileKind.Reddit, "T", "Text.", ["culture"])]);
+        var result = guard.Check(new TileInput(Full()), [new CandidateTile(TileKind.Narrative, "T", "Text.", ["culture"])]);
 
         Assert.Equal([TileDropReason.BannedTerm], result.Dropped.Select(d => d.ReasonCode));
     }
