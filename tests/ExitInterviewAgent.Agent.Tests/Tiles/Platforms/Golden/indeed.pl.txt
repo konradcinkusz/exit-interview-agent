@@ -1,0 +1,17 @@
+platform: indeed
+name: Indeed
+family: structured_review
+risk: medium
+url: https://www.indeed.com/
+warning: Jedna opinia o firmie, której potem nie da się edytować. Indeed nie przyjmuje w opiniach zgłoszeń przestępstw. To szkic, nie fakt. To nie jest porada prawna.
+field: Stanowisko, status zatrudnienia i lokalizacja
+field: Oceny w gwiazdkach: równowaga praca–życie, wynagrodzenie, stabilność, zarządzanie i kultura
+section title | Tytuł | Notatki z rozmowy odchodzącej
+section pros | Co mi się podobało | Kultura: pozytywnie, 4 z 5. To moja własna opinia, oparta na moich odpowiedziach.
+section cons | Co mogłoby być lepsze | Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Wynagrodzenie a obietnice: negatywnie, 2 z 5.
+copy:
+Notatki z rozmowy odchodzącej
+
+Kultura: pozytywnie, 4 z 5. To moja własna opinia, oparta na moich odpowiedziach.
+
+Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Wynagrodzenie a obietnice: negatywnie, 2 z 5.

@@ -92,6 +92,13 @@ public sealed class InterviewEndpointTests : IDisposable
         var tiles = result.GetProperty("tiles");
         Assert.Contains(tiles.GetProperty("items").EnumerateArray(), t => t.GetProperty("kind").GetString() == "facts");
         Assert.True(tiles.GetProperty("items").GetArrayLength() > 1);
+        // The items carry the generic kinds only; the platform texts are drafts, built from the family tiles (ADR-0083, WP4).
+        var generic = new[] { "facts", "overview", "what_worked", "what_could_improve", "for_the_next_person" };
+        Assert.All(tiles.GetProperty("items").EnumerateArray(), t => Assert.Contains(t.GetProperty("kind").GetString()!, generic));
+        var drafts = tiles.GetProperty("drafts").EnumerateArray().ToArray();
+        Assert.NotEmpty(drafts);
+        Assert.Contains(drafts, d => d.GetProperty("platform").GetString() == "gowork");
+        Assert.All(drafts, d => Assert.False(string.IsNullOrWhiteSpace(d.GetProperty("copyText").GetString())));
         Assert.Equal(InterviewNoticeText("pl"), tiles.GetProperty("notice").GetString());
         var usage = result.GetProperty("usage");
         Assert.True(usage.GetProperty("modelCalls").GetInt32() > 0);

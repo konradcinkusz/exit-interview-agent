@@ -1,0 +1,10 @@
+platform: linkedin
+name: LinkedIn
+family: professional_post
+risk: high
+url: https://www.linkedin.com/
+warning: Opinia zostanie opublikowana pod Twoim prawdziwym nazwiskiem, na oczach przyszłych pracodawców. Sprawdź, czy nie obowiązuje Cię klauzula poufności ani zakaz krytykowania pracodawcy. To szkic, nie fakt. To nie jest porada prawna.
+field: Kto widzi wpis (widoczność)
+section body | Wpis | Krótka, rzeczowa notatka o mojej rozmowie odchodzącej. Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Rozwój: bez oceny. Wynagrodzenie a obietnice: negatywnie, 2 z 5. Kultura: pozytywnie, 4 z 5. Powód odejścia: mieszanie, 3 z 5. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem.
+copy:
+Krótka, rzeczowa notatka o mojej rozmowie odchodzącej. Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Rozwój: bez oceny. Wynagrodzenie a obietnice: negatywnie, 2 z 5. Kultura: pozytywnie, 4 z 5. Powód odejścia: mieszanie, 3 z 5. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem.

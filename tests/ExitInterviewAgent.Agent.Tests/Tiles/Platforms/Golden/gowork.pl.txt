@@ -1,0 +1,16 @@
+platform: gowork
+name: GoWork.pl
+family: structured_review
+risk: high
+url: https://www.gowork.pl/
+warning: GoWork publikuje opinie bez wcześniejszego sprawdzenia i przekazuje adres IP autora organom ścigania, gdy podejrzewa przestępstwo. Prawo polskie chroni dobra osobiste; pisz opinie jako opinie. To szkic, nie fakt. To nie jest porada prawna.
+field: Firma, którą oceniasz, wybrana w serwisie
+section pros | Plusy | Kultura: pozytywnie, 4 z 5. To moja własna opinia, oparta na moich odpowiedziach.
+section cons | Minusy | Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Wynagrodzenie a obietnice: negatywnie, 2 z 5.
+section advice | Rada | Warto przejrzeć: wdrożenie, zarządzanie, wynagrodzenie a obietnice.
+copy:
+Kultura: pozytywnie, 4 z 5. To moja własna opinia, oparta na moich odpowiedziach.
+
+Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Wynagrodzenie a obietnice: negatywnie, 2 z 5.
+
+Warto przejrzeć: wdrożenie, zarządzanie, wynagrodzenie a obietnice.

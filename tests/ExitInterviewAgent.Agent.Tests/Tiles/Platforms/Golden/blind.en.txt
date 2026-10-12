@@ -1,0 +1,17 @@
+platform: blind
+name: Blind
+family: structured_review
+risk: medium
+url: https://www.teamblind.com/
+warning: Your company is shown with your post. A former employee may write one review per company. Draft, not fact. Not legal advice.
+field: The company you review
+field: Star ratings, if the site shows them
+section title | Title | Notes from my exit interview
+section pros | Pros | Culture: positive, 4 of 5. This is my own view, based on my answers.
+section cons | Cons | Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Pay vs promises: negative, 2 of 5.
+copy:
+Notes from my exit interview
+
+Culture: positive, 4 of 5. This is my own view, based on my answers.
+
+Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Pay vs promises: negative, 2 of 5.

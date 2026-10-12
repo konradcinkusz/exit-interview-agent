@@ -46,7 +46,7 @@ public sealed record InterviewReplyResponse(string Status, InterviewTurn? Turn, 
 /// <summary>Response to <c>GET /api/v1/interviews/{id}</c>. No text.</summary>
 public sealed record InterviewState(string Id, string Status, string Language, int TurnCount, DateTimeOffset ExpiresAt);
 
-/// <summary>One draft text. <c>Kind</c> is <c>facts</c>, <c>overview</c>, <c>what_worked</c>, <c>what_could_improve</c>, <c>for_the_next_person</c>, <c>short_note</c>, <c>glassdoor</c>, <c>google_review</c> or <c>reddit</c>.</summary>
+/// <summary>One generic draft text. <c>Kind</c> is <c>facts</c>, <c>overview</c>, <c>what_worked</c>, <c>what_could_improve</c> or <c>for_the_next_person</c>; platform texts are <c>drafts</c> (ADR-0083).</summary>
 public sealed record InterviewTile(string Kind, string Text);
 
 /// <summary>A tile that did not pass the checks: the code only.</summary>
@@ -71,8 +71,8 @@ public sealed record InterviewPlatformDraft(
     IReadOnlyList<string> FieldsOnSite);
 
 /// <summary>
-/// The tiles, the platform drafts and the legal notice the CLI prints, in the interview's language. <c>Drafts</c> is empty until the
-/// service builds them (WP4); the three-argument constructor keeps that default for the callers that have no drafts.
+/// The tiles, the platform drafts and the legal notice, in the interview's language. <c>Items</c> carry the generic kinds only; <c>Drafts</c>
+/// are built by the service from the family tiles (ADR-0083). The three-argument constructor gives an empty list of drafts.
 /// </summary>
 public sealed record InterviewTiles(
     IReadOnlyList<InterviewTile> Items,

@@ -61,7 +61,7 @@ describe("the golden contract samples parse with the BFF parsers", () => {
     expect(parseState(sample("interview-state"))).toMatchObject({ status: "completed", turnCount: 4 });
     const result = parseResult(sample("interview-result"));
     expect(result).not.toBeNull();
-    expect(result?.tiles.items.map((t) => t.kind)).toEqual(["glassdoor", "short_note"]);
+    expect(result?.tiles.items.map((t) => t.kind)).toEqual(["overview", "what_worked"]);
     expect(result?.tiles.dropped).toEqual([{ code: "too_long" }]);
     expect(result?.tiles.drafts).toEqual([]);
     expect(result?.usage).toEqual({ modelCalls: 4, tokensEstimated: 5400 });

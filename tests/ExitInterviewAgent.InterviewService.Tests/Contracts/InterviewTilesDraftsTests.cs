@@ -5,8 +5,8 @@ using ExitInterviewAgent.Contracts;
 namespace ExitInterviewAgent.InterviewService.Tests.Contracts;
 
 /// <summary>
-/// The <c>drafts</c> field of <c>tiles</c> (ADR-0083, platform-drafts-spec §3.4). The service sends an empty list until WP4 builds
-/// drafts; the field is present either way, so the BFF never has to guess whether it is missing.
+/// The <c>drafts</c> field of <c>tiles</c> (ADR-0083, platform-drafts-spec §3.4). The field is present whether or not the service has
+/// drafts to send, so the BFF never has to guess whether it is missing.
 /// </summary>
 public class InterviewTilesDraftsTests
 {

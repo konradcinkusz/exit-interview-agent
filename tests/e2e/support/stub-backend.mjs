@@ -174,11 +174,26 @@ const INTERVIEW_SCRIPT = {
     quote: "Wdrożenie było chaotyczne.",
     notice:
       "To są propozycje tekstów, nie fakty. Program niczego nie weryfikuje i niczego nie publikuje. Za treść, którą opublikujesz, odpowiadasz Ty; publikacja opinii o pracodawcy może mieć skutki prawne. Przeczytaj i zmień każdy tekst, zanim go użyjesz. To nie jest porada prawna. Limity długości są orientacyjne; sprawdź aktualne zasady platformy. Nazwę firmy wstaw sam albo zostaw [FIRMA].",
-    tiles: [
-      ["glassdoor", "Wdrożenie było chaotyczne, ale zespół pomagał. Kontakt z przełożonym był rzadki."],
-      ["google_review", "Dobry zespół, słabe wdrożenie. Warto zapytać o plan pierwszych tygodni."],
-      ["reddit", "Pracowałem tam ponad rok. Wdrożenie wymagało więcej porządku, zespół był w porządku.\nGdybym miał coś doradzić: zapytaj o plan pierwszych tygodni przed podpisaniem umowy."],
-      ["short_note", "Wdrożenie chaotyczne, zespół dobry."],
+    // The generic items (ADR-0083). The platform text is a draft: one Glassdoor draft, as the service builds it from the family tile.
+    items: [
+      ["overview", "Wdrożenie było chaotyczne, ale zespół pomagał. Kontakt z przełożonym był rzadki."],
+      ["what_worked", "Wdrożenie chaotyczne, zespół dobry."],
+    ],
+    drafts: [
+      {
+        platform: "glassdoor",
+        name: "Glassdoor",
+        family: "structured_review",
+        risk: "medium",
+        url: "https://www.glassdoor.com/",
+        warning: "To szkic, nie fakt. To nie jest porada prawna.",
+        sections: [
+          { key: "pros", label: "Plusy", text: "Wdrożenie było chaotyczne, ale zespół pomagał." },
+          { key: "cons", label: "Minusy", text: "Kontakt z przełożonym był rzadki." },
+        ],
+        copyText: "Wdrożenie było chaotyczne, ale zespół pomagał.\n\nKontakt z przełożonym był rzadki.",
+        fieldsOnSite: ["Status zatrudnienia i stanowisko", "Oceny w gwiazdkach"],
+      },
     ],
   },
   en: {
@@ -189,11 +204,26 @@ const INTERVIEW_SCRIPT = {
     quote: "Onboarding was chaotic.",
     notice:
       "These are draft texts, not facts. The program verifies nothing and publishes nothing. You are responsible for any text you publish; publishing an opinion about an employer can have legal consequences. Read and change every text before you use it. This is not legal advice. Length limits are approximate; check the platform's current rules. Insert the company name yourself or leave [COMPANY].",
-    tiles: [
-      ["glassdoor", "Onboarding was chaotic, but the team helped. Contact with the manager was rare."],
-      ["google_review", "Good team, weak onboarding. Ask about the plan for the first weeks."],
-      ["reddit", "I worked there for over a year. Onboarding needed more structure; the team was fine.\nIf I had one piece of advice: ask about the first-weeks plan before you sign."],
-      ["short_note", "Chaotic onboarding, good team."],
+    // The generic items (ADR-0083). The platform text is a draft: one Glassdoor draft, as the service builds it from the family tile.
+    items: [
+      ["overview", "Onboarding was chaotic, but the team helped. Contact with the manager was rare."],
+      ["what_worked", "Chaotic onboarding, good team."],
+    ],
+    drafts: [
+      {
+        platform: "glassdoor",
+        name: "Glassdoor",
+        family: "structured_review",
+        risk: "medium",
+        url: "https://www.glassdoor.com/",
+        warning: "Draft, not fact. Not legal advice.",
+        sections: [
+          { key: "pros", label: "Pros", text: "Onboarding was chaotic, but the team helped." },
+          { key: "cons", label: "Cons", text: "Contact with the manager was rare." },
+        ],
+        copyText: "Onboarding was chaotic, but the team helped.\n\nContact with the manager was rare.",
+        fieldsOnSite: ["Employment status and job title", "Star ratings"],
+      },
     ],
   },
 };
@@ -221,11 +251,12 @@ function recordFor(language, interviewId) {
 }
 
 function tilesFor(language) {
-  const { tiles, notice } = INTERVIEW_SCRIPT[language];
+  const { items, drafts, notice } = INTERVIEW_SCRIPT[language];
   return {
-    items: tiles.map(([kind, text]) => ({ kind, text })),
+    items: items.map(([kind, text]) => ({ kind, text })),
     dropped: [{ code: "too_long" }],
     notice,
+    drafts,
   };
 }
 

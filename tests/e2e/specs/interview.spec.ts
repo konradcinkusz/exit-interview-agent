@@ -69,12 +69,11 @@ test("a visitor with a credit goes from consent to a result, copies a draft, dow
   await expect(page.getByText("Rating 2 of 5")).toBeVisible();
   await expect(page.getByText("Onboarding was chaotic.")).toBeVisible();
 
-  const glassdoorCard = page.locator("li", { has: page.getByRole("heading", { name: "Glassdoor" }) });
-  await glassdoorCard.getByRole("button", { name: "Copy: Glassdoor" }).click();
-  await expect(glassdoorCard.getByRole("status")).toHaveText("Copied");
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    "Onboarding was chaotic, but the team helped. Contact with the manager was rare.",
-  );
+  // The Glassdoor draft: one copy button per section; the Pros copy puts exactly the Pros text on the clipboard.
+  const glassdoorCard = page.getByRole("article", { name: "Glassdoor" });
+  await glassdoorCard.getByRole("button", { name: "Copy: Glassdoor, Pros" }).click();
+  await expect(glassdoorCard.getByRole("button", { name: "Copy: Glassdoor, Pros" }).locator("xpath=..").getByRole("status")).toHaveText("Copied");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Onboarding was chaotic, but the team helped.");
 
   // One "Save a copy" control holds the three downloads.
   await page.getByTestId("save").getByText("Save a copy").click();
@@ -93,7 +92,7 @@ test("a visitor with a credit goes from consent to a result, copies a draft, dow
   const html = readFileSync((await tilesDownload.path()) as string, "utf8");
   expect(html).not.toMatch(/<script/i);
   expect(html).toContain("These are draft texts, not facts.");
-  expect(html).toContain("Reddit");
+  expect(html).toContain("Glassdoor");
 
   // Deleting is one deliberate step, and then nothing of the visit remains.
   await page.getByRole("button", { name: "Delete everything now" }).click();

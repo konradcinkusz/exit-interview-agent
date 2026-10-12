@@ -17,10 +17,10 @@ export const TURN_KINDS = ["opening", "consent_reask", "topic", "probe", "clarif
 export type TurnKind = (typeof TURN_KINDS)[number];
 
 /**
- * The tile kinds this page knows (TileKind in the agent; the CLI renders more). An item of any other kind is skipped by `parseResult`,
- * so a newer service can send kinds this page does not show without breaking the result (ADR-0083).
+ * The generic tile kinds this page knows: the items of `tiles`. Platform texts are not items; they are `drafts` (ADR-0083). An item of
+ * any other kind is skipped by `parseResult`, so a newer service can send kinds this page does not show without breaking the result.
  */
-export const TILE_KINDS = ["glassdoor", "google_review", "reddit", "short_note", "overview", "facts"] as const;
+export const TILE_KINDS = ["facts", "overview", "what_worked", "what_could_improve", "for_the_next_person"] as const;
 export type TileKind = (typeof TILE_KINDS)[number];
 
 /** The writer families of a platform draft (ADR-0083, platform-drafts-spec §3.3): the wire words of DraftFamily in the agent. */
@@ -124,7 +124,7 @@ export interface Tiles {
   dropped: { code: string }[];
   /** The same legal notice the CLI prints, in the interview's language. */
   notice: string;
-  /** Empty until the service builds drafts; a result without the field has none. */
+  /** Built by the service from the family tiles (ADR-0083); a result without the field has none. */
   drafts: PlatformDraft[];
 }
 

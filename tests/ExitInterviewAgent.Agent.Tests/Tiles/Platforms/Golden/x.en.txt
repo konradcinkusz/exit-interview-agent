@@ -1,0 +1,10 @@
+platform: x
+name: X
+family: short_post
+risk: medium
+url: https://x.com/
+warning: Short public post. A screenshot outlives a deletion. Draft, not fact. Not legal advice.
+field: Whether to attach an image or a link
+section body | Post | My note on the topics: onboarding, management, growth, pay vs promises, culture, reason for leaving.
+copy:
+My note on the topics: onboarding, management, growth, pay vs promises, culture, reason for leaving.

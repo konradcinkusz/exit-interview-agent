@@ -66,7 +66,7 @@ test("sign in, start, chat, result, delete: the whole journey in Polish @smoke",
   await expect(page.getByTestId("result-warning")).toContainText("Szkice, nie fakty");
   await expect(page.getByTestId("tiles-notice")).toContainText("To są propozycje tekstów, nie fakty.");
   await expect(page.getByTestId("not-discussed")).toContainText("Nie poruszono:");
-  await expect(page.locator("li", { has: page.getByRole("heading", { name: "Opinia Google" }) })).toHaveCount(1);
+  await expect(page.getByRole("article", { name: "Glassdoor" })).toHaveCount(1);
   await page.getByTestId("save").getByText("Zapisz kopię").click();
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Zapis (JSON)" }).click()]);
   expect(download.suggestedFilename()).toBe("exit-interview-record.json");
