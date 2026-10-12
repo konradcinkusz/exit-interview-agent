@@ -92,7 +92,7 @@ public class TilesCommandTests : IDisposable
         Assert.Equal(["tiles.html", "tiles.json"], Directory.GetFiles(Out).Select(Path.GetFileName).Order());
         using (var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Out, "tiles.json"))))
         {
-            Assert.Equal("1", doc.RootElement.GetProperty("tilesVersion").GetString());
+            Assert.Equal("2", doc.RootElement.GetProperty("tilesVersion").GetString());
             Assert.Contains(doc.RootElement.GetProperty("tiles").EnumerateArray(), t => t.GetProperty("kind").GetString() == "facts");
         }
         Assert.Contains("<!doctype html>", File.ReadAllText(Path.Combine(Out, "tiles.html")));
@@ -130,7 +130,7 @@ public class TilesCommandTests : IDisposable
 
         Assert.Equal(0, code);
         using var doc = JsonDocument.Parse(output);
-        Assert.Equal("1", doc.RootElement.GetProperty("tilesVersion").GetString());
+        Assert.Equal("2", doc.RootElement.GetProperty("tilesVersion").GetString());
         Assert.Equal(File.ReadAllText(Path.Combine(Out, "tiles.json")).Trim(), output.Trim());
         Assert.Contains(doc.RootElement.GetProperty("tiles").EnumerateArray(), t => t.GetProperty("kind").GetString() == "facts");
     }

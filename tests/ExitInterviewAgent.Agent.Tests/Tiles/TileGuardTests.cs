@@ -96,15 +96,6 @@ public class TileGuardTests
         Assert.Equal(TileDropReason.TooLong, Reason(Cand(TileKind.Overview, text)));
     }
 
-    [Fact]
-    public void A_short_note_is_limited_to_280_characters_and_the_boundary_is_exact()
-    {
-        var atLimit = new string('a', TileLimits.ShortNoteMaxChars);
-        var overLimit = new string('a', TileLimits.ShortNoteMaxChars + 1);
-
-        Assert.Equal(atLimit, Accepted(Cand(TileKind.ShortNote, atLimit)).Text);
-        Assert.Equal(TileDropReason.TooLong, Reason(Cand(TileKind.ShortNote, overLimit)));
-    }
 
     [Fact]
     public void Length_is_counted_in_code_points_not_utf16_units()
@@ -357,10 +348,10 @@ public class TileGuardTests
         var result = Guard.Check(Record, [
             Cand(TileKind.Overview, CleanText),
             Cand(TileKind.WhatWorked, "This was the worst thing."),
-            Cand(TileKind.ShortNote, CleanText),
+            Cand(TileKind.ForTheNextPerson, CleanText),
         ]);
 
-        Assert.Equal([TileKind.Overview, TileKind.ShortNote], result.Accepted.Select(t => t.Kind));
+        Assert.Equal([TileKind.Overview, TileKind.ForTheNextPerson], result.Accepted.Select(t => t.Kind));
         Assert.Equal([TileKind.WhatWorked], result.Dropped.Select(d => d.Kind));
     }
 
@@ -369,6 +360,5 @@ public class TileGuardTests
     {
         Assert.Equal("what-could-improve", Accepted(Cand(TileKind.WhatCouldImprove, CleanText)).Id);
         Assert.Equal("for-the-next-person", Accepted(Cand(TileKind.ForTheNextPerson, CleanText)).Id);
-        Assert.Equal("short-note", Accepted(Cand(TileKind.ShortNote, CleanText)).Id);
     }
 }

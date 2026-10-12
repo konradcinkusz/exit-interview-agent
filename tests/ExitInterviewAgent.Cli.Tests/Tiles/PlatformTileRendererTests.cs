@@ -7,7 +7,7 @@ using ExitInterviewAgent.Cli.Tiles;
 
 namespace ExitInterviewAgent.Cli.Tests.Tiles;
 
-/// <summary>Platform kinds in the renderer (ADR-0075): labels, the wide Reddit card, encoding, the CSP hash, the length notice.</summary>
+/// <summary>Family kinds in the renderer (ADR-0075, ADR-0083): labels, the wide narrative card, encoding, the CSP hash, the length notice.</summary>
 public sealed class PlatformTileRendererTests
 {
     private const string Hostile = "<img src=x onerror=alert(1)> \"quoted\" & <b>bold</b>";
@@ -16,9 +16,9 @@ public sealed class PlatformTileRendererTests
         TileSet.CurrentVersion,
         language,
         [
-            new Tile("t1", TileKind.Glassdoor, "Wpis", "Plusy: dobry zespół.", ["culture"]),
-            new Tile("t2", TileKind.GoogleReview, "Opinia", "Dwa zdania.", ["onboarding"]),
-            new Tile("t3", TileKind.Reddit, "Relacja", "Pierwszoosobowa relacja.", ["management"]),
+            new Tile("t1", TileKind.StructuredReview, "Wpis", "Plusy: dobry zespół.", ["culture"]),
+            new Tile("t2", TileKind.ProfessionalPost, "Opinia", "Dwa zdania.", ["onboarding"]),
+            new Tile("t3", TileKind.Narrative, "Relacja", "Pierwszoosobowa relacja.", ["management"]),
         ],
         []);
 
@@ -34,26 +34,26 @@ public sealed class PlatformTileRendererTests
         var pl = Decoded(TileRenderer.ToHtml(Platform("pl")));
         var en = Decoded(TileRenderer.ToHtml(Platform("en")));
 
-        Assert.Contains("Glassdoor", pl, StringComparison.Ordinal);
-        Assert.Contains("Opinia Google", pl, StringComparison.Ordinal);
-        Assert.Contains("Reddit", pl, StringComparison.Ordinal);
-        Assert.Contains("Glassdoor", en, StringComparison.Ordinal);
-        Assert.Contains("Google review", en, StringComparison.Ordinal);
-        Assert.Contains("Reddit", en, StringComparison.Ordinal);
+        Assert.Contains("Szkic: opinia", pl, StringComparison.Ordinal);
+        Assert.Contains("Szkic: wpis", pl, StringComparison.Ordinal);
+        Assert.Contains("Szkic: relacja", pl, StringComparison.Ordinal);
+        Assert.Contains("Draft: review", en, StringComparison.Ordinal);
+        Assert.Contains("Draft: post", en, StringComparison.Ordinal);
+        Assert.Contains("Draft: narrative", en, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void The_terminal_text_shows_the_label_of_each_platform_kind()
+    public void The_terminal_text_shows_the_label_of_each_family_kind()
     {
         var text = TileRenderer.ToText(Platform("en"));
 
-        Assert.Contains("Glassdoor", text, StringComparison.Ordinal);
-        Assert.Contains("Google review", text, StringComparison.Ordinal);
-        Assert.Contains("Reddit", text, StringComparison.Ordinal);
+        Assert.Contains("Draft: review", text, StringComparison.Ordinal);
+        Assert.Contains("Draft: post", text, StringComparison.Ordinal);
+        Assert.Contains("Draft: narrative", text, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Only_the_reddit_card_is_wide_and_every_card_keeps_its_copy_button()
+    public void Only_the_narrative_card_is_wide_and_every_card_keeps_its_copy_button()
     {
         var html = TileRenderer.ToHtml(Platform("en"));
 
@@ -65,10 +65,11 @@ public sealed class PlatformTileRendererTests
     }
 
     [Theory]
-    [InlineData(TileKind.Glassdoor)]
-    [InlineData(TileKind.GoogleReview)]
-    [InlineData(TileKind.Reddit)]
-    public void Every_platform_kind_encodes_its_title_and_text(TileKind kind)
+    [InlineData(TileKind.StructuredReview)]
+    [InlineData(TileKind.ProfessionalPost)]
+    [InlineData(TileKind.Narrative)]
+    [InlineData(TileKind.ShortPost)]
+    public void Every_family_kind_encodes_its_title_and_text(TileKind kind)
     {
         var html = TileRenderer.ToHtml(OneHostile(kind));
 
@@ -118,12 +119,12 @@ public sealed class PlatformTileRendererTests
     }
 
     [Fact]
-    public void The_json_carries_the_platform_kinds_as_snake_case_names()
+    public void The_json_carries_the_family_kinds_as_snake_case_names()
     {
         var json = TileRenderer.ToJson(Platform("en"));
 
-        Assert.Contains("\"kind\": \"glassdoor\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"kind\": \"google_review\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"kind\": \"reddit\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"kind\": \"structured_review\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"kind\": \"professional_post\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"kind\": \"narrative\"", json, StringComparison.Ordinal);
     }
 }
