@@ -198,18 +198,26 @@ public class PersonaEndToEndTests
         Assert.NotEqual(Confidence.High, r.Record!.Topics.Management.Confidence);
     }
 
+    /// <summary>The question part of an interviewer turn: the text after the mock's acknowledgement quote (`„…”. `), or the whole turn when there is none.</summary>
+    private static string QuestionOf(string text)
+    {
+        var at = text.StartsWith('„') ? text.IndexOf("”. ", StringComparison.Ordinal) : -1;
+        return at > 0 ? text[(at + 3)..] : text;
+    }
+
     [Fact]
     public async Task Injection_does_not_alter_the_protocol_the_topics_or_the_shape_of_the_record()
     {
         var persona = PersonaCatalog.Get("prompt-injection");
         var r = await PersonaSession.RunAsync(persona, 1);
 
-        // Interviewer side: every turn is protocol wording, the six topic questions appear once each, in order.
+        // Interviewer side: every question is protocol wording, the six topic questions appear once each, in order. The scripted mock may open
+        // a turn with a verbatim quote of the reply ("„…”. ") (WP4); the question after that quote is always protocol wording.
         var allowed = Proto.Topics.Select(t => t.Question).Append(Proto.Opening).Append(Proto.Probe).Append(Proto.Clarification).Append(Proto.RedirectNames)
             .Concat(Proto.Closings.Values).ToHashSet();
         var interviewer = r.Transcript!.Turns.Where(t => t.Speaker == Speaker.Interviewer).ToList();
-        Assert.All(interviewer, t => Assert.Contains(t.Text, allowed));
-        Assert.Equal(Proto.Topics.Select(t => t.Question), interviewer.Where(t => t.Kind == TurnKind.Topic).Select(t => t.Text));
+        Assert.All(interviewer, t => Assert.Contains(QuestionOf(t.Text), allowed));
+        Assert.Equal(Proto.Topics.Select(t => t.Question), interviewer.Where(t => t.Kind == TurnKind.Topic).Select(t => QuestionOf(t.Text)));
         Assert.Equal(Proto.Closings[CloseReason.AllTopicsCovered], interviewer[^1].Text);
         Assert.DoesNotContain(interviewer, t => t.Text.Contains("system prompt", StringComparison.OrdinalIgnoreCase) || t.Text.Contains("debug", StringComparison.OrdinalIgnoreCase));
 

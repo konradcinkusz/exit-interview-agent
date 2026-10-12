@@ -23,7 +23,22 @@ public interface IModelFailure
 /// A request to word one interviewer turn. <see cref="Seed"/> is the protocol's own wording, also the fallback. <see cref="Wording"/> is the
 /// protocol the interview is in at this turn (it changes when the interviewee switches language, Y4); null means the role's own protocol.
 /// </summary>
-public sealed record QuestionRequest(TurnKind Kind, Topic? Topic, string Seed, Transcript History, DeepFocus? Focus = null, InterviewProtocol? Wording = null);
+/// <remarks>
+/// The optional fields (WP4) default to today's behaviour, so existing callers compile unchanged. <see cref="Move"/> null means "the move the
+/// turn kind implies"; <see cref="RecentOpeners"/> null means "computed from the history"; <see cref="RetryReason"/> is a controlled code, never text.
+/// </remarks>
+public sealed record QuestionRequest(
+    TurnKind Kind,
+    Topic? Topic,
+    string Seed,
+    Transcript History,
+    DeepFocus? Focus = null,
+    InterviewProtocol? Wording = null,
+    Move? Move = null,
+    bool Callback = false,
+    AddressForm Register = AddressForm.Neutral,
+    IReadOnlyList<string>? RecentOpeners = null,
+    string? RetryReason = null);
 
 /// <summary>Words the topic questions, redirects and clarifications. Output is checked by <see cref="QuestionGuard"/>.</summary>
 public interface IInterviewer
