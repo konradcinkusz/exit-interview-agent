@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 73 ADRs** (numbered 0001–0080). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 76 ADRs** (numbered 0001–0083). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -246,3 +246,9 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0082](0082-portal-in-polish-and-english-and-a-header-for-the-former-employee.md) | The portal in Polish and English, and a header for the former employee | accepted | A typed Polish catalog for every page on the former employee's path, chosen per request (switch cookie, then Accept-Language); developer pages stay English-only behind the footer; header is Interview, Account/Sign in, Sign out, language; `DEV_HINTS=1` (AppHost only) shows the local test account on sign-in |
+
+## 22. Per-platform drafts (0083)
+
+| ID | Title | Status | Summary |
+|---|---|---|---|
+| [0083](0083-per-platform-draft-profiles.md) | Per-platform draft profiles, one writer draft per family, and the Google review tile retired | accepted | Platforms are data (`platform-profiles.v1.json`, schema-validated); the writer drafts four families, code renders each platform from its family without editing a word; `tiles.drafts` is additive and a malformed draft fails the result; `google_review` retired (research §3.11); amends ADR-0074 and ADR-0075; the contract types and schemas land first, the behaviour in WP2 to WP4 |

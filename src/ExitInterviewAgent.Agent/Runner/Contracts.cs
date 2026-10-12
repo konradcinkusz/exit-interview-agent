@@ -4,8 +4,11 @@ using Microsoft.Extensions.Logging;
 
 namespace ExitInterviewAgent.Agent.Runner;
 
-/// <summary>What the interviewee sees: the interviewer's words plus the kind and topic as a cue for simulators.</summary>
-public sealed record IntervieweeTurn(TurnKind Kind, Topic? Topic, string Text);
+/// <summary>
+/// What the interviewee sees: the interviewer's words plus the kind and topic as a cue for simulators. <see cref="Move"/> (WP4, optional) is the
+/// move behind the turn, for simulators that answer by move; a person at a terminal ignores it.
+/// </summary>
+public sealed record IntervieweeTurn(TurnKind Kind, Topic? Topic, string Text, Move? Move = null);
 
 /// <summary>
 /// The other side of the conversation: a person at a terminal later, a persona simulator today. <c>ReplyAsync</c>

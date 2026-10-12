@@ -171,7 +171,7 @@ public class InterviewTilesTests : IDisposable
         var (code, output, _) = await Run(["interview", .. MockArgs, "--language", "en"], Stdin((2, PlAnswer)));
 
         Assert.Equal(0, code);
-        Assert.Contains($"Dobrze, kontynuujmy po polsku. {Pl.Spec(topics[2]).Question}", output);
+        AssertInOrder(output, "Dobrze, kontynuujmy po polsku.", Pl.Spec(topics[2]).Question);
     }
 
     [Fact]
@@ -183,7 +183,18 @@ public class InterviewTilesTests : IDisposable
         var (code, output, _) = await Run(["interview", .. MockArgs, "--language", "pl"], Stdin((1, request)));
 
         Assert.Equal(0, code);
-        Assert.Contains($"Sure, let's continue in English. {InterviewProtocol.Current.Spec(topics[1]).Question}", output);
+        AssertInOrder(output, "Sure, let's continue in English.", InterviewProtocol.Current.Spec(topics[1]).Question);
+    }
+
+    /// <summary>
+    /// The confirmation comes first and the new question after it. The scripted mock may place a verbatim quote of the reply between them (WP4),
+    /// so adjacency is not part of the contract.
+    /// </summary>
+    private static void AssertInOrder(string output, string confirmation, string question)
+    {
+        var at = output.IndexOf(confirmation, StringComparison.Ordinal);
+        Assert.True(at >= 0, $"the confirmation sentence is missing: {confirmation}");
+        Assert.True(output.IndexOf(question, at + confirmation.Length, StringComparison.Ordinal) > at, $"the question does not follow the confirmation: {question}");
     }
 
     [Fact]

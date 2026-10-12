@@ -466,6 +466,13 @@ public static partial class Layer1Grader
         if (s.Faults is null or { Count: 0 }) m["edge_case"] = new Count(EdgeCase(c) ? 1 : 0, 1);
     }
 
+    /// <summary>The question after the scripted mock's acknowledgement quote (`„…”. `), or the whole text when there is none.</summary>
+    private static string QuestionPart(string text)
+    {
+        var at = text.StartsWith('„') ? text.IndexOf("”. ", StringComparison.Ordinal) : -1;
+        return at > 0 ? text[(at + 3)..] : text;
+    }
+
     private static bool DegradedOk(Context c)
     {
         var s = c.Run.Scenario;
@@ -475,10 +482,11 @@ public static partial class Layer1Grader
         var ok = true;
         if (asksFailed && c.Tr is not null)
         {
-            // Every question the interviewee saw is the protocol's own wording: never a fabricated one.
+            // Every question the interviewee saw is the protocol's own wording: never a fabricated one. The quote the mock opens with is the
+            // person's own words (WP4), so the check is on the question after it.
             var allowed = new List<string> { c.P.Probe, c.P.Clarification, c.P.RedirectNames };
             allowed.AddRange(c.P.Topics.Select(t => t.Question));
-            ok &= c.Questions.All(q => allowed.Contains(q.Text, StringComparer.Ordinal));
+            ok &= c.Questions.All(q => allowed.Contains(QuestionPart(q.Text), StringComparer.Ordinal));
         }
         if (faults.Any(f => f.Kind == "usage_missing")) ok &= c.T.ChatSpans.All(x => (x.Int(InterviewTelemetry.Attr.UsageInputTokens) ?? 0) > 0);
         if (faults.Any(f => f.Roles.Contains("extractor") && f.Kind is "timeout" or "empty_answer" or "malformed_json"))

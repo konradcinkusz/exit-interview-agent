@@ -13,6 +13,7 @@ const tiles: Tiles = {
   ],
   dropped: [{ code: "too_long" }],
   notice: "These are draft texts, not facts. This is not legal advice.",
+  drafts: [],
 };
 
 describe("tilesToHtml", () => {

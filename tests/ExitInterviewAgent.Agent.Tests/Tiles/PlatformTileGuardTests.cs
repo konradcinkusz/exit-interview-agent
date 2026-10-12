@@ -46,7 +46,10 @@ public class PlatformTileGuardTests
     private static bool Accepted(CandidateTile candidate, string? transcript = null, InterviewRecord? record = null) =>
         Reason(candidate, transcript, record) is null;
 
-    private static readonly TileKind[] AllModelKinds = Enum.GetValues<TileKind>().Where(k => k != TileKind.Facts).ToArray();
+    // The family kinds (ADR-0083) are left out until the guard checks them (WP3): TileGuard has no id for them yet.
+    private static readonly TileKind[] AllModelKinds = Enum.GetValues<TileKind>()
+        .Where(k => k is not (TileKind.Facts or TileKind.StructuredReview or TileKind.Narrative or TileKind.ProfessionalPost or TileKind.ShortPost))
+        .ToArray();
 
     [Fact]
     public void Each_platform_kind_gets_its_own_length_limit_as_a_named_design_constant()

@@ -52,8 +52,37 @@ public sealed record InterviewTile(string Kind, string Text);
 /// <summary>A tile that did not pass the checks: the code only.</summary>
 public sealed record InterviewDroppedTile(string Code);
 
-/// <summary>The tiles and the legal notice the CLI prints, in the interview's language.</summary>
-public sealed record InterviewTiles(IReadOnlyList<InterviewTile> Items, IReadOnlyList<InterviewDroppedTile> Dropped, string Notice);
+/// <summary>One labelled section of a platform draft. <c>Label</c> is the platform's own heading, already in the interview's language.</summary>
+public sealed record InterviewDraftSection(string Key, string Label, string Text);
+
+/// <summary>
+/// A draft for one platform (ADR-0083, platform-drafts-spec §3.4). <c>Platform</c> is the profile id, <c>Family</c> and <c>Risk</c> are
+/// wire words, <c>Url</c> is the profile URL with no parameters, and <c>CopyText</c> is the sections in the platform's order.
+/// </summary>
+public sealed record InterviewPlatformDraft(
+    string Platform,
+    string Name,
+    string Family,
+    string Risk,
+    string Url,
+    string Warning,
+    IReadOnlyList<InterviewDraftSection> Sections,
+    string CopyText,
+    IReadOnlyList<string> FieldsOnSite);
+
+/// <summary>
+/// The tiles, the platform drafts and the legal notice the CLI prints, in the interview's language. <c>Drafts</c> is empty until the
+/// service builds them (WP4); the three-argument constructor keeps that default for the callers that have no drafts.
+/// </summary>
+public sealed record InterviewTiles(
+    IReadOnlyList<InterviewTile> Items,
+    IReadOnlyList<InterviewDroppedTile> Dropped,
+    string Notice,
+    IReadOnlyList<InterviewPlatformDraft> Drafts)
+{
+    public InterviewTiles(IReadOnlyList<InterviewTile> items, IReadOnlyList<InterviewDroppedTile> dropped, string notice)
+        : this(items, dropped, notice, []) { }
+}
 
 /// <summary>Counts only.</summary>
 public sealed record InterviewUsage(int ModelCalls, long TokensEstimated);
