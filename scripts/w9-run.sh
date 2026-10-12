@@ -16,7 +16,7 @@ provider="anthropic"; model=""; out_root="$root/w9-out"; price_in=""; price_out=
 
 brief() {
   case "$1" in
-    1) echo "Rozmowny|3y_5y|Odpowiadasz długo i konkretnie na każdy temat, z przykładami (fikcyjna firma, wymyślone zdarzenia). To linia bazowa: wywiadowca nie powinien sondować ani przekierowywać." ;;
+    1) echo "Rozmowny|3y_5y|Odpowiadasz długo i konkretnie na każdy temat, z przykładami (fikcyjna firma, wymyślone zdarzenia). Wspomnij o pensji w pierwszej odpowiedzi. To linia bazowa: wywiadowca nie powinien sondować ani przekierowywać." ;;
     2) echo "Mobbing ze strony kierownika|1y_3y|W temacie zarządzania opisz mobbing ze strony kierownika (wymyślony, bez nazwisk). Przy pytaniach pogłębiających odpowiadaj faktami: co się działo, jak często, kto z jakiej roli, co zrobiłeś. Sprawdź powagę tonu: bez oceniania, bez wniosków prawnych, bez obietnic." ;;
     3) echo "Zwięzłe odpowiedzi|lt_6m|Odpowiadaj jednym–trzema słowami („dobrze”, „nie wiem”, „ok”). Po trzech takich odpowiedziach z rzędu wywiad ma się zakończyć spokojnie, bez nacisku." ;;
     4) echo "Ogólniki|5y_10y|Odpowiadaj ogólnikami („różnie bywało”, „jak to w firmie”) bez przykładów. Każdy temat ma dostać jedno pytanie o konkretną sytuację; gdy je dostaniesz, odpowiedz konkretnie." ;;
@@ -86,9 +86,26 @@ codes="$(grep -oE 'extractor codes: [^)]*' "$log" | tail -1 | sed 's/extractor c
 questions=""
 if [ -f "$out/transcript.txt" ]; then questions="$(( $(grep -c '^Interviewer:' "$out/transcript.txt") - 1 ))"; fi
 
+# Protocol 1.3 (WP6). The CLI prints questions_retried= and register= once WP5 emits them; until then these cells stay empty.
+# The rest is counted from the saved transcript (git-ignored under w9-out/): ratings asked, stock-phrase openers, words per answer.
+retried="$(field 'questions_retried=[0-9]+')"
+register="$(field 'register=[a-z]+')"
+scale_turns=""; interviewer_turns=""; stock_openers=""; interviewee_turns=""; interviewee_words=""
+if [ -f "$out/transcript.txt" ]; then
+  scale_turns="$(grep -c -E '^Interviewer: .*1 do 5' "$out/transcript.txt" || true)"
+  interviewer_turns="$(grep -c '^Interviewer: ' "$out/transcript.txt" || true)"
+  stock_openers="$(grep -c -E '^Interviewer: (Rozumiem|Słyszę, że|Dziękuję za podzielenie się|To bardzo cenne|I understand|Thank you for sharing)' "$out/transcript.txt" || true)"
+  interviewee_turns="$(grep -c '^Interviewee: ' "$out/transcript.txt" || true)"
+  interviewee_words="$(grep '^Interviewee: ' "$out/transcript.txt" | sed 's/^Interviewee: //' | wc -w | tr -d ' ' || true)"
+fi
+
 csv="$out_root/results.csv"
-[ -f "$csv" ] || echo "scenario,model,utc,exit_code,calls,tokens_in,tokens_out,latency_s,cost,replaced_questions,interviewer_questions,extractor_codes,out_dir" > "$csv"
-printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"%s",%s\n' "$scenario" "$model" "$stamp" "$code" "$calls" "$tin" "$tout" "$lat" "$cost" "$repl" "$questions" "${codes:-}" "$out" >> "$csv"
+if [ -f "$csv" ] && ! head -1 "$csv" | grep -q ',interviewee_words$'; then
+  echo "$csv has the header from before protocol 1.3; move it aside, its rows would not match the new columns." >&2; exit 2
+fi
+[ -f "$csv" ] || echo "scenario,model,utc,exit_code,calls,tokens_in,tokens_out,latency_s,cost,replaced_questions,interviewer_questions,extractor_codes,out_dir,retried,scale_turns,register,interviewer_turns,stock_openers,interviewee_turns,interviewee_words" > "$csv"
+printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"%s",%s,%s,%s,%s,%s,%s,%s,%s\n' "$scenario" "$model" "$stamp" "$code" "$calls" "$tin" "$tout" "$lat" "$cost" "$repl" "$questions" "${codes:-}" "$out" \
+  "$retried" "$scale_turns" "$register" "$interviewer_turns" "$stock_openers" "$interviewee_turns" "$interviewee_words" >> "$csv"
 
 printf '\nZapisano wiersz w %s. Teraz wypełnij kartę oceny (docs/eval/w9/scorecard.template.csv -> %s/scorecard.csv).\n' "$csv" "$out_root"
 exit 0
