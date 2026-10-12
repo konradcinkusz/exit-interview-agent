@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { STUB_URL, emailFor } from "../support/constants.mjs";
-import { accountName, browserMemory, signIn, watchViolations } from "./support";
+import { accountName, browserMemory, expectSiteLink, requestsDuring, signIn, watchViolations } from "./support";
 
 // The whole interview path against the stub (plan §10, W7): purchase through the payment page and the webhook, consent, chat,
 // result, drafts, deletion, and the failure answers (402, 403, 429, 503). Every assertion is unconditional; a missing element fails.
@@ -110,13 +110,42 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
   await expect(page.getByTestId("tiles-notice")).toContainText("These are draft texts, not facts.");
   await expect(page.getByText("Rating 2 of 5")).toBeVisible();
   await expect(page.getByText("Onboarding was chaotic.")).toBeVisible();
+  // The drafts (spec §3.5, ADR-0083): Glassdoor first, then LinkedIn and Reddit, in the order the service sends them for an English
+  // interview; no Google card. Each high-risk card has its own gate.
+  const drafts = page.getByRole("region", { name: "Drafts for a platform" });
+  await expect(drafts.getByRole("heading", { level: 4 })).toHaveText(["Glassdoor", "LinkedIn", "Reddit"]);
+  await expect(drafts).not.toContainText(/google/i);
+  await expect(page.getByRole("article", { name: /google/i })).toHaveCount(0);
+
   const glassdoor = page.getByRole("article", { name: "Glassdoor" });
   await expect(glassdoor).toHaveCount(1);
 
-  // (5) Copy works through the clipboard: the Pros section of the Glassdoor draft.
-  await glassdoor.getByRole("button", { name: "Copy: Glassdoor, Pros" }).click();
-  await expect(glassdoor.getByRole("button", { name: "Copy: Glassdoor, Pros" }).locator("xpath=..").getByRole("status")).toHaveText("Copied");
+  // (5) Copy works through the clipboard: the Pros section of the Glassdoor draft (medium risk, so it works at once). The copy starts no request.
+  const pros = glassdoor.getByRole("button", { name: "Copy: Glassdoor, Pros" });
+  const prosRequests = await requestsDuring(page, async () => {
+    await pros.click();
+    await expect(pros.locator("xpath=..").getByRole("status")).toHaveText("Copied");
+  });
+  expect(prosRequests).toEqual([]);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Onboarding was chaotic, but the team helped.");
+  await expectSiteLink(glassdoor.getByRole("link", { name: /Open Glassdoor/ }), "https://www.glassdoor.com/");
+
+  // The high-risk cards: LinkedIn's copy waits for its own box, and ticking it does not open Reddit's.
+  const linkedin = page.getByRole("article", { name: "LinkedIn" });
+  await expect(linkedin.getByRole("button", { name: "Copy: LinkedIn, Post" })).toBeDisabled();
+  await expect(linkedin.getByRole("button", { name: "Copy all" })).toBeDisabled();
+  await linkedin.getByRole("checkbox", { name: "I have read this warning" }).check();
+  await expect(linkedin.getByRole("button", { name: "Copy: LinkedIn, Post" })).toBeEnabled();
+  await expectSiteLink(linkedin.getByRole("link", { name: /Open LinkedIn/ }), "https://www.linkedin.com/");
+
+  const reddit = page.getByRole("article", { name: "Reddit" });
+  await expect(reddit.getByRole("button", { name: "Copy: Reddit, Title" })).toBeDisabled();
+  await expect(reddit.getByRole("button", { name: "Copy all" })).toBeDisabled();
+  await expectSiteLink(reddit.getByRole("link", { name: /Open Reddit/ }), "https://www.reddit.com/");
+
+  // The drafts section has no axe violation.
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
 
   // (6) The download of the drafts is a self-contained page with the notice in it and no script. The downloads sit under one control.
   await page.getByTestId("save").getByText("Save a copy").click();

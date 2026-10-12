@@ -1,6 +1,7 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { STUB_URL, emailFor } from "../support/constants.mjs";
-import { accountName, browserMemory, hydrated, signIn } from "./support";
+import { accountName, browserMemory, expectSiteLink, hydrated, requestsDuring, signIn, watchViolations } from "./support";
 
 // The former employee's journey, end to end, in Polish (docs/ux/audit-2026-10-11, section (c), as built by the redesign): land,
 // sign in, start, chat, read the result, delete everything. A Polish browser gets all of it in Polish without touching a switch,
@@ -10,7 +11,11 @@ const CANARY = "Wdrożenie było chaotyczne z bardzo konkretnego powodu qz4";
 
 test.use({ locale: "pl-PL" });
 
-test("sign in, start, chat, result, delete: the whole journey in Polish @smoke", async ({ page, request }) => {
+const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+
+test("sign in, start, chat, result, delete: the whole journey in Polish @smoke", async ({ page, context, request }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const seen = await watchViolations(page);
   const name = accountName("podroz");
   await request.post(`${STUB_URL}/__test/interview-config?email=${encodeURIComponent(emailFor(name))}&credits=1`);
 
@@ -66,7 +71,56 @@ test("sign in, start, chat, result, delete: the whole journey in Polish @smoke",
   await expect(page.getByTestId("result-warning")).toContainText("Szkice, nie fakty");
   await expect(page.getByTestId("tiles-notice")).toContainText("To są propozycje tekstów, nie fakty.");
   await expect(page.getByTestId("not-discussed")).toContainText("Nie poruszono:");
-  await expect(page.getByRole("article", { name: "Glassdoor" })).toHaveCount(1);
+  // The drafts (spec §3.5, ADR-0083): one per enabled platform, in the order the service sends them (profile-file order; the market
+  // order and the "Other platforms" split of spec §3.5 are not built yet, see the PR). No Google card; the high-risk gate on each
+  // high-risk card; a link to the exact site in a new tab; and a copy starts no request.
+  const drafts = page.getByRole("region", { name: "Szkice dla serwisów" });
+  await expect(drafts.getByRole("heading", { level: 4 })).toHaveText(["Glassdoor", "GoWork.pl", "LinkedIn"]);
+  await expect(drafts).not.toContainText(/google/i);
+  await expect(page.getByRole("article", { name: /google/i })).toHaveCount(0);
+
+  const gowork = page.getByRole("article", { name: "GoWork.pl" });
+  await expect(gowork.getByText("Wyższe ryzyko")).toBeVisible();
+  for (const copy of ["Kopiuj: GoWork.pl, Plusy", "Kopiuj: GoWork.pl, Minusy", "Kopiuj: GoWork.pl, Rada", "Kopiuj całość"]) {
+    await expect(gowork.getByRole("button", { name: copy })).toBeDisabled();
+  }
+  await gowork.getByRole("checkbox", { name: "Przeczytałem/am to ostrzeżenie" }).check();
+  const minusy = gowork.getByRole("button", { name: "Kopiuj: GoWork.pl, Minusy" });
+  await expect(minusy).toBeEnabled();
+  const sectionRequests = await requestsDuring(page, async () => {
+    await minusy.click();
+    await expect(minusy.locator("xpath=..").getByRole("status")).toHaveText("Skopiowano");
+  });
+  expect(sectionRequests).toEqual([]);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Kontakt z przełożonym był rzadki.");
+
+  const copyAll = gowork.getByRole("button", { name: "Kopiuj całość" });
+  const allRequests = await requestsDuring(page, async () => {
+    await copyAll.click();
+    await expect(copyAll.locator("xpath=..").getByRole("status")).toHaveText("Skopiowano");
+  });
+  expect(allRequests).toEqual([]);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "Dobry zespół i jasne zasady pracy, ale wdrożenie było chaotyczne.\n\nKontakt z przełożonym był rzadki.\n\nWarto ustalić stały termin rozmów o rozwoju.",
+  );
+  await expectSiteLink(gowork.getByRole("link", { name: /Otwórz GoWork.pl/ }), "https://www.gowork.pl/");
+
+  const linkedin = page.getByRole("article", { name: "LinkedIn" });
+  await expect(linkedin.getByText("Wyższe ryzyko")).toBeVisible();
+  await expect(linkedin.getByRole("button", { name: "Kopiuj: LinkedIn, Wpis" })).toBeDisabled();
+  await expect(linkedin.getByRole("button", { name: "Kopiuj całość" })).toBeDisabled();
+  await expectSiteLink(linkedin.getByRole("link", { name: /Otwórz LinkedIn/ }), "https://www.linkedin.com/");
+
+  const glassdoor = page.getByRole("article", { name: "Glassdoor" });
+  await expect(glassdoor.getByText("Średnie ryzyko")).toBeVisible();
+  await expectSiteLink(glassdoor.getByRole("link", { name: /Otwórz Glassdoor/ }), "https://www.glassdoor.com/");
+
+  // No third-party request while the page loaded, and the drafts section has no axe violation.
+  expect(seen.csp).toEqual([]);
+  expect(seen.foreign).toEqual([]);
+  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+
   await page.getByTestId("save").getByText("Zapisz kopię").click();
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Zapis (JSON)" }).click()]);
   expect(download.suggestedFilename()).toBe("exit-interview-record.json");

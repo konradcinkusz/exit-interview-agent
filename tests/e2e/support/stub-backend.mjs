@@ -174,7 +174,9 @@ const INTERVIEW_SCRIPT = {
     quote: "Wdrożenie było chaotyczne.",
     notice:
       "To są propozycje tekstów, nie fakty. Program niczego nie weryfikuje i niczego nie publikuje. Za treść, którą opublikujesz, odpowiadasz Ty; publikacja opinii o pracodawcy może mieć skutki prawne. Przeczytaj i zmień każdy tekst, zanim go użyjesz. To nie jest porada prawna. Limity długości są orientacyjne; sprawdź aktualne zasady platformy. Nazwę firmy wstaw sam albo zostaw [FIRMA].",
-    // The generic items (ADR-0083). The platform text is a draft: one Glassdoor draft, as the service builds it from the family tile.
+    // The generic items (ADR-0083). The drafts are in the order the service builds them: the enabled profiles in profile-file order
+    // (PlatformDraftBuilder.Build). Spec §3.5 asks for the market order (GoWork and LinkedIn first) and the "Other platforms" split; the
+    // builder does not sort by market and drafts carry no markets yet, so Glassdoor is first here. Warnings are the profile texts, verbatim.
     items: [
       ["overview", "Wdrożenie było chaotyczne, ale zespół pomagał. Kontakt z przełożonym był rzadki."],
       ["what_worked", "Wdrożenie chaotyczne, zespół dobry."],
@@ -186,13 +188,43 @@ const INTERVIEW_SCRIPT = {
         family: "structured_review",
         risk: "medium",
         url: "https://www.glassdoor.com/",
-        warning: "To szkic, nie fakt. To nie jest porada prawna.",
+        warning:
+          "Warunki Glassdoor czynią Cię autorem tekstu pisanego z pomocą AI. Nie wymieniaj nikogo, nie ujawniaj niczego poufnego i oceniaj tylko pracę z ostatnich 5 lat. To szkic, nie fakt. To nie jest porada prawna.",
         sections: [
           { key: "pros", label: "Plusy", text: "Wdrożenie było chaotyczne, ale zespół pomagał." },
           { key: "cons", label: "Minusy", text: "Kontakt z przełożonym był rzadki." },
         ],
         copyText: "Wdrożenie było chaotyczne, ale zespół pomagał.\n\nKontakt z przełożonym był rzadki.",
         fieldsOnSite: ["Status zatrudnienia i stanowisko", "Oceny w gwiazdkach"],
+      },
+      {
+        platform: "gowork",
+        name: "GoWork.pl",
+        family: "structured_review",
+        risk: "high",
+        url: "https://www.gowork.pl/",
+        warning:
+          "GoWork publikuje opinie bez wcześniejszego sprawdzenia i przekazuje adres IP autora organom ścigania, gdy podejrzewa przestępstwo. Prawo polskie chroni dobra osobiste; pisz opinie jako opinie. To szkic, nie fakt. To nie jest porada prawna.",
+        sections: [
+          { key: "pros", label: "Plusy", text: "Dobry zespół i jasne zasady pracy, ale wdrożenie było chaotyczne." },
+          { key: "cons", label: "Minusy", text: "Kontakt z przełożonym był rzadki." },
+          { key: "advice", label: "Rada", text: "Warto ustalić stały termin rozmów o rozwoju." },
+        ],
+        copyText:
+          "Dobry zespół i jasne zasady pracy, ale wdrożenie było chaotyczne.\n\nKontakt z przełożonym był rzadki.\n\nWarto ustalić stały termin rozmów o rozwoju.",
+        fieldsOnSite: ["Firma, którą oceniasz, wybrana w serwisie"],
+      },
+      {
+        platform: "linkedin",
+        name: "LinkedIn",
+        family: "professional_post",
+        risk: "high",
+        url: "https://www.linkedin.com/",
+        warning:
+          "Opinia zostanie opublikowana pod Twoim prawdziwym nazwiskiem, na oczach przyszłych pracodawców. Sprawdź, czy nie obowiązuje Cię klauzula poufności ani zakaz krytykowania pracodawcy. To szkic, nie fakt. To nie jest porada prawna.",
+        sections: [{ key: "body", label: "Wpis", text: "Pierwszy rok nauczył mnie, czego oczekuję od przełożonego." }],
+        copyText: "Pierwszy rok nauczył mnie, czego oczekuję od przełożonego.",
+        fieldsOnSite: ["Kto widzi wpis (widoczność)"],
       },
     ],
   },
@@ -204,7 +236,8 @@ const INTERVIEW_SCRIPT = {
     quote: "Onboarding was chaotic.",
     notice:
       "These are draft texts, not facts. The program verifies nothing and publishes nothing. You are responsible for any text you publish; publishing an opinion about an employer can have legal consequences. Read and change every text before you use it. This is not legal advice. Length limits are approximate; check the platform's current rules. Insert the company name yourself or leave [COMPANY].",
-    // The generic items (ADR-0083). The platform text is a draft: one Glassdoor draft, as the service builds it from the family tile.
+    // The generic items (ADR-0083). The drafts are what the service sends for an English interview: the enabled profiles whose markets
+    // include `en`, in profile-file order, so Glassdoor comes first. Warnings are the profile texts, verbatim.
     items: [
       ["overview", "Onboarding was chaotic, but the team helped. Contact with the manager was rare."],
       ["what_worked", "Chaotic onboarding, good team."],
@@ -216,13 +249,42 @@ const INTERVIEW_SCRIPT = {
         family: "structured_review",
         risk: "medium",
         url: "https://www.glassdoor.com/",
-        warning: "Draft, not fact. Not legal advice.",
+        warning:
+          "Glassdoor's terms make you the author of AI-assisted text. Name no one, share nothing confidential, and only review a job from the last 5 years. Draft, not fact. Not legal advice.",
         sections: [
           { key: "pros", label: "Pros", text: "Onboarding was chaotic, but the team helped." },
           { key: "cons", label: "Cons", text: "Contact with the manager was rare." },
         ],
         copyText: "Onboarding was chaotic, but the team helped.\n\nContact with the manager was rare.",
         fieldsOnSite: ["Employment status and job title", "Star ratings"],
+      },
+      {
+        platform: "linkedin",
+        name: "LinkedIn",
+        family: "professional_post",
+        risk: "high",
+        url: "https://www.linkedin.com/",
+        warning:
+          "This is posted under your real name, in front of future employers. Check any confidentiality or non-disparagement clause you signed. Draft, not fact. Not legal advice.",
+        sections: [{ key: "body", label: "Post", text: "My first year taught me what I want from a manager." }],
+        copyText: "My first year taught me what I want from a manager.",
+        fieldsOnSite: ["Who can see the post (visibility)"],
+      },
+      {
+        platform: "reddit",
+        name: "Reddit",
+        family: "narrative",
+        risk: "high",
+        url: "https://www.reddit.com/",
+        warning:
+          "The more detail, the easier you are to recognise. Each subreddit has its own rules, and some require AI-assisted text to be disclosed. Draft, not fact. Not legal advice.",
+        sections: [
+          { key: "title", label: "Title", text: "Onboarding was chaotic, and the team helped" },
+          { key: "body", label: "Body", text: "The first weeks were chaotic. The team was helpful, but I rarely had time with my manager." },
+        ],
+        copyText:
+          "Onboarding was chaotic, and the team helped\n\nThe first weeks were chaotic. The team was helpful, but I rarely had time with my manager.",
+        fieldsOnSite: ["The subreddit you choose", "Flair, if the community requires one"],
       },
     ],
   },

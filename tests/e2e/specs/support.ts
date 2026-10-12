@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Locator, type Page, type Request } from "@playwright/test";
 import { FAKE_PASSWORD, STUB_URL, emailFor } from "../support/constants.mjs";
 
 export interface StubStats {
@@ -62,6 +62,29 @@ export async function watchViolations(page: Page, origin = "http://localhost:401
     if (url.protocol.startsWith("http") && url.origin !== origin) seen.foreign.push(request.url());
   });
   return seen;
+}
+
+/**
+ * The URLs of every request the page starts while `action` runs. The action is awaited, so a request it starts after it returns is not
+ * counted: a copy must be checked only once its "Copied" status has shown.
+ */
+export async function requestsDuring(page: Page, action: () => Promise<void>): Promise<string[]> {
+  const started: string[] = [];
+  const listener = (request: Request) => started.push(request.url());
+  page.on("request", listener);
+  try {
+    await action();
+  } finally {
+    page.off("request", listener);
+  }
+  return started;
+}
+
+/** A draft's link to its site: the exact profile URL (so no query string or fragment), a new tab, and the safe relation. */
+export async function expectSiteLink(link: Locator, url: string) {
+  await expect(link).toHaveAttribute("href", url);
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
 }
 
 /** Everything a page could use to remember a secret: both storages, document.cookie, IndexedDB names and the URL. */
