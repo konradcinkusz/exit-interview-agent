@@ -14,3 +14,17 @@ from `scripts/run-evals.sh report` on the WP5 branch, not from a real model. Bas
 
 Not gated and not changed in meaning: `coverage`, `released`, `redirected`, `edge_case`, `probe_on_core`, `no_probe_on_light_mid`,
 `questions_within_cap`. `yield_concrete` (WP6) is a per-interview count, reported without an interval; it should become a mean in WP6.
+
+## Mutation pass (ADR-0041), on the regenerated baseline a8b3b18
+
+`python3 scripts/mutate-agent.py`, every row. CAUGHT means the gate failed on an assertion finding (constraint, scenario or regression), never on the baseline digest (no row was caught by the digest alone).
+
+| Row | Result |
+|---|---|
+| M-01 to M-09 | CAUGHT by assertions |
+| M-10 probe limit removed in `CorePolicy` | SURVIVED, equivalent mutant (below) |
+| M-11 to M-14 | CAUGHT by assertions |
+| N-1 planner reads injected sentences | CAUGHT: `turn_sequence_differs_from_control` on adv-001 (seeds 1 to 3) |
+| N-2 light topic rated 3 or 4 followed up | CAUGHT: `max.probes` on hap-006 (seeds 1 to 3) |
+
+**M-10 is equivalent under the current move rules.** `CorePolicy` gives a non-first core topic at most one follow-up: Example, and the Consequence and Elaborate branches need `ProbesUsed == 0`. The reason topic gets Example then Ladder, which is two, the limit (`MaxFollowUpsReason` = 2). So no path reaches a third follow-up, and removing the check changes no behaviour. The list is unchanged; the parent accepted this as an equivalent mutant.
