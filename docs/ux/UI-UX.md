@@ -217,7 +217,14 @@ One visual system, in `web/app/app/globals.css` (tokens first) and the interview
 ink and one deep teal for action, focus and the brand, with a dark scheme; the system UI face; a 4-based spacing scale; cards with
 layered shadows; an inline-SVG brand mark and icon set (`app/_components/Icon.tsx`) and an inline-SVG illustration on the start page.
 No font, icon or image is fetched from anywhere (principle 5). Motion is decorative only (messages rise, typing dots, a loading
-shimmer), never fades text, and is off under `prefers-reduced-motion`.
+shimmer), never fades text, and is off under `prefers-reduced-motion`. Transitions move only shadow and position, never a colour, so
+no frame shows a contrast below the bar.
+
+Refined on 2026-10-12 ([write-up](redesign-2026-10-12/README.md)): filled controls use "solid" tokens that stay deep teal (and deep
+red for danger) in the dark scheme too, with white text; the light accent is for text, links and focus. Radios, checkboxes and the
+select arrow are drawn by the stylesheet. The header items are pills (the current page is a tinted pill, not an underline); the
+interview's progress is a slim line of three badges; the chat is one window with a title bar ("Interviewer · AI", topic n of about 6)
+and a composer whose Send sits beside the hints; disabled buttons are neutral grey, not a faded accent.
 
 ## Accessibility and quality bar
 
@@ -232,7 +239,8 @@ shimmer), never fades text, and is off under `prefers-reduced-motion`.
 - Every page has loading, empty and error states.
 - An automated check (axe-core, WCAG 2.0/2.1 A and AA rules) runs in the browser suite on every page and on every interview state
   the stub can reach, in both schemes and both languages. It finds a subset of problems; screen-reader testing by a person is still
-  owed ([OP-16](../OPEN-PROBLEMS.md)). What was and was not checked: [redesign phase 3](redesign-2026-10-11/phase3/README.md).
+  owed ([OP-16](../OPEN-PROBLEMS.md)). What was and was not checked: [redesign phase 3](redesign-2026-10-11/phase3/README.md) and
+  [the 2026-10-12 refinement](redesign-2026-10-12/README.md).
 - The former employee's journey runs end to end in Polish in the browser suite (`journey-pl.spec.ts`).
 
 ## Ranked backlog

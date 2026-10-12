@@ -29,7 +29,7 @@ export function ConsentPanel({ copy, starting, notice, onStart, onBack }: Props)
   }, []);
 
   return (
-    <section aria-labelledby="consent-heading">
+    <section className={`card ${styles.consent}`} aria-labelledby="consent-heading">
       <h2 id="consent-heading" tabIndex={-1} ref={heading}>{copy.consentTitle}</h2>
       <p>{copy.consentIntro}</p>
       <ol className={styles.keyPoints} data-testid="consent-key">
