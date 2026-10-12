@@ -261,3 +261,23 @@ The full text of every official page; every length limit except LinkedIn's 3,000
 the GoWork regulamin; Reddit's site rules page and every subreddit's rules; Blind's, Wykop's and Facebook's clauses on
 automation and AI; any Polish Supreme Court ruling on GoWork. WP6 in the spec re-checks them from a normal network and
 records the result in each profile's `sources`.
+
+### Outcome of the WP6 re-check (session of 2026-10-12)
+
+**Not done: the re-check could not reach the platforms.** The session that carried WP6 had the same egress limits as the
+research session. Every platform host tried got no HTTP response. For glassdoor.com, DNS did not resolve and the egress proxy refused the
+TLS tunnel with HTTP 403. The hosts tried were glassdoor.com, help.glassdoor.com, indeed.com, gowork.pl, kununu.com,
+linkedin.com, reddit.com, help.teamblind.com, wykop.pl, help.x.com and transparency.meta.com. A control request to github.com
+returned an HTTP response, so the failure is specific to these domains. The per-host cause was not recorded beyond that.
+
+What this means, and what was changed as a result:
+
+- **No URL in §3 was opened.** No fact was upgraded from S to `fetched`, and no number was corrected. Every S and UNVERIFIED
+  marker stands as written, and no `sources[].level` was set, because the profile file is WP2's and is not on `main` yet.
+- **Kununu stays disabled.** Its rules are still UNVERIFIED.
+- **The `sources` update is still open.** It needs WP2's profile file on `main` and a session with normal web access.
+- **Legal text is unchanged in substance.** Only the platform names in `terms.{en,pl}.md` §3 and the notes under checklist
+  L2 changed, and both stay NOT REVIEWED. [OP-32](../OPEN-PROBLEMS.md) records the open problem.
+
+To close this section, someone with normal web access opens each URL in §3, sets each fact's level, records the date, and
+lists any number that differs.
