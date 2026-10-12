@@ -23,7 +23,7 @@
 
 1. Odpowiadasz za prawdziwość tego, co podajesz w Rozmowie, i za to, co publikujesz.
 2. Przed publikacją przeczytaj i sam zdecyduj, co publikujesz. Możesz zmienić, skrócić lub nie publikować tekstu.
-3. Nie publikuj w serwisach z opiniami (np. Glassdoor, opinie Google, Reddit) treści, których publikacja łamie ich regulamin. Sprawdź zasady danego serwisu, w tym zasady dotyczące opinii byłych pracowników i opinii sponsorowanych lub zachęcanych przez stronę trzecią. Usługa nie ocenia zgodności z tymi zasadami.
+3. Nie publikuj w serwisach z opiniami (np. Glassdoor, Indeed, GoWork, LinkedIn, grupy na Facebooku, Reddit, Wykop, Blind lub X) treści, których publikacja łamie ich regulamin. Sprawdź zasady danego serwisu, w tym zasady dotyczące opinii byłych pracowników i opinii sponsorowanych lub zachęcanych przez stronę trzecią. Niektóre serwisy z opiniami w ogóle nie dopuszczają opinii byłych ani obecnych pracowników. Usługa nie ocenia zgodności z tymi zasadami, a lista serwisów może się zmienić.
 4. Nie podawaj danych osobowych osób trzecich, w tym nazwisk, adresów, numerów telefonów, wizerunku, informacji o zdrowiu i innych danych wrażliwych, jeśli nie są konieczne. Usługa stara się je maskować, ale nie daje gwarancji.
 5. Nie wykorzystuj Usługi do zniesławiania, nękania, szantażu ani do wywierania presji na konkretne osoby.
 

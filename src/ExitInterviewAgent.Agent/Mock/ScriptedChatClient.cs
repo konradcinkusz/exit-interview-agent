@@ -29,7 +29,7 @@ public sealed partial class ScriptedChatClient : IChatClient
 
         var reply = RoleOf(system) switch
         {
-            "interviewer" or "prober" => Field(user, "SEED") ?? string.Empty,
+            "interviewer" or "prober" => Turn(user),
             "extractor" => Extract(user),
             "tilewriter" => ScriptedTileResponses.Write(user),
             _ => string.Empty,
@@ -61,6 +61,55 @@ public sealed partial class ScriptedChatClient : IChatClient
 
     private static string? Field(string user, string name) =>
         user.Split('\n').Select(l => l.TrimEnd('\r')).FirstOrDefault(l => l.StartsWith(name + ": ", StringComparison.Ordinal)) is { } line ? line[(name.Length + 2)..] : null;
+
+    // ---- interviewer and prober --------------------------------------------------------------------------------
+
+    /// <summary>The interviewee's words are at least this long before the mock acknowledges them (protocol §3.4 substantiveWords).</summary>
+    private const int AcknowledgementMinWords = 12;
+
+    /// <summary>Characters that would make the acknowledgement fail the guard (a question, or a quotation the guard reads as a span).</summary>
+    private static readonly char[] AcknowledgementUnsafe = ['?', '"', '„', '”', '“'];
+
+    /// <summary>
+    /// Moves that are protocol wording, never acknowledged: WARMUP (no reply to consent to), CLARIFY and REDIRECT (fixed fallbacks; a redirect
+    /// must not quote the person back).
+    /// </summary>
+    private static readonly HashSet<string> UnacknowledgedMoves = ["WARMUP", "CLARIFY", "REDIRECT"];
+
+    /// <summary>
+    /// The turn: the SEED, after a deterministic acknowledgement when the last reply is substantive. The acknowledgement quotes the first
+    /// five words of that reply, verbatim, so the guard's quote path runs offline. It is skipped for the moves above and for any reply the
+    /// injection cue flags (the mock never repeats injected instructions, C-05).
+    /// </summary>
+    private static string Turn(string user)
+    {
+        var seed = Field(user, "SEED") ?? string.Empty;
+        if (Field(user, "MOVE") is { } move && UnacknowledgedMoves.Contains(move)) return seed;
+
+        var reply = LastIntervieweeText(user);
+        if (reply is null || ReplyAnalyzer.CountWords(reply) < AcknowledgementMinWords || ReplyAnalyzer.LooksLikeInjection(reply)) return seed;
+
+        var quote = OpeningWords().Match(reply).Groups[1].Value;
+        return quote.Length == 0 || quote.IndexOfAny(AcknowledgementUnsafe) >= 0 ? seed : $"„{quote}”. {seed}";
+    }
+
+    /// <summary>The text of the last interviewee line in the data block, or null when there is none.</summary>
+    private static string? LastIntervieweeText(string user)
+    {
+        string? last = null;
+        foreach (var raw in user.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            if (!line.StartsWith('{')) continue;
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+            if (root.GetProperty("speaker").GetString() == "interviewee") last = root.GetProperty("text").GetString() ?? string.Empty;
+        }
+        return last;
+    }
+
+    [GeneratedRegex(@"^[ \t]*(\S+(?:[ \t]+\S+){0,4})", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex OpeningWords();
 
     // ---- extractor ---------------------------------------------------------------------------------------------
 

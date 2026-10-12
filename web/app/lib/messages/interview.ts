@@ -141,6 +141,7 @@ const en = {
 
   tilesTitle: "Draft texts",
   tilesEmpty: "No draft texts were made from this interview.",
+  // The four platform kinds are the legacy items of a service that predates the drafts (ADR-0083); they go when the service stops sending them.
   kinds: {
     glassdoor: "Glassdoor",
     google_review: "Google review",
@@ -148,7 +149,21 @@ const en = {
     short_note: "Short note",
     overview: "Overview",
     facts: "Facts",
+    what_worked: "What worked",
+    what_could_improve: "What could improve",
+    for_the_next_person: "For the next person",
   },
+  draftsTitle: "Drafts for a platform",
+  draftsIntro:
+    "One draft for each platform, in the language of your interview. Each has its own warning. Copy the parts you want, check them, and fill in the rest on the site yourself.",
+  risk: { high: "Higher risk", medium: "Medium risk" },
+  draftAcknowledge: "I have read this warning",
+  draftGate: "Tick the box above to enable copying.",
+  copyAll: "Copy all",
+  draftFieldsOnSite: "You fill in on the site:",
+  draftOpen: (name: string) => `Open ${name}`,
+  opensNewTab: "(opens a new tab)",
+  draftSite: "Site",
   copy: "Copy",
   copied: "Copied",
   copyFailed: "Copying is not available here. Select the text and copy it by hand.",
@@ -328,6 +343,7 @@ const pl: InterviewCopy = {
 
   tilesTitle: "Szkice tekstów",
   tilesEmpty: "Z tej rozmowy nie powstały szkice tekstów.",
+  // The four platform kinds are the legacy items of a service that predates the drafts (ADR-0083); they go when the service stops sending them.
   kinds: {
     glassdoor: "Glassdoor",
     google_review: "Opinia Google",
@@ -335,7 +351,21 @@ const pl: InterviewCopy = {
     short_note: "Krótka notatka",
     overview: "Przegląd",
     facts: "Fakty",
+    what_worked: "Co zadziałało",
+    what_could_improve: "Co można poprawić",
+    for_the_next_person: "Dla następnej osoby",
   },
+  draftsTitle: "Szkice dla serwisów",
+  draftsIntro:
+    "Jeden szkic dla każdego serwisu, w języku rozmowy. Każdy ma własne ostrzeżenie. Skopiuj wybrane fragmenty, sprawdź je i resztę uzupełnij w samym serwisie.",
+  risk: { high: "Wyższe ryzyko", medium: "Średnie ryzyko" },
+  draftAcknowledge: "Przeczytałem/am to ostrzeżenie",
+  draftGate: "Zaznacz pole powyżej, aby włączyć kopiowanie.",
+  copyAll: "Kopiuj całość",
+  draftFieldsOnSite: "Uzupełnisz w serwisie:",
+  draftOpen: (name: string) => `Otwórz ${name}`,
+  opensNewTab: "(otwiera nową kartę)",
+  draftSite: "Serwis",
   copy: "Kopiuj",
   copied: "Skopiowano",
   copyFailed: "Kopiowanie nie jest tu dostępne. Zaznacz tekst i skopiuj go ręcznie.",

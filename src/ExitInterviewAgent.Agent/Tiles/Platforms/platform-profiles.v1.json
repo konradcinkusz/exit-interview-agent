@@ -1,0 +1,308 @@
+{
+  "profiles": [
+    {
+      "id": "glassdoor",
+      "enabled": true,
+      "family": "structured_review",
+      "names": { "en": "Glassdoor", "pl": "Glassdoor" },
+      "url": { "en": "https://www.glassdoor.com/", "pl": "https://www.glassdoor.com/" },
+      "markets": ["en", "pl"],
+      "identity": "anonymous_verified_email",
+      "detail": "low",
+      "risk": "medium",
+      "sections": [
+        { "key": "title", "label": { "en": "Headline", "pl": "Nagłówek" } },
+        { "key": "pros", "label": { "en": "Pros", "pl": "Plusy" } },
+        { "key": "cons", "label": { "en": "Cons", "pl": "Minusy" } },
+        { "key": "advice", "label": { "en": "Advice to management", "pl": "Rada dla zarządu" }, "optional": true }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 40, "sectionMax": 500, "totalMax": 1100 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "Employment status and job title", "pl": "Status zatrudnienia i stanowisko" },
+        { "en": "Star ratings", "pl": "Oceny w gwiazdkach" }
+      ],
+      "warning": {
+        "en": "Glassdoor's terms make you the author of AI-assisted text. Name no one, share nothing confidential, and only review a job from the last 5 years. Draft, not fact. Not legal advice.",
+        "pl": "Warunki Glassdoor czynią Cię autorem tekstu pisanego z pomocą AI. Nie wymieniaj nikogo, nie ujawniaj niczego poufnego i oceniaj tylko pracę z ostatnich 5 lat. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "neutral, balanced; at least one pro when any covered topic is rated 3 or more",
+      "sources": [
+        { "url": "https://help.glassdoor.com/s/article/Community-Guidelines", "accessed": "2026-10-12", "level": "search_summary" },
+        { "url": "https://help.glassdoor.com/s/article/Tips-on-writing-a-review-to-avoid-violating-Glassdoor-s-Community-Guidelines", "accessed": "2026-10-12", "level": "search_summary" },
+        { "url": "https://www.glassdoor.com/about/terms/", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "indeed",
+      "enabled": true,
+      "family": "structured_review",
+      "names": { "en": "Indeed", "pl": "Indeed" },
+      "url": { "en": "https://www.indeed.com/", "pl": "https://www.indeed.com/" },
+      "markets": ["en", "pl"],
+      "identity": "anonymous",
+      "detail": "low",
+      "risk": "medium",
+      "sections": [
+        { "key": "title", "label": { "en": "Title", "pl": "Tytuł" } },
+        { "key": "pros", "label": { "en": "What I liked", "pl": "Co mi się podobało" } },
+        { "key": "cons", "label": { "en": "What could be better", "pl": "Co mogłoby być lepsze" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 40, "sectionMax": 500, "totalMax": 1100 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "Job title, job status and location", "pl": "Stanowisko, status zatrudnienia i lokalizacja" },
+        { "en": "Star ratings for work-life balance, pay, job security, management and culture", "pl": "Oceny w gwiazdkach: równowaga praca–życie, wynagrodzenie, stabilność, zarządzanie i kultura" }
+      ],
+      "warning": {
+        "en": "One review per company, and it cannot be edited later. Indeed does not accept reports of crimes in reviews. Draft, not fact. Not legal advice.",
+        "pl": "Jedna opinia o firmie, której potem nie da się edytować. Indeed nie przyjmuje w opiniach zgłoszeń przestępstw. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "neutral",
+      "sources": [
+        { "url": "https://www.indeed.com/help/job-seekers/articles/360046789111-company-reviews-best-practices-policies-and-guidelines", "accessed": "2026-10-12", "level": "search_summary" },
+        { "url": "https://www.indeed.com/legal", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "kununu",
+      "enabled": false,
+      "family": "structured_review",
+      "names": { "en": "Kununu", "pl": "Kununu" },
+      "url": { "en": "https://www.kununu.com/", "pl": "https://www.kununu.com/" },
+      "markets": ["en"],
+      "identity": "anonymous",
+      "detail": "low",
+      "risk": "medium",
+      "sections": [
+        { "key": "title", "label": { "en": "Title", "pl": "Tytuł" } },
+        { "key": "pros", "label": { "en": "What is good", "pl": "Co jest dobre" } },
+        { "key": "cons", "label": { "en": "What is not", "pl": "Czego brakuje" } },
+        { "key": "advice", "label": { "en": "Suggestions", "pl": "Sugestie" }, "optional": true }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 40, "sectionMax": 500, "totalMax": 1100 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "Ratings and the fields the site asks for", "pl": "Oceny i pola, o które pyta serwis" }
+      ],
+      "warning": {
+        "en": "Kununu's rules are not verified yet, so this profile is off. Check the site's current rules before posting. Draft, not fact. Not legal advice.",
+        "pl": "Zasady Kununu nie są jeszcze zweryfikowane, więc ten profil jest wyłączony. Przed publikacją sprawdź aktualne zasady serwisu. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "neutral",
+      "sources": [
+        { "url": "https://www.kununu.com/de/info", "accessed": "2026-10-12", "level": "unverified" },
+        { "url": "https://help.kununu.com", "accessed": "2026-10-12", "level": "unverified" }
+      ]
+    },
+    {
+      "id": "gowork",
+      "enabled": true,
+      "family": "structured_review",
+      "names": { "en": "GoWork.pl", "pl": "GoWork.pl" },
+      "url": { "en": "https://www.gowork.pl/", "pl": "https://www.gowork.pl/" },
+      "markets": ["pl"],
+      "identity": "anonymous",
+      "detail": "low",
+      "risk": "high",
+      "sections": [
+        { "key": "pros", "label": { "en": "Pros", "pl": "Plusy" } },
+        { "key": "cons", "label": { "en": "Cons", "pl": "Minusy" } },
+        { "key": "advice", "label": { "en": "Advice", "pl": "Rada" }, "optional": true }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 40, "sectionMax": 500, "totalMax": 1100 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "The company you review, chosen on the site", "pl": "Firma, którą oceniasz, wybrana w serwisie" }
+      ],
+      "warning": {
+        "en": "GoWork publishes without checking first and gives the poster's IP to law enforcement when an offence is suspected. Polish law protects personal rights; write opinions as opinions. Draft, not fact. Not legal advice.",
+        "pl": "GoWork publikuje opinie bez wcześniejszego sprawdzenia i przekazuje adres IP autora organom ścigania, gdy podejrzewa przestępstwo. Prawo polskie chroni dobra osobiste; pisz opinie jako opinie. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "very measured; opinion framed as opinion",
+      "sources": [
+        { "url": "https://gowork.pl/faq_uzytkownicy", "accessed": "2026-10-12", "level": "search_summary" },
+        { "url": "https://gowork.pl/lp/mity-o-gowork", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "linkedin",
+      "enabled": true,
+      "family": "professional_post",
+      "names": { "en": "LinkedIn", "pl": "LinkedIn" },
+      "url": { "en": "https://www.linkedin.com/", "pl": "https://www.linkedin.com/" },
+      "markets": ["en", "pl"],
+      "identity": "real_name",
+      "detail": "low",
+      "risk": "high",
+      "sections": [
+        { "key": "body", "label": { "en": "Post", "pl": "Wpis" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 300, "sectionMax": 1300, "totalMax": 1300 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "Who can see the post (visibility)", "pl": "Kto widzi wpis (widoczność)" }
+      ],
+      "warning": {
+        "en": "This is posted under your real name, in front of future employers. Check any confidentiality or non-disparagement clause you signed. Draft, not fact. Not legal advice.",
+        "pl": "Opinia zostanie opublikowana pod Twoim prawdziwym nazwiskiem, na oczach przyszłych pracodawców. Sprawdź, czy nie obowiązuje Cię klauzula poufności ani zakaz krytykowania pracodawcy. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "professional, constructive, no blame",
+      "sources": [
+        { "url": "https://www.linkedin.com/legal/professional-community-policies", "accessed": "2026-10-12", "level": "search_summary" },
+        { "url": "https://www.linkedin.com/legal/user-agreement", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "facebook_group",
+      "enabled": true,
+      "family": "professional_post",
+      "names": { "en": "Facebook group", "pl": "Grupa na Facebooku" },
+      "url": { "en": "https://www.facebook.com/", "pl": "https://www.facebook.com/" },
+      "markets": ["en", "pl"],
+      "identity": "real_name",
+      "detail": "moderate",
+      "risk": "high",
+      "sections": [
+        { "key": "body", "label": { "en": "Post", "pl": "Wpis" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 300, "sectionMax": 1300, "totalMax": 1300 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "The group you post in", "pl": "Grupa, w której publikujesz" }
+      ],
+      "warning": {
+        "en": "Usually under your real name. Each group has its own rules; read them before posting. Draft, not fact. Not legal advice.",
+        "pl": "Zwykle pod Twoim prawdziwym nazwiskiem. Każda grupa ma własne zasady; przeczytaj je przed publikacją. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "plain, conversational, not hostile",
+      "sources": [
+        { "url": "https://transparency.meta.com/policies/community-standards/bullying-harassment/", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "reddit",
+      "enabled": true,
+      "family": "narrative",
+      "names": { "en": "Reddit", "pl": "Reddit" },
+      "url": { "en": "https://www.reddit.com/", "pl": "https://www.reddit.com/" },
+      "markets": ["en", "pl"],
+      "identity": "pseudonymous",
+      "detail": "high",
+      "risk": "high",
+      "sections": [
+        { "key": "title", "label": { "en": "Title", "pl": "Tytuł" } },
+        { "key": "body", "label": { "en": "Body", "pl": "Treść" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 120, "sectionMin": 600, "sectionMax": 4000, "totalMax": 4120 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "The subreddit you choose", "pl": "Subreddit, który wybierasz" },
+        { "en": "Flair, if the community requires one", "pl": "Flair, jeśli społeczność go wymaga" }
+      ],
+      "warning": {
+        "en": "The more detail, the easier you are to recognise. Each subreddit has its own rules, and some require AI-assisted text to be disclosed. Draft, not fact. Not legal advice.",
+        "pl": "Im więcej szczegółów, tym łatwiej Cię rozpoznać. Każdy subreddit ma własne zasady, a niektóre wymagają ujawnienia tekstu pisanego z pomocą AI. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "first person, concrete, experience framed as experience",
+      "sources": [
+        { "url": "https://support.reddithelp.com/hc/en-us/articles/360043066452", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "wykop",
+      "enabled": true,
+      "family": "narrative",
+      "names": { "en": "Wykop.pl", "pl": "Wykop.pl" },
+      "url": { "en": "https://www.wykop.pl/", "pl": "https://www.wykop.pl/" },
+      "markets": ["pl"],
+      "identity": "pseudonymous",
+      "detail": "high",
+      "risk": "high",
+      "sections": [
+        { "key": "title", "label": { "en": "Title", "pl": "Tytuł" }, "optional": true },
+        { "key": "body", "label": { "en": "Body", "pl": "Treść" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 120, "sectionMin": 600, "sectionMax": 4000, "totalMax": 4120 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "The tags you choose", "pl": "Tagi, które wybierasz" }
+      ],
+      "warning": {
+        "en": "The more detail, the easier you are to recognise. Do not reveal anyone's personal data. Draft, not fact. Not legal advice.",
+        "pl": "Im więcej szczegółów, tym łatwiej Cię rozpoznać. Nie ujawniaj cudzych danych osobowych. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "first person, plain Polish, no insults",
+      "sources": [
+        { "url": "https://wykop.pl/standardy-moderacji", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "blind",
+      "enabled": true,
+      "family": "structured_review",
+      "names": { "en": "Blind", "pl": "Blind" },
+      "url": { "en": "https://www.teamblind.com/", "pl": "https://www.teamblind.com/" },
+      "markets": ["en", "pl"],
+      "identity": "verified_work_email",
+      "detail": "moderate",
+      "risk": "medium",
+      "sections": [
+        { "key": "title", "label": { "en": "Title", "pl": "Tytuł" } },
+        { "key": "pros", "label": { "en": "Pros", "pl": "Plusy" } },
+        { "key": "cons", "label": { "en": "Cons", "pl": "Minusy" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 40, "sectionMax": 500, "totalMax": 1100 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "The company you review", "pl": "Firma, którą oceniasz" },
+        { "en": "Star ratings, if the site shows them", "pl": "Oceny w gwiazdkach, jeśli serwis je pokazuje" }
+      ],
+      "warning": {
+        "en": "Your company is shown with your post. A former employee may write one review per company. Draft, not fact. Not legal advice.",
+        "pl": "Nazwa firmy jest widoczna obok Twojego wpisu. Po zakończeniu pracy można napisać jedną opinię o danej firmie. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "factual, first person",
+      "sources": [
+        { "url": "https://help.teamblind.com/article/89-company-reviews", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    },
+    {
+      "id": "x",
+      "enabled": true,
+      "family": "short_post",
+      "names": { "en": "X", "pl": "X" },
+      "url": { "en": "https://x.com/", "pl": "https://x.com/" },
+      "markets": ["en", "pl"],
+      "identity": "pseudonymous",
+      "detail": "low",
+      "risk": "medium",
+      "sections": [
+        { "key": "body", "label": { "en": "Post", "pl": "Wpis" } }
+      ],
+      "joinSections": false,
+      "limits": { "titleMax": 60, "sectionMin": 80, "sectionMax": 270, "totalMax": 270 },
+      "leaveOut": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"],
+      "fieldsOnSite": [
+        { "en": "Whether to attach an image or a link", "pl": "Czy dodać obraz lub link" }
+      ],
+      "warning": {
+        "en": "Short public post. A screenshot outlives a deletion. Draft, not fact. Not legal advice.",
+        "pl": "Krótki wpis publiczny. Zrzut ekranu przetrwa usunięcie. To szkic, nie fakt. To nie jest porada prawna."
+      },
+      "tone": "neutral",
+      "sources": [
+        { "url": "https://help.x.com/en/rules-and-policies/personal-information", "accessed": "2026-10-12", "level": "search_summary" }
+      ]
+    }
+  ]
+}

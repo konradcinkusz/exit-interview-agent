@@ -12,7 +12,7 @@ public sealed class ModelInterviewer(IChatClient client, InterviewProtocol proto
         var messages = new[]
         {
             new ChatMessage(ChatRole.System, Prompts.InterviewerSystem(request.Wording ?? protocol)),
-            new ChatMessage(ChatRole.User, Prompts.InterviewerUser(request, DataBlock.NewNonce())),
+            new ChatMessage(ChatRole.User, Prompts.InterviewerUser(request, DataBlock.NewNonce(), protocol)),
         };
         var response = await client.GetResponseAsync(messages, MeteredChatClient.Options(Role.Interviewer, 160), ct).ConfigureAwait(false);
         return response.Text;
@@ -27,7 +27,7 @@ public sealed class ModelProber(IChatClient client, InterviewProtocol protocol) 
         var messages = new[]
         {
             new ChatMessage(ChatRole.System, Prompts.ProberSystem(request.Wording ?? protocol)),
-            new ChatMessage(ChatRole.User, Prompts.ProberUser(request, DataBlock.NewNonce())),
+            new ChatMessage(ChatRole.User, Prompts.ProberUser(request, DataBlock.NewNonce(), protocol)),
         };
         var response = await client.GetResponseAsync(messages, MeteredChatClient.Options(Role.Prober, 120), ct).ConfigureAwait(false);
         return response.Text;

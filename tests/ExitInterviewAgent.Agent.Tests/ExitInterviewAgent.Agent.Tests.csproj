@@ -17,6 +17,10 @@
     <Compile Include="..\Shared\ForbiddenFieldNames.cs" Link="Shared\ForbiddenFieldNames.cs" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Guard corpus and the protocol fixtures are read at run time from Data/. -->
+    <None Include="Data\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

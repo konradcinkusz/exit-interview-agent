@@ -1,0 +1,31 @@
+{"id": "en-g01", "move": "warmup", "text": "To start with something easy: what was your job there?", "label": "good", "expect": "ok"}
+{"id": "en-g02", "move": "open", "text": "Tell me about how you were managed day to day.", "label": "good", "expect": "ok"}
+{"id": "en-g03", "move": "open", "text": "How did you experience your first weeks there?", "label": "good", "expect": "ok"}
+{"id": "en-g04", "move": "open", "text": "What opportunities, if any, did you have to learn new things?", "label": "good", "expect": "ok"}
+{"id": "en-g05", "move": "open", "text": "How did your pay compare with what was promised when you joined?", "label": "good", "expect": "ok"}
+{"id": "en-g06", "move": "open", "text": "How would you describe how people worked together there?", "label": "good", "expect": "ok"}
+{"id": "en-g07", "move": "open", "text": "What led to your decision to leave?", "label": "good", "expect": "ok"}
+{"id": "en-g08", "move": "example", "text": "Could you give me one specific example of that, a particular situation or moment?", "label": "good", "expect": "ok"}
+{"id": "en-g09", "move": "example", "text": "What one specific situation shows that best?", "label": "good", "expect": "ok"}
+{"id": "en-g10", "move": "elaborate", "text": "What exactly was behind that?", "label": "good", "expect": "ok"}
+{"id": "en-g11", "move": "elaborate", "text": "Could you say more about the specific thing you named?", "label": "good", "expect": "ok"}
+{"id": "en-g12", "move": "ladder", "text": "What made that matter so much?", "label": "good", "expect": "ok"}
+{"id": "en-g13", "move": "consequence", "text": "What did that change in your day-to-day work?", "label": "good", "expect": "ok"}
+{"id": "en-g14", "move": "scale", "text": "On a scale from 1 to 5, where 1 is very bad and 5 very good, how would you rate your first weeks?", "label": "good", "expect": "ok"}
+{"id": "en-g15", "move": "scale", "text": "On a scale from 1 to 5, where 1 is very bad and 5 very good, how would you rate the atmosphere and teamwork?", "label": "good", "expect": "ok"}
+{"id": "en-g16", "move": "scaleFollowUp", "text": "What shaped that rating most?", "label": "good", "expect": "ok"}
+{"id": "en-g17", "move": "retention", "text": "What would have had to be different for leaving not to be an option?", "label": "good", "expect": "ok"}
+{"id": "en-g18", "move": "anythingElse", "text": "What else is worth adding that I have not asked about?", "label": "good", "expect": "ok"}
+{"id": "en-g19", "move": "clarify", "text": "Which is closer to how it was for you, or was it both at different times?", "label": "good", "expect": "ok"}
+{"id": "en-g20", "move": "redirect", "text": "To protect people's privacy I do not record names. Could you describe what happened in terms of what was done, or in terms of a role such as your manager or a colleague?", "label": "good", "expect": "ok"}
+{"id": "en-g21", "move": "deep", "text": "How long did this go on?", "label": "good", "expect": "ok"}
+{"id": "en-g22", "move": "deep", "text": "Which roles were involved, for example your manager or a colleague?", "label": "good", "expect": "ok"}
+{"id": "en-g23", "move": "elaborate", "text": "\"Nothing was ever clear\". What made it so unclear?", "label": "good", "expect": "ok", "said": "Nothing was ever clear to anyone."}
+{"id": "en-b01", "move": "open", "text": "Didn't you feel your manager was unsupportive?", "label": "bad", "expect": "leading"}
+{"id": "en-b02", "move": "open", "text": "Surely you were frustrated by the promotion process?", "label": "bad", "expect": "leading"}
+{"id": "en-b03", "move": "open", "text": "How terrible was the management?", "label": "bad", "expect": "loaded"}
+{"id": "en-b04", "move": "open", "text": "Did you get enough training?", "label": "bad", "expect": "closed_question"}
+{"id": "en-b05", "move": "open", "text": "What happened and why?", "label": "bad", "expect": "double_barrelled"}
+{"id": "en-b06", "move": "open", "text": "Tell me about the culture, and how decisions were made.", "label": "bad", "expect": "double_barrelled"}
+{"id": "en-b07", "move": "example", "text": "Could you tell me more about that?", "label": "bad", "expect": "probe_without_example"}
+{"id": "en-b08", "move": "open", "text": "Why was the culture so toxic?", "label": "bad", "expect": "loaded"}
