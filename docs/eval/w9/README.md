@@ -102,4 +102,4 @@ Ten interviews played by one person are a smoke test of quality and cost, not a 
 
 ## Baseline for the protocol 1.3 corpus
 
-The committed baseline (`evals/baseline.json`) is for corpus digest `sha256:a79c3ca9f5524a2c`, regenerated after the WP6 corpus additions (hand labels, personas `pay-first-pl` and `distress-pl`, judge rubric rows R-03..R-05). Reproduce the check with `scripts/run-evals.sh gate`; CI runs it on every pull request. The final baseline move for the protocol 1.3 flow is WP5's.
+The committed baseline (`evals/baseline.json`) is for corpus digest `sha256:a79c3ca9f5524a2c`, regenerated after the WP6 corpus additions (hand labels, personas `pay-first-pl` and `distress-pl`, judge rubric rows R-03..R-05). Reproduce the check with `scripts/run-evals.sh gate`; CI runs it on every pull request, and `validate` prints the corpus digest it computed. The final baseline move for the protocol 1.3 flow is WP5's.
