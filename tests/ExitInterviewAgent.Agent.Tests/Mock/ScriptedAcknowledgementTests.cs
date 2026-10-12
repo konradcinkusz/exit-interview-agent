@@ -131,9 +131,10 @@ public class ScriptedAcknowledgementTests
     [Fact]
     public async Task The_acknowledged_turn_still_passes_the_guard()
     {
-        var text = await InterviewerTurn(Ask(), Talk("Szef zmieniał priorytety co tydzień, więc nigdy nie wiedziałam, nad czym pracować"));
+        const string said = "Szef zmieniał priorytety co tydzień, więc nigdy nie wiedziałam, nad czym pracować";
+        var text = await InterviewerTurn(Ask(), Talk(said));
 
-        var verdict = QuestionGuard.Check(text, TurnKind.Topic, new PiiGuard(["Widgetron"]));
+        var verdict = QuestionGuard.Check(text, TurnKind.Topic, new PiiGuard(["Widgetron"]), lastInterviewee: said);
 
         Assert.True(verdict.Ok, $"the guard rejected the acknowledged turn: {verdict.Reason}");
     }
