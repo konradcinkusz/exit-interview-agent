@@ -6,11 +6,21 @@ namespace ExitInterviewAgent.Agent.Machine;
 public enum ConsentAnswer { Yes, No, Unclear }
 
 /// <summary>
+/// The form of address the interviewee chose for the interviewer (Polish only). Held in the runner's memory and never traced,
+/// stored or written to a record: a grammatical-gender choice is personal data with no evaluation value (interview-dynamics §5.2).
+/// Defined here until <c>Protocol/Kinds.cs</c> carries it (WP4); WP5 removes the duplicate.
+/// </summary>
+public enum AddressForm { Neutral, Pan, Pani, Ty }
+
+/// <summary>
 /// What the deterministic analyser read from one (already masked) reply. Booleans and counts only, so it can be
 /// traced. <see cref="Polarity"/> is a protocol signal (does this answer lean one way about the employer?) used only to
 /// notice contradictions; it is never stored, never put in the record, and is not an assessment of the person.
 /// <see cref="Serious"/> opens the deepening phase; <see cref="DeepCovered"/> is a bit mask of the <see cref="DeepFocus"/>
 /// elements the reply already describes, so the menu does not ask about them again.
+/// <see cref="ExitEvent"/> is a dismissal ("zwolnili mnie"): an ordinary reply that never opens the deepening by itself.
+/// <see cref="Distress"/> and <see cref="LegalThreat"/> are explicit statements read for flow only; they are never stored.
+/// <see cref="ScaleValue"/> is a bare rating 1–5 in a short reply, or null. <see cref="Address"/> is the form chosen by the reply.
 /// </summary>
 public sealed record ReplySignals(
     int Words,
@@ -26,7 +36,13 @@ public sealed record ReplySignals(
     bool Serious = false,
     int DeepCovered = 0,
     bool Short = false,
-    bool FinishRequest = false);
+    bool FinishRequest = false,
+    bool Distress = false,
+    bool LegalThreat = false,
+    bool ExitEvent = false,
+    bool AlreadySaid = false,
+    int? ScaleValue = null,
+    AddressForm Address = AddressForm.Neutral);
 
 /// <summary>
 /// Rule-based reading of a reply. Decisions that protect the interviewee (withdrawal, consent) and the shape of the
@@ -37,7 +53,8 @@ public sealed record ReplySignals(
 /// </summary>
 public static partial class ReplyAnalyzer
 {
-    public static ReplySignals Analyze(string maskedReply, ProtocolLimits limits, bool namesPerson, int previousPolarity = 0)
+    /// <param name="consentReply">True on the reply to the opening question, where a bare "pani" or "pan" is a register choice.</param>
+    public static ReplySignals Analyze(string maskedReply, ProtocolLimits limits, bool namesPerson, int previousPolarity = 0, bool consentReply = false)
     {
         ArgumentNullException.ThrowIfNull(maskedReply);
         var words = CountWords(maskedReply);
@@ -63,8 +80,51 @@ public static partial class ReplyAnalyzer
             serious,
             DeepCoverage(maskedReply) | DeepCoverage(folded),
             IsBrief(words, terse, concrete, Any(Evaluates)),
-            Any(t => FinishRequestCue().IsMatch(t)));
+            Any(t => FinishRequestCue().IsMatch(t)),
+            Any(t => Affirmed(DistressCue(), t)),
+            Any(t => Affirmed(LegalCue(), t, window: 4)) || Affirmed(LegalRawCue(), maskedReply, window: 4) || Affirmed(LegalAcronymCue(), maskedReply, window: 4),
+            Any(t => Affirmed(ExitEventCue(), t)),
+            Any(t => AlreadySaidCue().IsMatch(t)),
+            ScaleValueOf(folded),
+            AddressOf(maskedReply, consentReply));
     }
+
+    /// <summary>
+    /// The form of address a reply chooses (§3.6). An explicit "na ty", "per Pani" or "na Pan" switches it on any reply, so
+    /// "możemy na ty" works. A bare "pani" or "pan" counts only on the consent reply, so "Pani Ania pomogła" is not a choice.
+    /// </summary>
+    public static AddressForm AddressOf(string text, bool consentReply = false)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var folded = Fold(text);
+        var explicitForm = ExplicitAddress().Match(folded);
+        if (explicitForm.Success) return FormOf(explicitForm.Groups["form"].Value);
+        if (!consentReply) return AddressForm.Neutral;
+        var bare = ConsentAddress().Match(folded);
+        return bare.Success ? FormOf(bare.Groups["form"].Value) : AddressForm.Neutral;
+    }
+
+    private static AddressForm FormOf(string word) => word.ToLowerInvariant() switch
+    {
+        "ty" => AddressForm.Ty,
+        "pani" => AddressForm.Pani,
+        _ => AddressForm.Pan,
+    };
+
+    /// <summary>
+    /// A bare rating: the whole reply is one of 1–5 as a digit or a word ("3", "4/5", "dam 4", "piątka", "dwójka", "five"). Anything
+    /// longer, or with another number in it, is not a rating, and the machine treats it as an open answer.
+    /// </summary>
+    public static int? ScaleValueOf(string folded)
+    {
+        var m = ScaleCue().Match(folded);
+        if (!m.Success) return null;
+        for (var v = 1; v <= 5; v++)
+            if (m.Groups[ScaleGroups[v - 1]].Success) return v;
+        return null;
+    }
+
+    private static readonly string[] ScaleGroups = ["one", "two", "three", "four", "five"];
 
     /// <summary>
     /// A short answer that says something ("bardzo dobrze", "słabe", "bywało różnie") but gives nothing concrete: worth one follow-up.
@@ -167,9 +227,17 @@ public static partial class ReplyAnalyzer
         _ => MenuOutcome().IsMatch(text),
     };
 
-    private static bool Negated(string text, int index)
+    /// <summary>True when some match of <paramref name="cue"/> in <paramref name="text"/> is not negated within <paramref name="window"/> words before it.</summary>
+    private static bool Affirmed(Regex cue, string text, int window = 3)
     {
-        foreach (var w in WordToken().Matches(text[..index]).TakeLast(3))
+        foreach (Match m in cue.Matches(text))
+            if (!Negated(text, m.Index, window)) return true;
+        return false;
+    }
+
+    private static bool Negated(string text, int index, int window = 3)
+    {
+        foreach (var w in WordToken().Matches(text[..index]).TakeLast(window))
         {
             var token = w.Value.Replace('’', '\'').ToLowerInvariant();
             if (token is "nie" or "bez" or "nigdy" or "no" or "not" or "never" or "without" or "nor" || token.EndsWith("n't", StringComparison.Ordinal))
@@ -236,13 +304,53 @@ public static partial class ReplyAnalyzer
     /// The serious-account floor (ADR-0075, Y2). It is a fixed list of roots, not a classifier: a paraphrase it does not name is missed
     /// (the deepening then does not start), and a term it names can fire in a harmless sense. Stems carry a wildcard suffix so
     /// Polish and English inflections are covered; a Polish form the list does not stem to (for example a rare declension) is missed.
+    /// Dismissal terms are not here since interview-dynamics 1.3: they are an <see cref="ExitEventCue"/>, which opens no deepening.
     /// </summary>
     /// <summary>A request to end the interview early but keep what was said ("możemy już skończyć?", "can we wrap up"): distinct from withdrawal, which discards everything.</summary>
     [GeneratedRegex(@"\b(mo[żz]emy|mog[ęe]|czy\s+mo[żz]emy|prosz[ęe])\s+(ju[żz]\s+)?(sko[ńn]czy[ćc]|ko[ńn]czy[ćc]|zako[ńn]czy[ćc])|\bsko[ńn]czmy\b|\bwystarczy\s+ju[żz]\b|\bcan\s+we\s+(please\s+)?(finish|wrap\s+up|end|stop)\b|\bcould\s+we\s+(finish|wrap\s+up|end)\b|\blet'?s\s+wrap\s+up\b", Opt, 200)]
     private static partial Regex FinishRequestCue();
 
-    [GeneratedRegex(@"\b(mobb?ing\w*|gn[ęe]bi\w*|n[ęe]ka\w*|poni[żz]a\w*|poni[żz]y\w*|bull(y|ied|ying|ies)\w*|harass\w*|molest\w*|discriminat\w*|dyskrymin\w*|threat\w*|gro[źżz]\w*|retaliat\w*|odwet\w*|zemst\w*|wyzysk\w*|exploit\w*|unsafe|niebezpiecz\w*|wage\s+theft|withheld\s+(pay|wages|salary)|nie\s+wyp[łl]ac\w*|niewyp[łl]ac\w*|unpaid\s+(wages|overtime|salary)|upok[oa]r\w*|(?>zwolni\w*)(?!\s+si[ęe]\b)|wyrzuc\w*|fired|laid\s+off|sacked|dismissed|humiliat\w*|wyzywa\w*|obra[żz]a\w*|prze[śs]ladow\w*|persecut\w*|szykan\w*)", Opt, 200)]
+    [GeneratedRegex(@"\b(mobb?ing\w*|gn[ęe]bi\w*|n[ęe]ka\w*|poni[żz]a\w*|poni[żz]y\w*|bull(y|ied|ying|ies)\w*|harass\w*|molest\w*|discriminat\w*|dyskrymin\w*|threat\w*|gro[źżz]\w*|retaliat\w*|odwet\w*|zemst\w*|wyzysk\w*|exploit\w*|unsafe|niebezpiecz\w*|wage\s+theft|withheld\s+(pay|wages|salary)|nie\s+wyp[łl]ac\w*|niewyp[łl]ac\w*|unpaid\s+(wages|overtime|salary)|upok[oa]r\w*|humiliat\w*|wyzywa\w*|obra[żz]a\w*|prze[śs]ladow\w*|persecut\w*|szykan\w*)", Opt, 200)]
     private static partial Regex SeriousCue();
+
+    /// <summary>Dismissal: "zwolnili mnie", "wyrzucili mnie", "I was fired / laid off / sacked / dismissed". Not "zwolniłem się" (a resignation).</summary>
+    [GeneratedRegex(@"\b(?>zwolni\w*)(?!\s+si[ęe]\b)|\bwyrzuc\w*|\bfired\b|\blaid\s+off\b|\bsacked\b|\bdismissed\b", Opt, 200)]
+    private static partial Regex ExitEventCue();
+
+    /// <summary>Explicit distress (§3.7): a statement the person makes about themselves, not an inference. Depression and therapy need a first-person marker.</summary>
+    [GeneratedRegex(@"\bnie\s+(daje|dam)\s+(sobie\s+)?rady\b|\bnie\s+radze\s+sobie\b|\bmysli\s+samobojcz\w*|\bchce\s+sie\s+zabic\b|\bzabic\s+sie\b|\bzalamani\w*\s+nerwow\w*|\batak\w*\s+paniki\b|\bataki\s+paniki\b|\bcan['’]t\s+cope\b|\bsuicid\w*|\bpanic\s+attacks?\b|\b(nervous|mental|emotional)\s+breakdown\b|\bhad\s+a\s+breakdown\b|\b(mialem|mialam|bylem|bylam|mam|jestem|biore|bralem|bralam)\b[^.!?]{0,30}\b(depresj\w*|terapi\w*)|\b(i\s+(have|had|am|was)|i'?m)\b[^.!?]{0,30}\b(depression|therap\w*)", Opt, 200)]
+    private static partial Regex DistressCue();
+
+    /// <summary>
+    /// Legal remarks that are fold-safe: "pozwać", "pozwę", "pozwany", "pozew", "pozywać", "adwokat", "prawnik", "inspekcja", "sue", "lawyer", "court".
+    /// The Polish verb stem "pozw" is not used as a prefix: "pozwolił" (allowed) and "pozwala" (allows) are everyday words.
+    /// </summary>
+    [GeneratedRegex(@"\bpozwac\b|\bpozwe\b|\bpozwan\w*|\bpozwie\w*|\bpozwali\b|\bpozwu\b|\bpozew\w*|\bpozyw\w*|\badwokat\w*|\bprawnik\w*|\binspekcj\w*|\bsu(e|ed|es|ing)\b|\blawyer\w*|\battorney\w*|\btribunal\w*|\bcourt\b", Opt, 200)]
+    private static partial Regex LegalCue();
+
+    /// <summary>"sąd": read on the Polish spelling only, because its ASCII fold "sad" is an English word.</summary>
+    [GeneratedRegex(@"\bsąd\w*", Opt, 200)]
+    private static partial Regex LegalRawCue();
+
+    /// <summary>"PIP" as the labour inspectorate: upper case only, so "pip" (the installer) is not a legal remark.</summary>
+    [GeneratedRegex(@"\bPIP\b", RegexOptions.CultureInvariant, 200)]
+    private static partial Regex LegalAcronymCue();
+
+    /// <summary>"już o tym pisałem", "przecież już pisałem", "to samo pytanie", "I already said", "same question" (§3.7).</summary>
+    [GeneratedRegex(@"\bjuz\s+(o\s+tym\s+)?(pisal|mowil|odpowiad)\w*|\bprzeciez\s+(juz\s+)?(pisal|mowil|odpowiad)\w*|\bto\s+samo\s+pytanie\b|\bi\s+already\s+(said|answered|told)\b|\bsame\s+question\b", Opt, 200)]
+    private static partial Regex AlreadySaidCue();
+
+    /// <summary>Register choice on any reply: "na ty", "per Pani", "na Pan" (the form word is captured; the text is folded first).</summary>
+    [GeneratedRegex(@"\b(na|per)\s+(?<form>ty|pani|pan)\b", Opt, 200)]
+    private static partial Regex ExplicitAddress();
+
+    /// <summary>Register choice on the consent reply only: a bare "pani" or "pan".</summary>
+    [GeneratedRegex(@"\b(?<form>pani|pan)\b", Opt, 200)]
+    private static partial Regex ConsentAddress();
+
+    /// <summary>A bare rating 1–5 as a digit or a word, optionally "/5" or "z pięciu" (folded text, so "pięć" is "piec").</summary>
+    [GeneratedRegex(@"^\W*(?:(?:ocena|dam|daje|to|rating|score|my\s+rating|i\s+give\s+it|i'?d\s+say|it'?s|that'?s)\W+)?(?:(?<one>1|jeden|jedyn\w*|one)|(?<two>2|dwa|dwoj\w*|two)|(?<three>3|troj\w*|trzy|three)|(?<four>4|czwor\w*|cztery|four)|(?<five>5|piec|piatk\w*|five))(?:\s*(?:/\s*5|z\s+piecu|out\s+of\s+five|of\s+five))?\W*$", Opt, 200)]
+    private static partial Regex ScaleCue();
 
     [GeneratedRegex(@"[\p{L}'’]+", RegexOptions.CultureInvariant, 200)]
     private static partial Regex WordToken();
