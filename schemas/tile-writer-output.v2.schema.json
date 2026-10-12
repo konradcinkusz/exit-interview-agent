@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exit-interview-agent:schema:tile-writer-output:v2",
+  "title": "Tile writer output, version 2",
+  "description": "What the tile-writer model must return in version 2 (docs/architecture/platform-drafts-spec.md §3.3, ADR-0083): one object holding the model-written tiles, nothing else. There is one draft per writer family, and each platform's draft is rendered from its family's sections by code. The four general tiles (overview, what_worked, what_could_improve, for_the_next_person) carry one text; the four family kinds carry sections keyed as in the family table. The schema enforces the maximum lengths and the section keys. Minimum lengths, emptiness, the total limit and the rest are the guard's (TileDropReason too_short, empty), so one short section drops that section and not the whole reply. The Facts tile is never written by the model. version 1 (schemas/tile-writer-output.v1.schema.json) is kept for history.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tiles"],
+  "properties": {
+    "tiles": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/tile" }
+    }
+  },
+  "$defs": {
+    "tile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "basedOn"],
+      "properties": {
+        "kind": { "enum": ["overview", "what_worked", "what_could_improve", "for_the_next_person", "structured_review", "narrative", "professional_post", "short_post"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 600 },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/section" }
+        },
+        "basedOn": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": { "enum": ["onboarding", "management", "growth", "pay_vs_promises", "culture", "reason_for_leaving"] }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "enum": ["overview", "what_worked", "what_could_improve", "for_the_next_person"] } }, "required": ["kind"] },
+          "then": {
+            "required": ["title", "text"],
+            "not": { "required": ["sections"] },
+            "properties": { "title": { "maxLength": 60 }, "text": { "maxLength": 600 } }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "structured_review" } }, "required": ["kind"] },
+          "then": {
+            "required": ["sections"],
+            "not": { "anyOf": [{ "required": ["title"] }, { "required": ["text"] }] },
+            "properties": {
+              "sections": {
+                "minItems": 3,
+                "maxItems": 4,
+                "allOf": [
+                  { "contains": { "properties": { "key": { "const": "title" } }, "required": ["key"] } },
+                  { "contains": { "properties": { "key": { "const": "pros" } }, "required": ["key"] } },
+                  { "contains": { "properties": { "key": { "const": "cons" } }, "required": ["key"] } }
+                ],
+                "items": {
+                  "properties": { "key": { "enum": ["title", "pros", "cons", "advice"] } },
+                  "allOf": [
+                    { "if": { "properties": { "key": { "const": "title" } }, "required": ["key"] }, "then": { "properties": { "text": { "maxLength": 60 } } } },
+                    { "if": { "properties": { "key": { "enum": ["pros", "cons", "advice"] } }, "required": ["key"] }, "then": { "properties": { "text": { "maxLength": 500 } } } }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "narrative" } }, "required": ["kind"] },
+          "then": {
+            "required": ["sections"],
+            "not": { "anyOf": [{ "required": ["title"] }, { "required": ["text"] }] },
+            "properties": {
+              "sections": {
+                "minItems": 2,
+                "maxItems": 2,
+                "allOf": [
+                  { "contains": { "properties": { "key": { "const": "title" } }, "required": ["key"] } },
+                  { "contains": { "properties": { "key": { "const": "body" } }, "required": ["key"] } }
+                ],
+                "items": {
+                  "properties": { "key": { "enum": ["title", "body"] } },
+                  "allOf": [
+                    { "if": { "properties": { "key": { "const": "title" } }, "required": ["key"] }, "then": { "properties": { "text": { "maxLength": 120 } } } },
+                    { "if": { "properties": { "key": { "const": "body" } }, "required": ["key"] }, "then": { "properties": { "text": { "maxLength": 4000 } } } }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "professional_post" } }, "required": ["kind"] },
+          "then": {
+            "required": ["sections"],
+            "not": { "anyOf": [{ "required": ["title"] }, { "required": ["text"] }] },
+            "properties": {
+              "sections": {
+                "minItems": 1,
+                "maxItems": 1,
+                "contains": { "properties": { "key": { "const": "body" } }, "required": ["key"] },
+                "items": { "properties": { "key": { "const": "body" }, "text": { "maxLength": 1300 } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "short_post" } }, "required": ["kind"] },
+          "then": {
+            "required": ["sections"],
+            "not": { "anyOf": [{ "required": ["title"] }, { "required": ["text"] }] },
+            "properties": {
+              "sections": {
+                "minItems": 1,
+                "maxItems": 1,
+                "contains": { "properties": { "key": { "const": "body" } }, "required": ["key"] },
+                "items": { "properties": { "key": { "const": "body" }, "text": { "maxLength": 270 } } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "text"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "text": { "type": "string", "maxLength": 4000 }
+      }
+    }
+  }
+}

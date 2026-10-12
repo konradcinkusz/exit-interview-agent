@@ -84,6 +84,8 @@
   position: sticky; bottom: 0; z-index: 2; padding: var(--s3) var(--s4) var(--s4); background: var(--surface);
   border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
+.quickReplies { display: flex; flex-wrap: wrap; gap: var(--s2); padding: var(--s3) var(--s4) 0; }
+.quickReplies button { margin: 0; }
 .composer :global(.notice) { margin: 0 0 var(--s3); }
 .replyLabel { margin: 0 0 var(--s2); font-size: var(--text-sm); color: var(--muted); }
 .composer textarea { min-height: 4.25rem; max-height: 14rem; field-sizing: content; resize: none; border-radius: var(--radius); }

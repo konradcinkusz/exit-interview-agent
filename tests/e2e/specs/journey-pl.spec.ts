@@ -44,14 +44,15 @@ test("sign in, start, chat, result, delete: the whole journey in Polish @smoke",
   // (4) Chat, with the progress line and the two ways out.
   const log = page.getByRole("log", { name: "Rozmowa" });
   await expect(log).toContainText("Dzień dobry. Jestem rozmówcą AI.");
-  await expect(page.getByTestId("chat-progress")).toHaveText("Wprowadzenie");
+  await expect(page.getByTestId("chat-progress")).toHaveText("Rozmowa · zwykle 10–15 minut · można zakończyć w każdej chwili");
   const say = async (text: string) => {
     await expect(page.getByRole("status").filter({ hasText: "Rozmówca pisze" })).toHaveCount(0);
     await page.getByLabel("Twoja odpowiedź").fill(text);
     await page.getByRole("button", { name: "Wyślij" }).click();
   };
   await say(CANARY);
-  await expect(page.getByTestId("chat-progress")).toHaveText("Temat 1 z około 6");
+  await expect(page.getByTestId("chat-progress")).toHaveText("Rozmowa · zwykle 10–15 minut · można zakończyć w każdej chwili");
+  await expect(page.getByText(/z około \d/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Zakończ rozmowę" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Przerwij i usuń" })).toBeVisible();
   await say("Przełożony był rzadko dostępny.");

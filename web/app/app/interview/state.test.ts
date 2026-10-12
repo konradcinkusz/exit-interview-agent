@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canFinish, initialState, reduce, topicNumber, type State } from "./state";
+import { canFinish, canQuickReply, initialState, reduce, type State } from "./state";
 
 // The page is a small state machine. These tests pin its transitions, in particular the failure statuses (402, 409, 410, 429,
 // 503) that must send the person somewhere sensible, and that deleting empties everything the page holds.
@@ -28,7 +28,7 @@ const result = {
       reason_for_leaving: { status: "no_data" as const, rating: null, confidence: null, quotes: [] },
     },
   },
-  tiles: { items: [], dropped: [], notice: "Drafts." },
+  tiles: { items: [], dropped: [], notice: "Drafts.", drafts: [] },
   usage: { modelCalls: 3, tokensEstimated: 1200 },
 };
 
@@ -211,19 +211,21 @@ describe("redesign (phase 2): what the page derives from its state", () => {
     expect(canFinish(s)).toBe(false);
   });
 
-  it("counts the topic questions for the progress line", () => {
-    let s = chatting();
-    expect(topicNumber(s.lines)).toBe(0);
-    s = run(
-      s,
-      { type: "sending", text: "Yes." },
-      { type: "replied", reply: { status: "in_progress", turn: { index: 1, kind: "topic", text: "Onboarding?" } } },
-      { type: "sending", text: "Chaotic." },
-      { type: "replied", reply: { status: "in_progress", turn: { index: 2, kind: "probe", text: "An example?" } } },
-      { type: "sending", text: "The first week." },
-      { type: "replied", reply: { status: "in_progress", turn: { index: 3, kind: "topic", text: "Your manager?" } } },
-    );
-    expect(topicNumber(s.lines)).toBe(2);
+  it("offers the quick answers on the consent turn only: the opening, or a re-ask", () => {
+    const opening = chatting();
+    expect(canQuickReply(opening)).toBe(true);
+
+    const reasked = run(opening, { type: "sending", text: "Maybe." }, { type: "replied", reply: { status: "in_progress", turn: { index: 1, kind: "consent_reask", text: "Yes or no?" } } });
+    expect(canQuickReply(reasked)).toBe(true);
+
+    const topic = run(opening, { type: "sending", text: "Yes." }, { type: "replied", reply: { status: "in_progress", turn: { index: 1, kind: "topic", text: "Onboarding?" } } });
+    expect(canQuickReply(topic)).toBe(false);
+  });
+
+  it("hides the quick answers while a reply is pending, and outside the chat", () => {
+    const opening = chatting();
+    expect(canQuickReply(run(opening, { type: "sending", text: "Yes." }))).toBe(false);
+    expect(canQuickReply(initialState())).toBe(false);
   });
 
   it("remembers when the interview completed, to say until when the result stays readable", () => {

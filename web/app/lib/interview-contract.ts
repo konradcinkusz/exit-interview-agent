@@ -16,9 +16,20 @@ export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
 export const TURN_KINDS = ["opening", "consent_reask", "topic", "probe", "clarification", "deep_probe", "redirect", "close", "stop"] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
 
-/** The tile kinds the contract carries (TileKind in the agent; the CLI renders more, the service sends these six). */
+/**
+ * The tile kinds this page knows (TileKind in the agent; the CLI renders more). An item of any other kind is skipped by `parseResult`,
+ * so a newer service can send kinds this page does not show without breaking the result (ADR-0083).
+ */
 export const TILE_KINDS = ["glassdoor", "google_review", "reddit", "short_note", "overview", "facts"] as const;
 export type TileKind = (typeof TILE_KINDS)[number];
+
+/** The writer families of a platform draft (ADR-0083, platform-drafts-spec §3.3): the wire words of DraftFamily in the agent. */
+export const DRAFT_FAMILIES = ["structured_review", "narrative", "professional_post", "short_post"] as const;
+export type DraftFamily = (typeof DRAFT_FAMILIES)[number];
+
+/** The risk words of a platform draft (platform-drafts-spec §3.5): shown as words, never as colour alone. */
+export const PLATFORM_RISKS = ["medium", "high"] as const;
+export type PlatformRisk = (typeof PLATFORM_RISKS)[number];
 
 /** A reply's length bounds, the same as the contract's `text` (1..2000 characters). */
 export const MAX_REPLY_CHARS = 2000;
@@ -86,11 +97,35 @@ export interface Tile {
   text: string;
 }
 
+export interface DraftSection {
+  key: string;
+  /** The platform's own heading, already in the interview's language. */
+  label: string;
+  text: string;
+}
+
+/** One platform's draft (platform-drafts-spec §3.4). Every string is already in the interview's language. */
+export interface PlatformDraft {
+  /** The profile id, the wire word of the platform. */
+  platform: string;
+  name: string;
+  family: DraftFamily;
+  risk: PlatformRisk;
+  /** The profile's URL with no parameters: the only link the page opens. */
+  url: string;
+  warning: string;
+  sections: DraftSection[];
+  copyText: string;
+  fieldsOnSite: string[];
+}
+
 export interface Tiles {
   items: Tile[];
   dropped: { code: string }[];
   /** The same legal notice the CLI prints, in the interview's language. */
   notice: string;
+  /** Empty until the service builds drafts; a result without the field has none. */
+  drafts: PlatformDraft[];
 }
 
 export type TopicKey = "onboarding" | "management" | "growth" | "pay_vs_promises" | "culture" | "reason_for_leaving";
@@ -212,22 +247,72 @@ function parseRecord(v: unknown): InterviewRecord | null {
   };
 }
 
+function parseDraftSection(v: unknown): DraftSection | null {
+  if (!isObj(v) || !isStr(v.key) || !isStr(v.label) || !isStr(v.text)) return null;
+  return { key: v.key, label: v.label, text: v.text };
+}
+
+/**
+ * One platform draft. A family or risk word this page does not know, a URL that is not https, or any missing field makes the draft
+ * malformed, and a malformed draft fails the whole result: a link or a warning must never be shown half-read.
+ */
+export function parseDraft(v: unknown): PlatformDraft | null {
+  if (!isObj(v) || !isStr(v.platform) || !isStr(v.name) || !oneOf(DRAFT_FAMILIES, v.family) || !oneOf(PLATFORM_RISKS, v.risk)) return null;
+  if (!isStr(v.url) || !v.url.startsWith("https://") || !isStr(v.warning) || !isStr(v.copyText)) return null;
+  if (!Array.isArray(v.sections) || !Array.isArray(v.fieldsOnSite) || !v.fieldsOnSite.every(isStr)) return null;
+  const sections: DraftSection[] = [];
+  for (const section of v.sections) {
+    const parsed = parseDraftSection(section);
+    if (!parsed) return null;
+    sections.push(parsed);
+  }
+  return {
+    platform: v.platform,
+    name: v.name,
+    family: v.family,
+    risk: v.risk,
+    url: v.url,
+    warning: v.warning,
+    sections,
+    copyText: v.copyText,
+    fieldsOnSite: v.fieldsOnSite,
+  };
+}
+
+/** `drafts` is a list of drafts; any malformed one makes the list `null`. */
+function parseDrafts(v: unknown): PlatformDraft[] | null {
+  if (!Array.isArray(v)) return null;
+  const drafts: PlatformDraft[] = [];
+  for (const draft of v) {
+    const parsed = parseDraft(draft);
+    if (!parsed) return null;
+    drafts.push(parsed);
+  }
+  return drafts;
+}
+
 export function parseResult(v: unknown): InterviewResult | null {
   if (!isObj(v) || !isObj(v.tiles) || !isObj(v.usage)) return null;
   const record = parseRecord(v.record);
   if (!record) return null;
-  const { items, dropped, notice } = v.tiles;
+  const { items, dropped, notice, drafts } = v.tiles;
   if (!Array.isArray(items) || !Array.isArray(dropped) || !isStr(notice)) return null;
   const parsedItems: Tile[] = [];
   for (const item of items) {
-    if (!isObj(item) || !oneOf(TILE_KINDS, item.kind) || !isStr(item.text)) return null;
+    if (!isObj(item)) return null;
+    // A kind this page does not know is skipped, not fatal (ADR-0083): the rest of the result is still shown.
+    if (!oneOf(TILE_KINDS, item.kind)) continue;
+    if (!isStr(item.text)) return null;
     parsedItems.push({ kind: item.kind, text: item.text });
   }
   if (!dropped.every((d) => isObj(d) && isStr(d.code))) return null;
+  // A result without `drafts` (a service that predates them) has none; a present but malformed field fails the result.
+  const parsedDrafts = drafts === undefined ? [] : parseDrafts(drafts);
+  if (!parsedDrafts) return null;
   if (!isInt(v.usage.modelCalls) || !isInt(v.usage.tokensEstimated)) return null;
   return {
     record,
-    tiles: { items: parsedItems, dropped: dropped as { code: string }[], notice },
+    tiles: { items: parsedItems, dropped: dropped as { code: string }[], notice, drafts: parsedDrafts },
     usage: { modelCalls: v.usage.modelCalls, tokensEstimated: v.usage.tokensEstimated },
   };
 }
