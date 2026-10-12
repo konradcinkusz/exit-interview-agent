@@ -155,8 +155,28 @@ public static class TurnMetrics
         new(quotes.Distinct(StringComparer.Ordinal).Count(IndependentRules.HasConcreteDetail), 1);
 
     /// <summary>
+    /// Q-13 with the hand labels (the gated <c>opr</c>, as <c>fuv</c> is): an Example probe after a reply labelled specific or decline, over
+    /// those replies. <paramref name="labels"/> is aligned with the facts: the label of the reply to each interviewer turn, or null when that
+    /// turn has no hand-labelled reply (only base questions are opportunities, so a follow-up's own reply is not counted).
+    /// </summary>
+    public static Count OprLabelled(IReadOnlyList<TurnFact> f, IReadOnlyList<string?> labels)
+    {
+        var over = 0;
+        var answers = 0;
+        for (var i = 0; i < f.Count && i < labels.Count; i++)
+        {
+            if (f[i].Move is { } m && MoveCodes.FollowUps.Contains(m)) continue;
+            if (labels[i] is not ("specific" or "decline")) continue;
+            answers++;
+            if (i + 1 < f.Count && f[i + 1].Move == MoveCodes.Example) over++;
+        }
+        return new Count(over, answers);
+    }
+
+    /// <summary>
     /// Q-13 (the redefined over-probe rate): an Example after a specific answer or a decline, over specific answers and declines. A
-    /// ladder or a consequence after a specific answer is intended, so it is not over-probing and it is not counted here.
+    /// ladder or a consequence after a specific answer is intended, so it is not over-probing and it is not counted here. Specificity is read
+    /// from the trace's own cues (a report measure; the gate uses <see cref="OprLabelled"/>).
     /// </summary>
     public static Count OprMoves(IReadOnlyList<TurnFact> f, int substantiveWords)
     {
