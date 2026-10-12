@@ -263,7 +263,7 @@ public class TurnMetricsTests
     {
         var f = Facts(T(1, "topic", "culture", "open", 30), T(2, "probe", "culture", "example", 20));
 
-        Assert.Equal(new Count(1, 1), TurnMetrics.OprLabelled(f, [ "specific", null ]));
+        Assert.Equal(new Count(1, 1), TurnMetrics.OprLabelled(f, ["specific", null]));
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public class TurnMetricsTests
     {
         var f = Facts(T(1, "topic", "culture", "open", 30), T(2, "probe", "culture", "consequence", 20));
 
-        Assert.Equal(new Count(0, 1), TurnMetrics.OprLabelled(f, [ "specific", null ]));
+        Assert.Equal(new Count(0, 1), TurnMetrics.OprLabelled(f, ["specific", null]));
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public class TurnMetricsTests
     {
         var f = Facts(T(1, "topic", "culture", "open", 30), T(2, "probe", "culture", "example", 20));
 
-        Assert.Equal(Count.Zero, TurnMetrics.OprLabelled(f, [ "vague", null ]));
+        Assert.Equal(Count.Zero, TurnMetrics.OprLabelled(f, ["vague", null]));
     }
 
     [Fact]
@@ -287,7 +287,7 @@ public class TurnMetricsTests
     {
         var f = Facts(T(1, "topic", "culture", "open", 1), T(2, "probe", "culture", "example", 20), T(3, "topic", "culture", "open", 30), T(4, "probe", "culture", "example", 20));
 
-        Assert.Equal(new Count(1, 1), TurnMetrics.OprLabelled(f, [ "decline", null, null, null ]));
+        Assert.Equal(new Count(1, 1), TurnMetrics.OprLabelled(f, ["decline", null, null, null]));
     }
 
     // ---- the rating digit comes from the reply to the question, and only when the turns line up ----------------------------

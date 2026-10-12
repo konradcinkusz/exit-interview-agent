@@ -39,6 +39,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-30 | Fail-closed over-masking of capitalised topic words is bounded only by a list | Low |
 | OP-31 | Obfuscated-email spellings beyond the bracketed forms are not detected | Low |
 | OP-32 | Platform rules are cited from search summaries | High |
+| OP-33 | `yield_concrete` is a per-interview count, not a mean per turn | Low |
 
 ## OP-1. Real employment verification
 
@@ -296,3 +297,10 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** The planned profiles (WP2) record each source's level (`search_summary` or `unverified`), and the planned Kununu profile ships disabled. The planned warnings end "Draft, not fact. Not legal advice.", and the terms (§3) tell the person to check each site's rules. The WP6 re-check was attempted in the session of 2026-10-12 and could not reach any platform page, so no level was raised ([research §6](research/review-platforms-2026-10-12.md#outcome-of-the-wp6-re-check-session-of-2026-10-12)).
 - **What would close it.** A session with normal web access opens every URL in the research's §3, sets each fact to `fetched` or keeps it, records the date, and corrects any number that differs. Kununu is enabled only after its rules are read. Until then, the profiles and the cards must keep the "check the site's rules" text.
 - **Trigger.** Before any real draft is shown to a person, and before the first paid interview.
+
+## OP-33. `yield_concrete` (Q-12) is a per-interview count with a fixed denominator of 1
+
+- **Why it matters.** Q-12 counts the distinct verified quotes that carry a concrete cue, for one interview (`TurnMetrics.YieldConcrete`). It is built as a `Count` with a denominator of 1, so any interview with two or more such quotes has K greater than N. The Wilson interval is then not finite, and the report would print a non-finite number. WP5 writes such an interval as `null` in the JSON report (`ConformanceReport.Cnt`), while the Markdown report still prints `NaN`; both hide the defect rather than fix it, and a pooled value is a count per interview, not a rate a reader can compare across runs.
+- **What we do now.** It is reported as a per-interview count with no interval, and it is not gated. The mock value is not used to judge the change.
+- **What would close it.** Define Q-12 as a mean per interview (or per turn) with an interval that is defined for it, add a unit test for the denominator, and make it gated in a change that regenerates the baseline with its own justification (ADR-0040).
+- **Trigger.** WP6 (the metric family), or the first report where a reader cannot tell what the yield measures.

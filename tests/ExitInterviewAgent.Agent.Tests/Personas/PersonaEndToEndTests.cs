@@ -196,12 +196,15 @@ public class PersonaEndToEndTests
     [Fact]
     public async Task The_contradictory_persona_is_clarified_at_most_once_neutrally_and_its_confidence_stays_capped()
     {
-        // Protocol 1.3: the planner may make the contradicted topic light, so it gets no second reply and no clarification on seed 1.
-        // Clarification itself is covered by the machine tests and by scenario amb-002.
+        // Protocol 1.3: the contradiction needs a second reply on the topic, so the management topic must be core under the planner.
+        // The persona's reason-for-leaving answer names the manager, which makes management salient and core (spec §3.3).
         var r = await PersonaSession.RunAsync(PersonaCatalog.Get("contradictory"), 1);
 
-        Assert.True(r.Diagnostics.Clarifications <= 1);
-        Assert.All(r.Transcript!.Turns.Where(t => t.Kind == TurnKind.Clarification), t => Assert.Equal(Proto.Clarification, t.Text));
+        var asked = r.Transcript!.Turns.Where(t => t.Speaker == Speaker.Interviewer && t.Kind == TurnKind.Clarification).ToList();
+        Assert.Equal(1, r.Diagnostics.Clarifications);
+        Assert.Single(asked);
+        Assert.Equal(Topic.Management, asked[0].Topic);
+        Assert.All(asked, t => Assert.Equal(Proto.Clarification, t.Text));
         Assert.NotEqual(Confidence.High, r.Record!.Topics.Management.Confidence);
     }
 

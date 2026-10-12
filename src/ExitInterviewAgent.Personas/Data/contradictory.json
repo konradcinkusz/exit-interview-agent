@@ -35,8 +35,8 @@
         "My manager was great, really good, you know, generally fine."
       ],
       "growth": [
-        "There was a clear training budget of 1500 euros a year and I used it for a conference last year. Promotion paths were less clear, because after 3 years nobody could tell me what the next level required. I learned a lot but I could not see where I was heading.",
-        "I got to work on 3 different projects in 2 years, which taught me a lot. The difficulty was that when I asked what I needed to do to be promoted, I never got a concrete answer."
+        "There was a clear training budget of 1500 euros a year and I used it for a conference last year. Promotion paths were less clear, because after 3 years nobody could tell me what the next level required. I learned a lot but I could not see where I was heading. My manager agreed to the budget, but was no help on the next level.",
+        "I got to work on 3 different projects in 2 years, which taught me a lot. The difficulty was that when I asked my manager what I needed to do to be promoted, I never got a concrete answer."
       ],
       "pay_vs_promises": [
         "When I joined, the offer letter mentioned a review after 6 months, and in the end it took 14 months to get a raise of only 3 percent. The benefits were fair, with decent health cover, but the bonus described during hiring never materialised.",
@@ -47,8 +47,8 @@
         "Most colleagues were respectful and shared what they knew. What I found difficult was that working late was treated as normal, and when I left at 5 pm a few times it was commented on."
       ],
       "reason_for_leaving": [
-        "I left because the promised raise never came and I could not see a path to a senior role. A recruiter offered me a position with a clearer career ladder and better pay, so after 3 years I decided to move on.",
-        "Mainly because I could not get a straight answer about promotion and the pay review kept slipping. When an offer with a defined career ladder came along after 3 years, I took it."
+        "I left because my manager never followed up on the promised raise, and I could not see a path to a senior role. A recruiter offered me a position with a clearer career ladder and better pay, so after 3 years I decided to move on.",
+        "Mainly because my manager never gave me a straight answer about promotion, and the pay review kept slipping. When an offer with a defined career ladder came along after 3 years, I took it."
       ]
     },
     "fallback": [
@@ -73,6 +73,6 @@
     "endReason": "all_topics_covered",
     "submittable": true,
     "minProbes": 0,
-    "minClarifications": 0
+    "minClarifications": 1
   }
 }
