@@ -64,17 +64,18 @@ public class PolishProtocolTests
     {
         var o = Pl.Opening;
 
-        Assert.Contains("AI", o);
-        Assert.Contains("sztucznej inteligencji", o);
+        // Protocol 1.3 (spec §4.3) reworded the opening. The three disclosures keep their meaning: AI, what is kept, stop at any time.
+        Assert.Contains("sztucznej inteligencji (AI)", o);
         Assert.Contains("nie człowiekiem", o);
-        Assert.Contains("przechowywany", o);
+        Assert.Contains("losowy identyfikator", o);
+        Assert.Contains("ogólne przedziały", o);
         Assert.Contains("nie zawiera imion", o);
-        Assert.Contains("nie jest powiązany z Pana/Pani kontem", o);
+        Assert.Contains("nie jest powiązany z kontem", o);
+        Assert.Contains("nie jest przechowywana", o);
         Assert.Contains("maskowane", o);
-        Assert.Contains("w każdej chwili", o);
-        Assert.Contains("przerwać", o);
+        Assert.Contains("W każdej chwili można przerwać", o);
         Assert.Contains("nic z tej rozmowy nie zostanie zachowane", o);
-        Assert.Contains("Czy zgadza się Pan/Pani kontynuować?", o);
+        Assert.Contains("Czy możemy zacząć?", o);
     }
 
     [Fact]
@@ -99,7 +100,7 @@ public class PolishProtocolTests
         Assert.Same(Pl, InterviewProtocol.For("pl"));
         Assert.Same(InterviewProtocol.Current, InterviewProtocol.For("en"));
         Assert.Equal("en", InterviewProtocol.Current.Language);
-        Assert.Equal("1.2", InterviewProtocol.Current.ProtocolVersion);
+        Assert.Equal("1.3", InterviewProtocol.Current.ProtocolVersion);
         Assert.StartsWith("Hello, and thank you", InterviewProtocol.Current.Opening);
     }
 
