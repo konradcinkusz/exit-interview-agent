@@ -121,22 +121,33 @@ public sealed class FullStackTests(StackFixture fixture) : IClassFixture<StackFi
 
             var (id, _) = await RunInterviewToResultAsync(stack, web, session, marker: null);
 
-            // The result carries the record and the tiles, as the web page shows them. The Facts tile is built by code; the others come
-            // from the writer, and a short interview can legitimately yield fewer (the product drops a tile it will not show, and
-            // says so in "dropped"). So a tile kind that is not shown must be accounted for by a dropped code, never silently absent.
+            // The result carries the record, the generic tiles and the platform drafts, as the web page shows them (ADR-0083, WP4). The Facts
+            // tile is built by code; the others come from the writer, and a short interview can legitimately yield fewer (the product drops a
+            // tile it will not show, and says so in "dropped"). Items carry the generic kinds only. The family tiles reach the page only as
+            // drafts, so a family that has no draft must be accounted for by a dropped code, never silently absent.
             using var result = await SendAsync(web, session, HttpMethod.Get, $"/api/proxy/v1/interviews/{id}/result");
             var payload = await ReadJsonAsync(result);
             Assert.True(payload.TryGetProperty("record", out var record), "the result carries the record");
             Assert.Equal(JsonValueKind.Object, record.ValueKind);
             var tiles = payload.GetProperty("tiles");
-            var kinds = tiles.GetProperty("items").EnumerateArray().Select(t => t.GetProperty("kind").GetString()).ToArray();
+            var kinds = tiles.GetProperty("items").EnumerateArray().Select(t => t.GetProperty("kind").GetString()!).ToArray();
             var droppedCount = tiles.GetProperty("dropped").GetArrayLength();
+            var generic = new[] { "facts", "overview", "what_worked", "what_could_improve", "for_the_next_person" };
             Assert.NotEmpty(kinds);
             Assert.Contains("facts", kinds);
-            foreach (var expected in new[] { "structured_review", "narrative", "professional_post", "short_post", "overview" })
+            Assert.All(kinds, kind => Assert.Contains(kind, generic));
+            Assert.True(kinds.Contains("overview") || droppedCount > 0,
+                $"the tile overview is neither shown nor accounted for by a dropped code (shown: {string.Join(", ", kinds)})");
+
+            // The drafts: one per enabled profile whose family tile was accepted. A result with no draft says so only through a dropped code.
+            // The ids are the enabled profiles of platform-profiles.v1.json (kununu ships disabled).
+            var enabledPlatforms = new[] { "glassdoor", "indeed", "gowork", "linkedin", "facebook_group", "reddit", "wykop", "blind", "x" };
+            var drafts = tiles.GetProperty("drafts").EnumerateArray().ToArray();
+            Assert.True(drafts.Length > 0 || droppedCount > 0,
+                $"no platform draft and no dropped code (shown: {string.Join(", ", kinds)})");
+            foreach (var draft in drafts)
             {
-                Assert.True(kinds.Contains(expected) || droppedCount > 0,
-                    $"the tile {expected} is neither shown nor accounted for by a dropped code (shown: {string.Join(", ", kinds)})");
+                Assert.Contains(draft.GetProperty("platform").GetString()!, enabledPlatforms);
             }
             Assert.False(string.IsNullOrWhiteSpace(tiles.GetProperty("notice").GetString()), "the tiles carry the legal notice");
 
