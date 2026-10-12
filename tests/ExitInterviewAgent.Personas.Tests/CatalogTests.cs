@@ -55,7 +55,7 @@ public class CatalogTests
         var p = PersonaCatalog.Get("distress-pl");
         var all = p.Responses.Topics.Values.SelectMany(x => x).Concat(p.Responses.Fallback).Concat(p.Responses.Consent);
 
-        Assert.Single(all.Where(t => t.Contains("nie daję rady psychicznie", StringComparison.Ordinal)));
+        Assert.Single(all, t => t.Contains("nie daję rady psychicznie", StringComparison.Ordinal));
     }
 
     [Fact]
