@@ -7,10 +7,19 @@ namespace ExitInterviewAgent.Agent.Tiles;
 // each one passes the code-side checks of ITileGuard before it is shown. Implementations live in separate files.
 
 /// <summary>
-/// Which tile. <see cref="Facts"/> is built by code from the record; the others are worded by the model. The last three are
-/// platform-shaped drafts (ADR-0075): a Glassdoor entry, a Google review and a Reddit post.
+/// Which tile. <see cref="Facts"/> is built by code from the record; the others are worded by the model. <see cref="Glassdoor"/>,
+/// <see cref="GoogleReview"/> and <see cref="Reddit"/> are the platform-shaped drafts of ADR-0075, and <see cref="ShortNote"/> the
+/// short public post. The four family kinds (ADR-0083) replace them: one model draft per writer family, rendered per platform.
+/// The old kinds stay until the writer and guard move to the families (WP3 of docs/architecture/platform-drafts-spec.md).
 /// </summary>
-public enum TileKind { Facts, Overview, WhatWorked, WhatCouldImprove, ForTheNextPerson, ShortNote, Glassdoor, GoogleReview, Reddit }
+public enum TileKind
+{
+    Facts, Overview, WhatWorked, WhatCouldImprove, ForTheNextPerson, ShortNote, Glassdoor, GoogleReview, Reddit,
+    StructuredReview, Narrative, ProfessionalPost, ShortPost,
+}
+
+/// <summary>One section of a family draft: its key (for example <c>pros</c>) and the guarded text the writer gave it (ADR-0083).</summary>
+public sealed record TileSection(string Key, string Text);
 
 /// <summary>
 /// What the writer and the guard receive. <paramref name="MaskedTranscript"/> is the transcript AFTER the PII guard, in the

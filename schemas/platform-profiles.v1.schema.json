@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:exit-interview-agent:schema:platform-profiles:v1",
+  "title": "Platform profiles, version 1",
+  "description": "The typed description of each platform the draft program writes for (docs/architecture/platform-drafts-spec.md §3.1, ADR-0083). The file is src/ExitInterviewAgent.Agent/Tiles/Platforms/platform-profiles.v1.json. This schema checks the shape and the closed vocabularies. The rest of the invariants (unique ids, the risk rule, the URL host allowlist, the goldens) are tests, not schema, by design: a schema that encoded them would change with every platform.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profiles"],
+  "properties": {
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/profile" }
+    }
+  },
+  "$defs": {
+    "languageCode": { "enum": ["en", "pl"] },
+    "localized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "pl"],
+      "properties": {
+        "en": { "type": "string", "minLength": 1 },
+        "pl": { "type": "string", "minLength": 1 }
+      }
+    },
+    "localizedUrl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "pl"],
+      "properties": {
+        "en": { "$ref": "#/$defs/httpsUrl" },
+        "pl": { "$ref": "#/$defs/httpsUrl" }
+      }
+    },
+    "httpsUrl": { "type": "string", "pattern": "^https://[^\\s?#]+$" },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "enabled", "family", "names", "url", "markets", "identity", "detail", "risk", "sections", "joinSections", "limits", "leaveOut", "fieldsOnSite", "warning", "tone", "sources"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z_]+$" },
+        "enabled": { "type": "boolean" },
+        "family": { "enum": ["structured_review", "narrative", "professional_post", "short_post"] },
+        "names": { "$ref": "#/$defs/localized" },
+        "url": { "$ref": "#/$defs/localizedUrl" },
+        "markets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/languageCode" }
+        },
+        "identity": { "enum": ["real_name", "pseudonymous", "anonymous", "anonymous_verified_email", "verified_work_email"] },
+        "detail": { "enum": ["low", "moderate", "high"] },
+        "risk": { "enum": ["medium", "high"] },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/section" }
+        },
+        "joinSections": { "type": "boolean" },
+        "limits": { "$ref": "#/$defs/limits" },
+        "leaveOut": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["individuals", "executives", "employer_name", "confidential", "accusations", "protected", "contact", "identifying_detail"] }
+        },
+        "fieldsOnSite": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/localized" }
+        },
+        "warning": { "$ref": "#/$defs/localized" },
+        "tone": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source" }
+        }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z_]+$" },
+        "label": { "$ref": "#/$defs/localized" },
+        "optional": { "type": "boolean" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titleMax", "sectionMin", "sectionMax", "totalMax"],
+      "properties": {
+        "titleMax": { "type": "integer", "minimum": 1 },
+        "sectionMin": { "type": "integer", "minimum": 0 },
+        "sectionMax": { "type": "integer", "minimum": 1 },
+        "totalMax": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "accessed", "level"],
+      "properties": {
+        "url": { "$ref": "#/$defs/httpsUrl" },
+        "accessed": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "level": { "enum": ["fetched", "search_summary", "unverified"] }
+      }
+    }
+  }
+}
