@@ -40,6 +40,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-31 | Obfuscated-email spellings beyond the bracketed forms are not detected | Low |
 | OP-32 | Platform rules are cited from search summaries | High |
 | OP-33 | `yield_concrete` is a per-interview count, not a mean per turn | Low |
+| OP-34 | Should a bare rating count as a covered light topic? | Medium |
 
 ## OP-1. Real employment verification
 
@@ -304,3 +305,11 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **What we do now.** It is reported as a per-interview count with no interval, and it is not gated. The mock value is not used to judge the change.
 - **What would close it.** Define Q-12 as a mean per interview (or per turn) with an interval that is defined for it, add a unit test for the denominator, and make it gated in a change that regenerates the baseline with its own justification (ADR-0040).
 - **Trigger.** WP6 (the metric family), or the first report where a reader cannot tell what the yield measures.
+
+
+## OP-34. Should a bare rating count as a covered light topic?
+
+- **Why it matters.** A light topic gets one scale question (spec §3.1). A person who answers only with a number ("3") has been asked and has answered, but the record marks a topic Covered only with a verified quote (`RecordAssembler`: no quote, NoData). In the mock profile this costs six topic-coverage points in `hap-006`, and a cooperative person who gives a number alone loses that topic from the record.
+- **What we do now.** The record rule is unchanged: a bare rating stays NoData. `coverage` 186/192 is explained in [METRIC-CHANGES-WP5.md](eval/METRIC-CHANGES-WP5.md).
+- **What would close it.** A record-schema decision: either a rating alone is a covered light topic (with its own quote-free shape in the schema), or a light topic that has only a rating is reported as a distinct status. Then the metric and the baseline move together.
+- **Trigger.** The first real interview in which a light topic with only a rating is dropped from the record.
