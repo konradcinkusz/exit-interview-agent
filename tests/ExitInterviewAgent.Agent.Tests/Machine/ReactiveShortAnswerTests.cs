@@ -12,6 +12,16 @@ public class ReactiveShortAnswerTests
 {
     private static ReplySignals Analyze(string text) => ReplyAnalyzer.Analyze(text, Limits, false);
 
+    /// <summary>The machine after consent and the warm-up answer: the reason-for-leaving question is out.</summary>
+    private static InterviewMachine AtReason()
+    {
+        var m = new InterviewMachine(Proto);
+        m.Start();
+        m.OnReply(Analyze("tak"));
+        m.OnReply(Analyze("Pracowalem jako programista w malej firmie"));
+        return m;
+    }
+
     [Theory]
     [InlineData("bardzo dobrze")]
     [InlineData("slabe")]
@@ -60,13 +70,13 @@ public class ReactiveShortAnswerTests
     public void Polish_typed_without_diacritics_is_still_read(string text) => Assert.True(Analyze(text).Serious);
 
     /// <remarks>
-    /// Interview dynamics 1.3 (spec §3.7, WP3): "zwolnili mnie" is an exit event and opens no deepening, so the DeepProbe expectation
-    /// is inverted. The run still goes on with ordinary probes. The machine's own rule for exit events lands in WP5.
+    /// Interview dynamics 1.3 (spec §3.7): "zwolnili mnie" is an exit event and opens no deepening. The run goes on with ordinary
+    /// follow-ups and topic advances; the close never comes from a single dismissal.
     /// </remarks>
     [Fact]
     public void The_run_that_failed_goes_on_instead_of_closing()
     {
-        var m = AtFirstTopic(); // onboarding asked
+        var m = AtReason(); // the reason for leaving is asked
         var answers = new[] { "bardzo dobrze", "chyba kierowana praca, bylem zatrudniony jako programista", "nie bylo w ogole", "slabe", "bardzo zle", "zwolnili mnie" };
         var kinds = new List<TurnKind>();
         foreach (var a in answers)
@@ -83,7 +93,7 @@ public class ReactiveShortAnswerTests
     [Fact]
     public void Three_bare_non_answers_in_a_row_still_close_politely()
     {
-        var m = AtFirstTopic();
+        var m = AtReason();
         m.OnReply(Analyze("nie wiem"));
         m.OnReply(Analyze("nie wiem"));
         var step = m.OnReply(Analyze("nie wiem"));
@@ -94,7 +104,7 @@ public class ReactiveShortAnswerTests
     [Fact]
     public void A_short_answer_gets_one_follow_up_and_then_the_next_topic()
     {
-        var m = AtFirstTopic();
+        var m = AtReason();
         var first = m.OnReply(Analyze("słabe"));
         Assert.Equal(TurnKind.Probe, first.Kind);
         var second = m.OnReply(Analyze("słabe"));
@@ -106,6 +116,16 @@ public class ReactiveShortAnswerTests
 public class SecondRunRegressionTests
 {
     private static ReplySignals Analyze(string text) => ReplyAnalyzer.Analyze(text, Limits, false);
+
+    /// <summary>The machine after consent and the warm-up answer: the reason-for-leaving question is out.</summary>
+    private static InterviewMachine AtReason()
+    {
+        var m = new InterviewMachine(Proto);
+        m.Start();
+        m.OnReply(Analyze("tak"));
+        m.OnReply(Analyze("Pracowalem jako programista w malej firmie"));
+        return m;
+    }
 
     [Theory]
     [InlineData("mozemy juz skonczyc?")]
@@ -128,7 +148,7 @@ public class SecondRunRegressionTests
     [Fact]
     public void A_finish_request_closes_with_a_record_not_a_stop_and_not_another_question()
     {
-        var m = AtFirstTopic();
+        var m = AtReason();
         var step = m.OnReply(Analyze("mozemy juz skonczyc?"));
         Assert.Equal(TurnKind.Close, step.Kind);
         Assert.Equal(CloseReason.Unresponsive, step.Close);

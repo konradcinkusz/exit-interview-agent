@@ -14,9 +14,9 @@ expect:
   end_reason: all_topics_covered
   record: present
   min:
-    probes: 6
+    probes: 3
   max:
-    probes: 6
+    probes: 3
 measure: [fuv]
 spec: [B-03, C-05]
 origin: designed (T7); a survivor of the mutation pass M-10

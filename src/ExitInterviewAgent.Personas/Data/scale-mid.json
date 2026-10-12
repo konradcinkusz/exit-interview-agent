@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1",
+  "id": "scale-mid",
+  "title": "Mid-scale ratings on the light topics",
+  "description": "Answers the four open topics in plain words and rates the three light topics 3 out of 5. Protocol 1.3 asks a light topic one rating and follows up only an extreme one (1, 2 or 5): a middle rating gets no follow-up.",
+  "language": "en",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "talkative"
+  ],
+  "typing": {
+    "wordsPerMinute": 40,
+    "thinkSeconds": 6
+  },
+  "responses": {
+    "consent": [
+      "Yes, I agree."
+    ],
+    "topics": {
+      "onboarding": [
+        "On this topic there was a lot of work and meetings."
+      ],
+      "management": [
+        "On this topic there was a lot of work and meetings."
+      ],
+      "growth": [
+        "3"
+      ],
+      "pay_vs_promises": [
+        "3"
+      ],
+      "culture": [
+        "About average, I would say, nothing more."
+      ],
+      "reason_for_leaving": [
+        "On this topic there was a lot of work and meetings."
+      ]
+    },
+    "fallback": [
+      "Nothing more to add."
+    ]
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "all_topics_covered",
+    "submittable": true
+  }
+}

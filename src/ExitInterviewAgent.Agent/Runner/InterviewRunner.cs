@@ -70,6 +70,9 @@ public sealed class InterviewRunner
         var turnLanguages = new List<string>();
         string? confirmation = null;
 
+        // The register the person chose at consent (spec §3.6). Memory only: never traced, stored or put in the record.
+        var register = AddressForm.Neutral;
+
         using var session = InterviewTelemetry.Source.StartActivity(InterviewTelemetry.Spans.Session, ActivityKind.Internal);
         session?.SetTag(Attr.OperationName, "invoke_agent");
         session?.SetTag(Attr.AgentName, "exit-interview-agent");
@@ -81,8 +84,10 @@ public sealed class InterviewRunner
             using var turn = InterviewTelemetry.Source.StartActivity(InterviewTelemetry.Spans.Turn, ActivityKind.Internal);
             turn.Set(Attr.TurnIndex, machine.InterviewerTurns).Set(Attr.TurnKind, step.Kind).Set(Attr.Phase, machine.Phase);
             if (step.Topic is { } stepTopic) turn.Set(Attr.Topic, stepTopic);
+            if (step.Move is { } stepMove) turn.Set(Attr.Move, stepMove);
+            turn?.SetTag(Attr.Preface, PrefaceCode(step.Preface));
 
-            var text = await WordAsync(step, transcript, counters, wording, confirmation, ct).ConfigureAwait(false);
+            var text = await WordAsync(step, transcript, counters, wording, register, confirmation, ct).ConfigureAwait(false);
             if (IsQuestion(step.Kind)) confirmation = null;
             var outgoing = new IntervieweeTurn(step.Kind, step.Topic, text);
 
@@ -130,8 +135,12 @@ public sealed class InterviewRunner
                 }
             }
 
+            // The planner reads the reply before the machine decides the next topic (spec §3.3). The consent reply is not an answer to a topic.
+            var consentReply = step.Kind is TurnKind.Opening or TurnKind.ConsentReask;
+            if (!consentReply) machine.Observe(masked, topic);
             polarity.TryGetValue(topic ?? default, out var previous);
-            var signals = ReplyAnalyzer.Analyze(masked, _protocol.Limits, namesPerson, topic is null ? 0 : previous);
+            var signals = ReplyAnalyzer.Analyze(masked, _protocol.Limits, namesPerson, topic is null ? 0 : previous, consentReply);
+            if (wording.Language == "pl" && signals.Address != AddressForm.Neutral) register = signals.Address;
             if (topic is { } t && signals.Polarity != 0) polarity[t] = signals.Polarity;
             if (signals.Contradiction && topic is { } ct2) contradicted.Add(ct2);
             if (signals.InjectionSuspected) { counters.InjectionTurns++; turn.Event(Ev.InjectionSuspected); }
@@ -170,29 +179,60 @@ public sealed class InterviewRunner
 
     /// <summary>
     /// Words the next turn. <paramref name="wording"/> is the protocol the interview is in now; <paramref name="confirmation"/> is the one
-    /// sentence said before a question after a language switch (it is put before the question, and only a question takes it).
+    /// sentence said before a question after a language switch (it is put before the question, and only a question takes it). A question
+    /// that the guard rejects is asked once more with the reason code; if that is rejected too, the protocol's own wording is said (spec §3.8).
     /// </summary>
-    private async Task<string> WordAsync(Step step, Transcript history, Counters c, InterviewProtocol wording, string? confirmation, CancellationToken ct)
+    private async Task<string> WordAsync(Step step, Transcript history, Counters c, InterviewProtocol wording, AddressForm register, string? confirmation, CancellationToken ct)
     {
         switch (step.Kind)
         {
             case TurnKind.Opening: return _protocol.Opening;
             case TurnKind.ConsentReask: return _protocol.ConsentReask;
-            case TurnKind.Close: return wording.Closings[step.Close!.Value];
+            case TurnKind.Close: return wording.Render(FixedText(wording, "closings." + ClosingKey(step.Close!.Value)), register);
             case TurnKind.Stop:
-                return step.Stop switch { StopReason.ConsentWithdrawn => wording.AckWithdrawn, _ => wording.AckDeclined };
+                return wording.Render(FixedText(wording, step.Stop == StopReason.ConsentWithdrawn ? "acknowledgements.withdrawn" : "acknowledgements.declined"), register);
         }
 
-        var seed = step.Kind switch
-        {
-            TurnKind.Topic => wording.Spec(step.Topic!.Value).Question,
-            TurnKind.Probe => wording.Probe,
-            TurnKind.Clarification => wording.Clarification,
-            TurnKind.DeepProbe => wording.DeepeningSeeds[(int)step.Focus!.Value],
-            _ => wording.RedirectNames,
-        };
-        var request = new QuestionRequest(step.Kind, step.Topic, seed, history, step.Focus, wording);
+        var seed = SeedOf(step, wording, register);
+        var request = new QuestionRequest(step.Kind, step.Topic, seed, history, step.Focus, wording, step.Move, step.Callback, register);
         var prober = step.Kind is TurnKind.Probe or TurnKind.DeepProbe;
+        var shape = ShapeOf(step.Move);
+        var lastSaid = history.Turns.LastOrDefault(t => t.Speaker == Speaker.Interviewee)?.Text;
+
+        var (proposed, verdict) = await ModelTurnAsync(request, prober, shape, lastSaid, ct).ConfigureAwait(false);
+        var retried = verdict.Reason != ModelError && !verdict.Ok;
+        if (retried)
+        {
+            c.QuestionsRetried++;
+            (proposed, verdict) = await ModelTurnAsync(request with { RetryReason = verdict.Reason }, prober, shape, lastSaid, ct).ConfigureAwait(false);
+        }
+        Activity.Current?.SetTag(Attr.QuestionRetried, retried);
+
+        var text = seed;
+        if (verdict.Ok) text = proposed!.Trim();
+        else
+        {
+            c.QuestionsRejected++;
+            Activity.Current.Event(Ev.QuestionRejected, ("reason", RejectionCode(verdict.Reason)));
+        }
+
+        switch (step.Kind)
+        {
+            case TurnKind.Probe: c.Probes++; break;
+            case TurnKind.Clarification: c.Clarifications++; break;
+            case TurnKind.Redirect: c.Redirects++; break;
+        }
+
+        var prefaced = PrefaceText(step.Preface, wording, register) is { } preface ? $"{preface} {text}" : text;
+        return confirmation is null ? prefaced : $"{confirmation} {prefaced}";
+    }
+
+    /// <summary>The reason code of a model that did not answer at all (no retry: the call itself failed).</summary>
+    private const string ModelError = "model_error";
+
+    /// <summary>One call of the role and its check. A missing answer is a <see cref="ModelError"/>; nothing is retried for it.</summary>
+    private async Task<(string? Text, GuardVerdict Verdict)> ModelTurnAsync(QuestionRequest request, bool prober, QuestionShape shape, string? lastSaid, CancellationToken ct)
+    {
         string? proposed;
         using (var span = prober ? InterviewTelemetry.Source.StartActivity(InterviewTelemetry.Spans.Probe) : null)
         {
@@ -209,31 +249,69 @@ public sealed class InterviewRunner
             }
         }
 
-        var lastSaid = request.History.Turns.LastOrDefault(t => t.Speaker == Speaker.Interviewee)?.Text;
-        var verdict = proposed is null ? new GuardVerdict(false, "model_error") : QuestionGuard.Check(proposed, step.Kind, _pii, lastInterviewee: lastSaid);
-        var text = seed;
-        if (verdict.Ok) text = proposed!.Trim();
-        else
-        {
-            c.QuestionsRejected++;
-            Activity.Current.Event(Ev.QuestionRejected, ("reason", RejectionCode(verdict.Reason)));
-        }
-
-        switch (step.Kind)
-        {
-            case TurnKind.Probe: c.Probes++; break;
-            case TurnKind.Clarification: c.Clarifications++; break;
-            case TurnKind.Redirect: c.Redirects++; break;
-        }
-
-        var prefaced = step.Preface switch
-        {
-            Preface.AcknowledgeFrustration => $"{wording.AckFrustration} {text}",
-            Preface.DeepeningReminder => $"{wording.DeepeningReminder} {text}",
-            _ => text,
-        };
-        return confirmation is null ? prefaced : $"{confirmation} {prefaced}";
+        var verdict = proposed is null ? new GuardVerdict(false, ModelError) : QuestionGuard.Check(proposed, request.Kind, _pii, shape, lastInterviewee: lastSaid);
+        return (proposed, verdict);
     }
+
+    /// <summary>The move's requirement the guard checks (spec §3.8): a rating needs both anchors, a follow-up is not an example request.</summary>
+    private static QuestionShape ShapeOf(Move? move) => move switch
+    {
+        Move.Scale => QuestionShape.Scale,
+        Move.ScaleFollowUp or Move.Elaborate or Move.Ladder or Move.Consequence or Move.Deep => QuestionShape.Follow,
+        _ => QuestionShape.Default,
+    };
+
+    /// <summary>
+    /// The protocol's own wording for the step: the fallback when the model's output is rejected twice, and the seed the model is given. The
+    /// register is rendered into it; a rating is built from the scale move and the topic's label.
+    /// </summary>
+    private static string SeedOf(Step step, InterviewProtocol w, AddressForm register)
+    {
+        if (step.Move == Move.Scale) return w.ScaleQuestion(w.Spec(step.Topic!.Value), register);
+        var key = step.Move switch
+        {
+            Move.Warmup => "moves.warmup",
+            Move.Open => $"topics.{w.Spec(step.Topic!.Value).Id}.question",
+            Move.Example => "moves.example",
+            Move.ScaleFollowUp => "moves.scaleFollowUp",
+            Move.Elaborate => "moves.elaborate",
+            Move.Ladder => "moves.ladder",
+            Move.Consequence => "moves.consequence",
+            Move.Retention => "moves.retention",
+            Move.AnythingElse => "moves.anythingElse",
+            Move.Deep => $"deepeningSeeds.{(int)step.Focus!.Value}",
+            Move.Clarify => "clarification",
+            Move.Redirect => "redirectNames",
+            _ => throw new InvalidOperationException("A question turn has no move."),
+        };
+        return w.Render(FixedText(w, key), register);
+    }
+
+    /// <summary>The preface sentence for the step, rendered in the register; null when there is none.</summary>
+    private static string? PrefaceText(Preface preface, InterviewProtocol w, AddressForm register) => preface switch
+    {
+        Preface.AcknowledgeFrustration => w.Render(FixedText(w, "acknowledgements.frustration"), register),
+        Preface.DeepeningReminder => w.Render(FixedText(w, "deepeningReminder"), register),
+        Preface.CheckIn => w.Render(w.Prefaces["checkIn"], register),
+        Preface.AlreadySaid => w.Render(w.Prefaces["alreadySaid"], register),
+        Preface.Support => w.Render(w.Prefaces["support"], register),
+        Preface.LegalNotice => w.Render(w.Prefaces["legalNotice"], register),
+        _ => null,
+    };
+
+    private static RegisterText FixedText(InterviewProtocol w, string key) => w.FixedTexts.Single(f => f.Key == key).Text;
+
+    /// <summary>The key of a closing text in the protocol's fixed texts (<c>closings.&lt;key&gt;</c>).</summary>
+    private static string ClosingKey(CloseReason reason) => reason switch
+    {
+        CloseReason.AllTopicsCovered => "allTopicsCovered",
+        CloseReason.Unresponsive => "unresponsive",
+        CloseReason.Hostile => "hostile",
+        _ => "budget",
+    };
+
+    /// <summary>The trace code of a preface. Distress and legal notices share <c>notice</c>, so a trace cannot tell them apart (spec §5.2).</summary>
+    private static string PrefaceCode(Preface preface) => preface is Preface.Support or Preface.LegalNotice ? "notice" : SpanTags.Snake(preface.ToString());
 
     /// <summary>Index into <see cref="Reasons"/>, so the trace carries a number and never a string built from content.</summary>
     private static int RejectionCode(string reason) => Array.IndexOf(Reasons, reason) + 1;
@@ -352,7 +430,7 @@ public sealed class InterviewRunner
 
     private sealed class Counters
     {
-        public int InterviewerTurns, IntervieweeTurns, Probes, Clarifications, Redirects, QuestionsRejected, NamesMasked, InjectionTurns, ExtractionAttempts, QuotesChecked, QuotesDropped, Forced, Covered;
+        public int InterviewerTurns, IntervieweeTurns, Probes, Clarifications, Redirects, QuestionsRejected, QuestionsRetried, NamesMasked, InjectionTurns, ExtractionAttempts, QuotesChecked, QuotesDropped, Forced, Covered;
     }
 }
 

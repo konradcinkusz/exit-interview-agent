@@ -241,10 +241,11 @@ public class MutationTests
     }
 
     [Fact]
-    public async Task A_topic_asked_twice_or_out_of_order_is_caught()
+    public async Task A_reason_for_leaving_not_opened_first_is_caught()
     {
+        // Protocol 1.3: the order of the other topics is the planner's, but the reason for leaving is always opened first.
         var clean = await RunOne("hap-001");
-        var mutant = WithTrace(clean, spans => spans.Select(s => s.Name == "interview.turn" && s.Str("interview.turn.kind") == "topic" && s.Str("interview.topic") == "growth" ? s with { Tags = new Dictionary<string, object?>(s.Tags) { ["interview.topic"] = "management" } } : s).ToList());
+        var mutant = WithTrace(clean, spans => spans.Select(s => s.Name == "interview.turn" && s.Str("interview.turn.kind") == "topic" && s.Str("interview.topic") == "reason_for_leaving" ? s with { Tags = new Dictionary<string, object?>(s.Tags) { ["interview.topic"] = "management" } } : s).ToList());
 
         Caught(clean, mutant, "L1.C-05");
     }

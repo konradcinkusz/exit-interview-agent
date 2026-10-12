@@ -273,6 +273,36 @@ replies:
   - text: "I left after nine months because I could not keep working under those conditions."
     label: specific
     rationale: "A named, dated or counted situation a listener could ask about (persona text for the deepening tests)."
+  - text: "I would rather leave it there."
+    label: decline
+    rationale: "A refusal to go on with the topic: not an answer about it."
+  - text: "I do not really have more to say about that."
+    label: decline
+    rationale: "A non-answer about the topic: it names no event, number or situation and closes the topic."
+  - text: "This is ridiculous."
+    label: decline
+    rationale: "A hostile outburst with no content about the topic."
+  - text: "Nie mam nic więcej do dodania w tej sprawie."
+    label: decline
+    rationale: "A non-answer ('I have nothing more to add on this matter'): no event, number or situation."
+  - text: "Nothing more to add."
+    label: decline
+    rationale: "A non-answer that closes the topic."
+  - text: "Nothing more to add, I think I covered it."
+    label: decline
+    rationale: "A non-answer that closes the topic; it says the topic was covered, which names no event."
+  - text: "I would like to stop."
+    label: decline
+    rationale: "A request to stop: a withdrawal-type reply, not an answer about the topic."
+  - text: "On this topic there was a lot of work and meetings."
+    label: vague
+    rationale: "A generality about the topic (a lot of work, meetings) with no event, number or situation to ask about."
+  - text: "3"
+    label: decline
+    rationale: "A bare rating of at most three words: not an answer about the topic in words, only a number."
+  - text: "About average, I would say, nothing more."
+    label: vague
+    rationale: "A generality with a rating word and no event, number or situation to ask about."
 pairs:
   - earlier: "My manager was great, really good, you know, generally fine."
     later: "Honestly there was no support at all, and decisions were chaotic and unfair, and nobody explained anything."

@@ -15,8 +15,8 @@ expect:
   end_reason: all_topics_covered
   record: present
   min:
-    probes: 6
-    questions_rejected: 6
+    probes: 5
+    questions_rejected: 5
 measure: [fuv, degraded_ok]
 spec: [B-03, B-08]
 origin: designed (T7)

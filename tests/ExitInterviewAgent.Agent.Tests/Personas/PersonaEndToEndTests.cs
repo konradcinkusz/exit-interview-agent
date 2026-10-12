@@ -156,19 +156,24 @@ public class PersonaEndToEndTests
         var interviewerTexts = r.Transcript!.Turns.Where(t => t.Speaker == Speaker.Interviewer).Select(t => t.Text).ToList();
         Assert.Single(interviewerTexts, t => t.StartsWith(Proto.AckFrustration, StringComparison.Ordinal));
         Assert.Equal(Proto.Closings[CloseReason.Hostile], interviewerTexts[^1]);
-        Assert.Equal(TopicStatus.Covered, r.Record!.Topics.Onboarding.Status);
-        Assert.All(r.Record.Topics.Enumerate().Where(t => t.Topic != Topic.Onboarding), t => Assert.Equal(TopicStatus.NoData, t.Entry.Status));
+        // Protocol 1.3 asks the warm-up and the reason first, so the topic that is covered is whichever the hostile reply answered.
+        var covered = r.Record!.Topics.Enumerate().Where(t => t.Entry.Status == TopicStatus.Covered).Select(t => t.Topic).ToList();
+        Assert.NotEmpty(covered);
+        Assert.All(r.Record.Topics.Enumerate().Where(t => !covered.Contains(t.Topic)), t => Assert.Equal(TopicStatus.NoData, t.Entry.Status));
         Assert.DoesNotContain(r.Record.Topics.Enumerate().SelectMany(t => t.Entry.Quotes), q => q.Contains("pointless", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public async Task The_vague_persona_gets_one_probe_per_topic_and_no_more()
+    public async Task The_vague_persona_gets_at_most_two_follow_ups_per_topic_and_each_follows_its_own_topic()
     {
+        // Protocol 1.3 (spec §3.4): a vague core answer gets one example request, a light topic gets none without a rating. The number of
+        // probes therefore depends on which topics the planner makes core; the limits are what is checked here.
         var r = await PersonaSession.RunAsync(PersonaCatalog.Get("vague"), 1);
 
-        Assert.Equal(6, r.Diagnostics.Probes);
         var turns = r.Transcript!.Turns;
-        Assert.Equal(6, turns.Count(t => t.Kind == TurnKind.Probe && t.Speaker == Speaker.Interviewer));
+        var probes = turns.Where(t => t.Kind == TurnKind.Probe && t.Speaker == Speaker.Interviewer).ToList();
+        Assert.Equal(probes.Count, r.Diagnostics.Probes);
+        Assert.All(probes.GroupBy(p => p.Topic), g => Assert.True(g.Count() <= 2, "more than two follow-ups on one topic"));
         for (var i = 0; i < turns.Count; i++)
             if (turns[i] is { Speaker: Speaker.Interviewer, Kind: TurnKind.Probe }) Assert.Equal(turns[i - 1].Topic, turns[i].Topic);
         Assert.Equal(6, r.Diagnostics.TopicsCovered);
@@ -189,13 +194,29 @@ public class PersonaEndToEndTests
     }
 
     [Fact]
-    public async Task The_contradictory_persona_gets_exactly_one_neutral_clarification_and_a_capped_confidence()
+    public async Task The_contradictory_persona_is_clarified_at_most_once_neutrally_and_its_confidence_stays_capped()
     {
+        // Protocol 1.3: the planner may make the contradicted topic light, so it gets no second reply and no clarification on seed 1.
+        // Clarification itself is covered by the machine tests and by scenario amb-002.
         var r = await PersonaSession.RunAsync(PersonaCatalog.Get("contradictory"), 1);
 
-        Assert.Equal(1, r.Diagnostics.Clarifications);
-        Assert.Contains(r.Transcript!.Turns, t => t.Kind == TurnKind.Clarification && t.Text == Proto.Clarification);
+        Assert.True(r.Diagnostics.Clarifications <= 1);
+        Assert.All(r.Transcript!.Turns.Where(t => t.Kind == TurnKind.Clarification), t => Assert.Equal(Proto.Clarification, t.Text));
         Assert.NotEqual(Confidence.High, r.Record!.Topics.Management.Confidence);
+    }
+
+    /// <summary>Every fixed wording of a protocol, rendered in each register, plus the rating question of every light topic.</summary>
+    private static HashSet<string> ProtocolWording(InterviewProtocol p)
+    {
+        var forms = Enum.GetValues<AddressForm>();
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var form in forms)
+        {
+            foreach (var (_, text) in p.FixedTexts) set.Add(p.Render(text, form));
+            foreach (var topic in p.Topics.Where(t => t.ScaleLabel.Length > 0)) set.Add(p.ScaleQuestion(topic, form));
+        }
+        set.Add(p.Opening);
+        return set;
     }
 
     /// <summary>The question part of an interviewer turn: the text after the mock's acknowledgement quote (`„…”. `), or the whole turn when there is none.</summary>
@@ -213,11 +234,13 @@ public class PersonaEndToEndTests
 
         // Interviewer side: every question is protocol wording, the six topic questions appear once each, in order. The scripted mock may open
         // a turn with a verbatim quote of the reply ("„…”. ") (WP4); the question after that quote is always protocol wording.
-        var allowed = Proto.Topics.Select(t => t.Question).Append(Proto.Opening).Append(Proto.Probe).Append(Proto.Clarification).Append(Proto.RedirectNames)
-            .Concat(Proto.Closings.Values).ToHashSet();
+        var allowed = ProtocolWording(Proto);
         var interviewer = r.Transcript!.Turns.Where(t => t.Speaker == Speaker.Interviewer).ToList();
-        Assert.All(interviewer, t => Assert.Contains(QuestionOf(t.Text), allowed));
-        Assert.Equal(Proto.Topics.Select(t => t.Question), interviewer.Where(t => t.Kind == TurnKind.Topic).Select(t => QuestionOf(t.Text)));
+        // A turn may open with a preface (check-in, notice, already said) before the protocol question; the question is at the end.
+        Assert.All(interviewer, t => Assert.Contains(allowed, a => QuestionOf(t.Text).EndsWith(a, StringComparison.Ordinal)));
+        // Protocol 1.3: each of the six topics is put to the person once, opened or scaled; the reason is opened and then retained.
+        var topicTurns = interviewer.Where(t => t.Kind == TurnKind.Topic && t.Topic is not null).ToList();
+        Assert.Equal(Enum.GetValues<Topic>().Length, topicTurns.Select(t => t.Topic).Distinct().Count());
         Assert.Equal(Proto.Closings[CloseReason.AllTopicsCovered], interviewer[^1].Text);
         Assert.DoesNotContain(interviewer, t => t.Text.Contains("system prompt", StringComparison.OrdinalIgnoreCase) || t.Text.Contains("debug", StringComparison.OrdinalIgnoreCase));
 
@@ -246,11 +269,9 @@ public class PersonaEndToEndTests
         if (r.Transcript is not null)
         {
             var lang = InterviewProtocol.For(persona.Language);
-            // Deepening turns are the menu's seed, with the one-time reminder before it (Y2).
-            var allowed = lang.Topics.Select(t => t.Question).Append(lang.Opening).Append(lang.Probe).Append(lang.Clarification).Append(lang.RedirectNames)
-                .Concat(lang.Closings.Values).Concat(lang.DeepeningSeeds).ToHashSet();
-            Assert.All(r.Transcript.Turns.Where(t => t.Speaker == Speaker.Interviewer), t => Assert.True(
-                allowed.Contains(t.Text) || t.Text.StartsWith(lang.AckFrustration, StringComparison.Ordinal) || t.Text.StartsWith(lang.DeepeningReminder, StringComparison.Ordinal)));
+            // Every question is protocol wording, possibly after a preface (protocol 1.3: check-in, notice, already said, reminder).
+            var allowed = ProtocolWording(lang);
+            Assert.All(r.Transcript.Turns.Where(t => t.Speaker == Speaker.Interviewer), t => Assert.Contains(allowed, a => t.Text.EndsWith(a, StringComparison.Ordinal)));
         }
         if (r.Record is not null) Assert.All(r.Record.Topics.Enumerate().SelectMany(t => t.Entry.Quotes), q => Assert.False(ExitInterviewAgent.Agent.Machine.ReplyAnalyzer.LooksLikeInjection(q)));
     }

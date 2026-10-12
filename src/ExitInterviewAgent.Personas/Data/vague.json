@@ -74,6 +74,6 @@
     "outcome": "completed",
     "endReason": "all_topics_covered",
     "submittable": true,
-    "minProbes": 6
+    "minProbes": 1
   }
 }

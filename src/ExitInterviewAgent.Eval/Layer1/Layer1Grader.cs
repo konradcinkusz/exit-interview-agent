@@ -69,7 +69,15 @@ public static partial class Layer1Grader
         /// <summary>The prefixes the runner may add before a question (frustration acknowledgement, deepening reminder); the question itself is what the guard checked.</summary>
         private string StripPreface(string text)
         {
-            foreach (var preface in new[] { P.AckFrustration, P.DeepeningReminder })
+            // Protocol 1.3 prefaces are rendered per register, so each form of each preface is checked.
+            var prefaces = new List<string>();
+            foreach (var form in Enum.GetValues<AddressForm>())
+            {
+                prefaces.AddRange(P.Prefaces.Values.Select(p => P.Render(p, form)));
+                prefaces.Add(P.Render(P.FixedTexts.Single(f => f.Key == "acknowledgements.frustration").Text, form));
+                prefaces.Add(P.Render(P.FixedTexts.Single(f => f.Key == "deepeningReminder").Text, form));
+            }
+            foreach (var preface in prefaces.OrderByDescending(p => p.Length))
                 if (text.StartsWith(preface, StringComparison.Ordinal)) return text[preface.Length..].TrimStart();
             return text;
         }
@@ -164,13 +172,19 @@ public static partial class Layer1Grader
     {
         const string id = "L1.C-05";
         var problems = new List<string>();
-        var topicTurns = c.Turns.Where(t => t.Kind == "topic").Select(t => t.Topic).ToList();
-        if (!topicTurns.SequenceEqual(TopicOrder.Take(topicTurns.Count))) problems.Add("topic_order_or_repeat");
+        // Protocol 1.3: the planner orders the topics from what was said, so the order is not fixed; the reason for leaving is always first,
+        // every topic is one of the six, and each is opened once (its retention turn reuses the reason).
+        var opened = c.Turns.Where(t => t.Kind == "topic" && t.Topic is not null).Select(t => t.Topic!).Distinct().ToList();
+        if (opened.Count > 0 && opened[0] != Wire.Name(Topic.ReasonForLeaving)) problems.Add("reason_not_first");
+        if (opened.Any(t => !TopicOrder.Contains(t))) problems.Add("unknown_topic");
+        // A light topic is scaled (its turn carries the scale move); its one follow-up is the light limit (spec §3.4).
+        var scaled = c.Turns.Where(t => t.Span.Str("interview.turn.move") == "scale").Select(t => t.Topic).ToHashSet();
         foreach (var g in c.Turns.Where(t => t.Kind is "probe" or "clarification" or "redirect" or "deep_probe").GroupBy(t => (t.Kind, t.Topic)))
         {
             var limit = g.Key.Kind switch
             {
-                "probe" => c.P.Limits.MaxProbesPerTopic,
+                "probe" => g.Key.Topic == Wire.Name(Topic.ReasonForLeaving) ? c.P.Limits.MaxFollowUpsReason
+                    : scaled.Contains(g.Key.Topic) ? c.P.Limits.MaxFollowUpsLight : c.P.Limits.MaxFollowUpsCore,
                 "clarification" => c.P.Limits.MaxClarificationsPerTopic,
                 "deep_probe" => c.P.Limits.MaxDeepProbesPerTopic,
                 _ => c.P.Limits.MaxRedirectsPerTopic,

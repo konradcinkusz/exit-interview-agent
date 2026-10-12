@@ -72,7 +72,7 @@
     "outcome": "completed",
     "endReason": "all_topics_covered",
     "submittable": true,
-    "minProbes": 1,
-    "minClarifications": 1
+    "minProbes": 0,
+    "minClarifications": 0
   }
 }

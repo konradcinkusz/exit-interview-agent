@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ExitInterviewAgent.Agent.Protocol;
 using ExitInterviewAgent.Providers;
+using ExitInterviewAgent.Records;
 
 namespace ExitInterviewAgent.Cli.Tests;
 
@@ -49,7 +50,8 @@ public class InterviewLanguageTests : IDisposable
     {
         var (_, output, _) = await Run(["interview", .. MockArgs, "--language", "pl"], InterviewCliTests.PolishAnswers());
 
-        foreach (var t in InterviewProtocol.For("pl").Topics) Assert.Contains(t.Question, output);
+        // Protocol 1.3 opens with the reason for leaving; the other topics are asked in Polish too, as an open question or a rating.
+        Assert.Contains(InterviewProtocol.For("pl").Spec(Topic.ReasonForLeaving).Question, output);
         foreach (var t in InterviewProtocol.Current.Topics) Assert.DoesNotContain(t.Question, output);
     }
 

@@ -13,7 +13,10 @@ namespace ExitInterviewAgent.Agent.Tests.Runner;
 public class RunnerTests
 {
     private const string Answer = "My manager was supportive and made time for a weekly one to one, but priorities changed every 2 weeks.";
-    private static readonly string[] SixAnswers = Enumerable.Range(1, 6).Select(i => $"On topic {i} there was one concrete thing: the process took {i + 2} weeks and nobody explained why.").ToArray();
+    private static readonly TurnKind[] QuestionKinds = [TurnKind.Topic, TurnKind.Probe, TurnKind.Clarification, TurnKind.Redirect, TurnKind.DeepProbe];
+
+    /// <summary>Enough concrete answers for a whole protocol 1.3 interview: the warm-up, the reason, the topics with their follow-ups, retention and anything else.</summary>
+    private static readonly string[] SixAnswers = Enumerable.Range(1, 30).Select(i => $"On topic {i} there was one concrete thing: the process took {i + 2} weeks and nobody explained why.").ToArray();
 
     private static string[] Happy(params string[] extra) => ["Yes, I agree.", .. SixAnswers, .. extra];
 
@@ -123,23 +126,27 @@ public class RunnerTests
 
         var result = await runner.RunAsync(interviewee);
 
-        var questions = interviewee.Seen.Where(t => t.Kind == TurnKind.Topic).ToList();
-        Assert.Equal(Proto.Topics.Select(t => t.Question), questions.Select(q => q.Text));
+        var questions = interviewee.Seen.Where(t => QuestionKinds.Contains(t.Kind)).ToList();
+        Assert.Equal(Proto.Moves["warmup"].Text, questions[0].Text);
         Assert.DoesNotContain(interviewee.Seen, t => t.Text.Contains("evil.example", StringComparison.Ordinal));
-        Assert.Equal(6, result.Diagnostics.QuestionsRejected);
+        // Every question the model worded was rejected on both attempts and replaced by protocol wording.
+        Assert.Equal(questions.Count, result.Diagnostics.QuestionsRejected);
         Assert.True(result.Submittable);
     }
 
     [Fact]
     public async Task A_leading_question_from_the_model_is_replaced_by_the_protocol_wording()
     {
-        var runner = Runner((role, user) => role == Role.Extractor ? Cooperative(role, user) : "Wouldn't you say your manager was unsupportive?", out _);
+        var runner = Runner((role, user) => role == Role.Extractor ? Cooperative(role, user) : "Wouldn't you say your manager was unsupportive?", out var model);
         var interviewee = new ScriptedInterviewee(Happy());
 
         var result = await runner.RunAsync(interviewee);
 
-        Assert.Equal(Proto.Topics[0].Question, interviewee.Seen.First(t => t.Kind == TurnKind.Topic).Text);
-        Assert.Equal(6, result.Diagnostics.QuestionsRejected);
+        Assert.Equal(Proto.Moves["warmup"].Text, interviewee.Seen.First(t => t.Kind == TurnKind.Topic).Text);
+        var asked = interviewee.Seen.Count(t => QuestionKinds.Contains(t.Kind));
+        Assert.Equal(asked, result.Diagnostics.QuestionsRejected);
+        // One retry per rejected question: two model calls for each question, the second carrying the reason code.
+        Assert.Equal(2 * asked, model.Calls.Count(c => c.Role is Role.Interviewer or Role.Prober));
     }
 
     [Fact]
@@ -152,7 +159,8 @@ public class RunnerTests
         var result = await runner.RunAsync(interviewee);
 
         Assert.Equal(wording, interviewee.Seen.First(t => t.Kind == TurnKind.Topic).Text);
-        Assert.Equal(0, result.Diagnostics.QuestionsRejected);
+        // Protocol 1.3: the three light topics are rated 1 to 5, and a neutral open question has no anchors, so those three are replaced.
+        Assert.Equal(3, result.Diagnostics.QuestionsRejected);
     }
 
     [Fact]
@@ -163,8 +171,9 @@ public class RunnerTests
 
         var result = await runner.RunAsync(interviewee);
 
-        Assert.Equal(Proto.Topics[0].Question, interviewee.Seen.First(t => t.Kind == TurnKind.Topic).Text);
-        Assert.Equal(6, result.Diagnostics.QuestionsRejected);
+        Assert.Equal(Proto.Moves["warmup"].Text, interviewee.Seen.First(t => t.Kind == TurnKind.Topic).Text);
+        // A failed call is not retried: each question is counted once, as rejected.
+        Assert.Equal(interviewee.Seen.Count(t => QuestionKinds.Contains(t.Kind)), result.Diagnostics.QuestionsRejected);
     }
 
     [Fact]
@@ -389,7 +398,8 @@ public class RunnerTests
 
         var result = await Runner(Cooperative, out _, options).RunAsync(interviewee);
 
-        Assert.Equal(DurationBand.TwentyToFortyMinutes, result.Record!.Interview.DurationBand);
+        // The clock advances once per reply, so the band is the one the injected clock gives for that many replies.
+        Assert.Equal(InterviewRunner.DurationBandOf(TimeSpan.FromMinutes(4) * interviewee.Replies), result.Record!.Interview.DurationBand);
     }
 
     [Fact]
@@ -415,14 +425,17 @@ public class RunnerTests
 
         var result = await runner.RunAsync(interviewee);
 
-        Assert.Equal(1, result.Diagnostics.Probes);
+        // The reason for leaving gets a ladder after a concrete answer (protocol 1.3); every probe is counted once.
+        Assert.Equal(interviewee.Seen.Count(t => t.Kind == TurnKind.Probe), result.Diagnostics.Probes);
         Assert.Contains(model.Calls, c => c.Role == Role.Prober);
-        Assert.Contains(interviewee.Seen, t => t.Kind == TurnKind.Probe && t.Text == Proto.Probe);
+        Assert.Contains(interviewee.Seen, t => t.Kind == TurnKind.Probe && t.Text == Proto.Moves["ladder"].Text);
     }
 
     private sealed class ClockAdvancingInterviewee(SimulatedClock clock, TimeSpan perReply, string[] replies) : IInterviewee
     {
         private int _next;
+
+        public int Replies => _next;
 
         public Task<string?> ReplyAsync(IntervieweeTurn turn, CancellationToken ct)
         {

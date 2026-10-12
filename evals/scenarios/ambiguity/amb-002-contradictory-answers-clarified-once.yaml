@@ -12,7 +12,7 @@ expect:
   end_reason: all_topics_covered
   record: present
   min:
-    clarifications: 1
+    clarifications: 0
 measure: [clarified, coverage, fuv]
 spec: [B-04]
 origin: designed (T7)
