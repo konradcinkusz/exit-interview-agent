@@ -65,7 +65,7 @@ public static class TurnFacts
     /// <summary>
     /// Sets the rating digit on each Scale turn, read from the reply to it in the transcript. The trace and the transcript are matched by
     /// order, one interviewer turn each; when their counts differ the alignment is unknown and no rating is set. The digit is read as
-    /// <see cref="ReplySignals.ScaleValueOf"/> reads it: word forms are not read here.
+    /// <see cref="ReplyAnalyzer.ScaleValueOf"/> reads it: word forms are not read here.
     /// </summary>
     public static IReadOnlyList<TurnFact> WithRatings(IReadOnlyList<TurnFact> facts, Transcript? transcript)
     {
@@ -78,7 +78,7 @@ public static class TurnFacts
     private static int? RatingAfter(Transcript transcript, int askedAt)
     {
         var reply = transcript.Turns.Skip(askedAt + 1).FirstOrDefault(t => t.Speaker == Speaker.Interviewee)?.Text;
-        return reply is null ? null : ReplySignals.ScaleValueOf(reply.ToLowerInvariant());
+        return reply is null ? null : ReplyAnalyzer.ScaleValueOf(reply.ToLowerInvariant());
     }
 }
 
