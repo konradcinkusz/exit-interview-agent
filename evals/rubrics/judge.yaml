@@ -52,3 +52,51 @@ criteria:
         Asks for an example but generically, so that it is not tied to what was just said, or bundles a second request with it.
       2: >-
         Asks for one concrete example of what the interviewee just said, in neutral words, and nothing else.
+  # Protocol 1.3 (docs/architecture/interview-dynamics-spec.md §6.2). Reported, not gated, until calibrated like R-01 and R-02. The judge
+  # does not run them yet (Layer 2 scores R-01 and R-02 only); label stubs are in evals/labels/judge.yaml.
+  - id: R-03
+    name: heard
+    applies_to: the acknowledgement of a question, when it has one (the sentences before the question)
+    summary: >-
+      Is the acknowledgement, if there is one, faithful to what the person just said, free of judgement, and not a stock phrase?
+    scale: 2
+    threshold: 1.5
+    anchors:
+      0: >-
+        Says something the person did not say, adds a judgement or a reassurance, names a feeling they did not name, or is a stock phrase
+        that could follow any answer (for example 'Thank you for sharing' or 'I understand').
+      1: >-
+        Faithful but generic, or it repeats a stock phrase with a small detail of the answer added.
+      2: >-
+        Restates the meaning or the consequence of what the person said, in their terms or with two to six of their own words in quotes,
+        and adds no judgement.
+  - id: R-04
+    name: natural_polish
+    applies_to: every Polish question and acknowledgement (English turns are not scored on this row)
+    summary: >-
+      Does the turn read like a person writing Polish, with correct inflection, diacritics and register, rather than a translation?
+    scale: 2
+    threshold: 1.5
+    anchors:
+      0: >-
+        Ungrammatical, a translation from English word order or idiom, wrong case or gender agreement, missing diacritics, or a register that
+        does not match the one the person chose.
+      1: >-
+        Grammatical but stiff or bureaucratic, with abstract nouns where a verb would read naturally.
+      2: >-
+        Idiomatic, spoken Polish with correct inflection and diacritics, in the register chosen (pani, pan, ty or neutral).
+  - id: R-05
+    name: builds_on_answer
+    applies_to: every question, with the reply it follows
+    summary: >-
+      Does the question follow from the person's last answer, not only from the topic it is about?
+    scale: 2
+    threshold: 1.5
+    anchors:
+      0: >-
+        Ignores the last answer: it could have been asked of anyone, or it returns to a topic already settled, or it asks about something
+        the person did not mention.
+      1: >-
+        Related to the topic and loosely to the answer, but the answer's specific point is not picked up.
+      2: >-
+        Picks up the specific point the person just made (a situation, a consequence or a word of theirs) and asks about it, in one question.
