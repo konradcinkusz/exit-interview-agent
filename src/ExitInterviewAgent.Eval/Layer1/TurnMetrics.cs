@@ -164,6 +164,8 @@ public static class TurnMetrics
         var answers = 0;
         for (var i = 0; i < f.Count; i++)
         {
+            // A follow-up is not itself an opportunity to probe: the answers counted are the base questions' answers.
+            if (f[i].Move is { } m && MoveCodes.FollowUps.Contains(m)) continue;
             var specific = !f[i].Vague && f[i].Words >= substantiveWords;
             if (!specific && !f[i].Terse) continue;
             answers++;
