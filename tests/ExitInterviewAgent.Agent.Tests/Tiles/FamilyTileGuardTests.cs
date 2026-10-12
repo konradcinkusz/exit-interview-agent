@@ -52,8 +52,9 @@ public class FamilyTileGuardTests
     /// <summary>The text padded with <see cref="Filler"/> sentences until it reaches <paramref name="min"/> code points.</summary>
     private static string Fill(string core, int min)
     {
+        // A filler sentence starts after a full stop: a capitalised word mid-sentence reads as a name to the PII detector.
         var text = core;
-        while (text.Length < min) text += " " + Filler;
+        while (text.Length < min) text += (text.EndsWith('.') ? " " : ". ") + Filler;
         return text;
     }
 

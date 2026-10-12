@@ -77,7 +77,7 @@ internal static class ScriptedTileResponses
     {
         var pros = Summaries(lang, covered.Where(c => c.Rating >= 4));
         var cons = Summaries(lang, covered.Where(c => c.Rating <= 2));
-        var negative = covered.Where(c => c.Rating <= 2).Select(c => TileWording.Label(lang, c.Topic)).ToList();
+        var negative = covered.Where(c => c.Rating <= 2).Select(c => TileWording.Label(lang, c.Topic).ToLowerInvariant()).ToList();
         var advice = negative.Count > 0
             ? (lang == "pl" ? "Warto przejrzeć: " : "Worth reviewing: ") + string.Join(", ", negative) + "."
             : (lang == "pl" ? "Warto zachować to, co działa." : "Worth keeping what works.");
@@ -112,7 +112,8 @@ internal static class ScriptedTileResponses
     private static object ShortPost(string lang, List<(Topic Topic, int? Rating)> covered, string[] basedOn)
     {
         var lead = lang == "pl" ? "Mój wpis o tematach:" : "My note on the topics:";
-        var labels = string.Join(", ", covered.Select(c => TileWording.Label(lang, c.Topic)));
+        // Lower case inside the sentence: a capitalised word that does not start a sentence reads as a name to the PII detector.
+        var labels = string.Join(", ", covered.Select(c => TileWording.Label(lang, c.Topic).ToLowerInvariant()));
         return Family("short_post", basedOn, ("body", Pad($"{lead} {labels}.", 80, Neutral(lang))));
     }
 
