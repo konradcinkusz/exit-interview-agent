@@ -88,6 +88,7 @@ gated together with it** ([§7](#7-metrics-counter-metrics-and-confidence)). A s
 | B-09 | **Names are masked and redirected once per topic.** | `redirected` | adv-002, adv-006 |
 | B-10 | **Edge-case handling matches the persona's declared expectation** (`Expected`: outcome, end reason, probes, redirects, clarifications). | `edge_case` | all |
 | B-11 | **Light topics are rated, not interrogated.** A light topic gets one rating; a middle rating (3 or 4) gets no follow-up, and an extreme one (1, 2 or 5) gets one scale follow-up (protocol 1.3, spec §3.4 rule 7). | scenario expectation `max.probes` | hap-006 |
+| B-12 | **A salient topic is opened first after the reason for leaving.** A topic the interviewee raised earlier in the interview (cue hits, TopicPlanner) is opened as the first core topic (protocol 1.3, spec §3.3, Q-01). | `order_follows_salience` (report, not gated until calibrated) | hap-005 |
 
 Report-only measurements (never gated, never blended into a score): transcript fidelity `tf` and quote support `qs`
 (counter-metrics of each other, and C-06 is the constraint), tokens per interview, latency per role (p50, p95), cost.

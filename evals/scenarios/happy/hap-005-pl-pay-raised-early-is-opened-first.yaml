@@ -1,0 +1,20 @@
+id: hap-005-pl-pay-raised-early-is-opened-first
+class: happy
+gate: behaviour
+title: A pay topic raised early in a Polish interview is opened first among the core topics
+why: >-
+  Protocol 1.3 orders the topics by what the interviewee has already said (spec §3.3). The persona raises pay in its first answers, so the
+  pay topic is the first core topic after the reason for leaving, with a callback when it is mentioned before. The metric
+  order_follows_salience records this for every run of a persona that declares a salient topic; the scenario checks that the interview
+  still completes with all topics covered on the way.
+persona: pay-first-pl
+seeds: [1, 2, 3]
+expect:
+  outcome: completed
+  end_reason: all_topics_covered
+  record: present
+  min:
+    topics_covered: 6
+measure: [coverage]
+spec: [B-12]
+origin: designed (WP5, persona from WP6)
