@@ -141,12 +141,7 @@ const en = {
 
   tilesTitle: "Draft texts",
   tilesEmpty: "No draft texts were made from this interview.",
-  // The four platform kinds are the legacy items of a service that predates the drafts (ADR-0083); they go when the service stops sending them.
   kinds: {
-    glassdoor: "Glassdoor",
-    google_review: "Google review",
-    reddit: "Reddit",
-    short_note: "Short note",
     overview: "Overview",
     facts: "Facts",
     what_worked: "What worked",
@@ -343,12 +338,7 @@ const pl: InterviewCopy = {
 
   tilesTitle: "Szkice tekstów",
   tilesEmpty: "Z tej rozmowy nie powstały szkice tekstów.",
-  // The four platform kinds are the legacy items of a service that predates the drafts (ADR-0083); they go when the service stops sending them.
   kinds: {
-    glassdoor: "Glassdoor",
-    google_review: "Opinia Google",
-    reddit: "Reddit",
-    short_note: "Krótka notatka",
     overview: "Przegląd",
     facts: "Fakty",
     what_worked: "Co zadziałało",

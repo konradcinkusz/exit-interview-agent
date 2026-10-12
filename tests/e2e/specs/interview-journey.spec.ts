@@ -110,18 +110,13 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
   await expect(page.getByTestId("tiles-notice")).toContainText("These are draft texts, not facts.");
   await expect(page.getByText("Rating 2 of 5")).toBeVisible();
   await expect(page.getByText("Onboarding was chaotic.")).toBeVisible();
-  const cards = page.locator("li", { has: page.getByRole("heading", { name: "Glassdoor" }) });
-  await expect(cards).toHaveCount(1);
-  await expect(page.locator("li", { has: page.getByRole("heading", { name: "Google review" }) })).toHaveCount(1);
-  await expect(page.locator("li", { has: page.getByRole("heading", { name: "Reddit" }) })).toHaveCount(1);
+  const glassdoor = page.getByRole("article", { name: "Glassdoor" });
+  await expect(glassdoor).toHaveCount(1);
 
-  // (5) Copy works through the clipboard.
-  const glassdoor = page.locator("li", { has: page.getByRole("heading", { name: "Glassdoor" }) });
-  await glassdoor.getByRole("button", { name: "Copy: Glassdoor" }).click();
-  await expect(glassdoor.getByRole("status")).toHaveText("Copied");
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    "Onboarding was chaotic, but the team helped. Contact with the manager was rare.",
-  );
+  // (5) Copy works through the clipboard: the Pros section of the Glassdoor draft.
+  await glassdoor.getByRole("button", { name: "Copy: Glassdoor, Pros" }).click();
+  await expect(glassdoor.getByRole("button", { name: "Copy: Glassdoor, Pros" }).locator("xpath=..").getByRole("status")).toHaveText("Copied");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("Onboarding was chaotic, but the team helped.");
 
   // (6) The download of the drafts is a self-contained page with the notice in it and no script. The downloads sit under one control.
   await page.getByTestId("save").getByText("Save a copy").click();
@@ -132,7 +127,7 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
   const html = readFileSync((await tilesDownload.path()) as string, "utf8");
   expect(html).not.toMatch(/<script/i);
   expect(html).toContain("These are draft texts, not facts.");
-  expect(html).toContain("Reddit");
+  expect(html).toContain("Glassdoor");
 
   // (7) Delete everything. The result is then gone from the service: the id is unknown, so the BFF answers 404 not_found.
   const sessionBefore = (await stubState(request, name)).session;

@@ -1,0 +1,14 @@
+platform: reddit
+name: Reddit
+family: narrative
+risk: high
+url: https://www.reddit.com/
+warning: Im więcej szczegółów, tym łatwiej Cię rozpoznać. Każdy subreddit ma własne zasady, a niektóre wymagają ujawnienia tekstu pisanego z pomocą AI. To szkic, nie fakt. To nie jest porada prawna.
+field: Subreddit, który wybierasz
+field: Flair, jeśli społeczność go wymaga
+section title | Tytuł | Mój czas w [FIRMA]
+section body | Treść | Chcę opisać mój czas w [FIRMA] własnymi słowami. Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Rozwój: bez oceny. Wynagrodzenie a obietnice: negatywnie, 2 z 5. Kultura: pozytywnie, 4 z 5. Powód odejścia: mieszanie, 3 z 5. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem. Do dziś myślę o tym, jak wyglądały pierwsze miesiące i o co zapytałbym następnym razem. Piszę to jako własną relację i nie mówię w imieniu nikogo innego. Inne osoby mogły przeżyć te same miesiące inaczej. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem. Do dziś myślę o tym, jak wyglądały pierwsze miesiące i o co zapytałbym następnym razem.
+copy:
+Mój czas w [FIRMA]
+
+Chcę opisać mój czas w [FIRMA] własnymi słowami. Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Rozwój: bez oceny. Wynagrodzenie a obietnice: negatywnie, 2 z 5. Kultura: pozytywnie, 4 z 5. Powód odejścia: mieszanie, 3 z 5. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem. Do dziś myślę o tym, jak wyglądały pierwsze miesiące i o co zapytałbym następnym razem. Piszę to jako własną relację i nie mówię w imieniu nikogo innego. Inne osoby mogły przeżyć te same miesiące inaczej. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem. Do dziś myślę o tym, jak wyglądały pierwsze miesiące i o co zapytałbym następnym razem.

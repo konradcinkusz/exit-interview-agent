@@ -1,0 +1,17 @@
+platform: indeed
+name: Indeed
+family: structured_review
+risk: medium
+url: https://www.indeed.com/
+warning: One review per company, and it cannot be edited later. Indeed does not accept reports of crimes in reviews. Draft, not fact. Not legal advice.
+field: Job title, job status and location
+field: Star ratings for work-life balance, pay, job security, management and culture
+section title | Title | Notes from my exit interview
+section pros | What I liked | Culture: positive, 4 of 5. This is my own view, based on my answers.
+section cons | What could be better | Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Pay vs promises: negative, 2 of 5.
+copy:
+Notes from my exit interview
+
+Culture: positive, 4 of 5. This is my own view, based on my answers.
+
+Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Pay vs promises: negative, 2 of 5.

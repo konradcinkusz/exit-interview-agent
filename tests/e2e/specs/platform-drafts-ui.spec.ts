@@ -3,9 +3,9 @@ import { expect, test, type APIRequestContext, type Page, type Route } from "@pl
 import { STUB_URL, emailFor } from "../support/constants.mjs";
 import { accountName, signIn, watchViolations } from "./support";
 
-// The platform drafts on the result page (platform-drafts-spec §3.5, WP5), in both languages. The stub has no drafts yet (WP7 adds
-// them to the stub), so each test asks the stub for a real result and adds `tiles.drafts` to it on the way to the page. Everything
-// the page shows still comes from the stub; only the drafts are injected, and they are synthetic.
+// The platform drafts on the result page (platform-drafts-spec §3.5, WP5), in both languages. The stub's own draft is one Glassdoor draft,
+// so each test asks the stub for a real result and replaces `tiles.drafts` with its synthetic drafts on the way to the page. Everything
+// else the page shows still comes from the stub.
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 

@@ -37,7 +37,7 @@ public sealed class ContractSamplesTests
         })).RootElement.Clone();
 
         var tiles = new InterviewTiles(
-            new List<InterviewTile> { new("glassdoor", "Onboarding was chaotic, but the team helped."), new("short_note", "Chaotic onboarding, good team.") },
+            new List<InterviewTile> { new("overview", "Onboarding was chaotic, but the team helped."), new("what_worked", "Chaotic onboarding, good team.") },
             new List<InterviewDroppedTile> { new("too_long") },
             "These are draft texts, not facts.");
         var result = new InterviewResultResponse(recordJson, tiles, new InterviewUsage(4, 5400));

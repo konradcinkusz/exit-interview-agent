@@ -235,7 +235,7 @@ function TilesView({ copy, language, result }: { copy: InterviewCopy; language: 
         {result.tiles.items.map((tile: Tile, i: number) => {
           const label = tileLabel(tile.kind, language);
           return (
-            <li key={`${i}-${tile.kind}`} className={tile.kind === "reddit" ? `${styles.tile} ${styles.wide}` : styles.tile}>
+            <li key={`${i}-${tile.kind}`} className={styles.tile}>
               <div className={styles.tileHead}>
                 <h4>{label}</h4>
                 <CopyButton copy={copy} label={label} text={tileCopyText(tile)} />

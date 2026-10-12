@@ -1,0 +1,20 @@
+platform: glassdoor
+name: Glassdoor
+family: structured_review
+risk: medium
+url: https://www.glassdoor.com/
+warning: Glassdoor's terms make you the author of AI-assisted text. Name no one, share nothing confidential, and only review a job from the last 5 years. Draft, not fact. Not legal advice.
+field: Employment status and job title
+field: Star ratings
+section title | Headline | Notes from my exit interview
+section pros | Pros | Culture: positive, 4 of 5. This is my own view, based on my answers.
+section cons | Cons | Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Pay vs promises: negative, 2 of 5.
+section advice | Advice to management | Worth reviewing: onboarding, management, pay vs promises.
+copy:
+Notes from my exit interview
+
+Culture: positive, 4 of 5. This is my own view, based on my answers.
+
+Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Pay vs promises: negative, 2 of 5.
+
+Worth reviewing: onboarding, management, pay vs promises.

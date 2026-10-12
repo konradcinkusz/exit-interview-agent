@@ -9,9 +9,9 @@ import { tileCopyText, tileLabel, tilesToHtml, tilesToJson } from "./interview-r
 
 const tiles: Tiles = {
   items: [
-    { kind: "glassdoor", text: "Good onboarding. <img src=x onerror=alert(1)>" },
-    { kind: "reddit", text: "Line one\nLine two" },
-    { kind: "google_review", text: "Fair pay & clear goals." },
+    { kind: "overview", text: "Good onboarding. <img src=x onerror=alert(1)>" },
+    { kind: "what_worked", text: "Line one\nLine two" },
+    { kind: "what_could_improve", text: "Fair pay & clear goals." },
   ],
   dropped: [{ code: "too_long" }],
   notice: "These are draft texts, not facts. This is not legal advice.",
@@ -21,12 +21,12 @@ const tiles: Tiles = {
 describe("tilesToHtml", () => {
   it("renders one card per tile, in order, with its kind label", () => {
     const html = tilesToHtml(tiles, "en");
-    const glassdoor = html.indexOf("Glassdoor");
-    const reddit = html.indexOf("Reddit");
-    const google = html.indexOf("Google review");
-    expect(glassdoor).toBeGreaterThan(-1);
-    expect(reddit).toBeGreaterThan(glassdoor);
-    expect(google).toBeGreaterThan(reddit);
+    const overview = html.indexOf("Overview");
+    const worked = html.indexOf("What worked");
+    const improve = html.indexOf("What could improve");
+    expect(overview).toBeGreaterThan(-1);
+    expect(worked).toBeGreaterThan(overview);
+    expect(improve).toBeGreaterThan(worked);
     expect(html.match(/<article/g)).toHaveLength(3);
   });
 
@@ -54,7 +54,7 @@ describe("tilesToHtml", () => {
   it("uses the interview language for labels and the page language", () => {
     const html = tilesToHtml(tiles, "pl");
     expect(html).toContain('<html lang="pl">');
-    expect(html).toContain("Opinia Google");
+    expect(html).toContain("Co można poprawić");
     expect(html).toContain("Szkice tekstów");
   });
 
@@ -65,11 +65,11 @@ describe("tilesToHtml", () => {
 
 describe("tileLabel", () => {
   it("has a label for every kind in both languages", () => {
-    for (const kind of ["glassdoor", "google_review", "reddit", "short_note", "overview", "facts"] as const) {
+    for (const kind of ["facts", "overview", "what_worked", "what_could_improve", "for_the_next_person"] as const) {
       expect(tileLabel(kind, "en")).not.toBe("");
       expect(tileLabel(kind, "pl")).not.toBe("");
     }
-    expect(tileLabel("google_review", "pl")).not.toBe(tileLabel("google_review", "en"));
+    expect(tileLabel("what_could_improve", "pl")).not.toBe(tileLabel("what_could_improve", "en"));
   });
 });
 

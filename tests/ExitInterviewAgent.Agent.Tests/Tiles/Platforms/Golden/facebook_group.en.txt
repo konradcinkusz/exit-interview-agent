@@ -1,0 +1,10 @@
+platform: facebook_group
+name: Facebook group
+family: professional_post
+risk: high
+url: https://www.facebook.com/
+warning: Usually under your real name. Each group has its own rules; read them before posting. Draft, not fact. Not legal advice.
+field: The group you post in
+section body | Post | A short, measured note on my exit interview. Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Growth: no rating. Pay vs promises: negative, 2 of 5. Culture: positive, 4 of 5. Reason for leaving: mixed, 3 of 5. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time.
+copy:
+A short, measured note on my exit interview. Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Growth: no rating. Pay vs promises: negative, 2 of 5. Culture: positive, 4 of 5. Reason for leaving: mixed, 3 of 5. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time.

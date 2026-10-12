@@ -1,0 +1,17 @@
+platform: blind
+name: Blind
+family: structured_review
+risk: medium
+url: https://www.teamblind.com/
+warning: Nazwa firmy jest widoczna obok Twojego wpisu. Po zakończeniu pracy można napisać jedną opinię o danej firmie. To szkic, nie fakt. To nie jest porada prawna.
+field: Firma, którą oceniasz
+field: Oceny w gwiazdkach, jeśli serwis je pokazuje
+section title | Tytuł | Notatki z rozmowy odchodzącej
+section pros | Plusy | Kultura: pozytywnie, 4 z 5. To moja własna opinia, oparta na moich odpowiedziach.
+section cons | Minusy | Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Wynagrodzenie a obietnice: negatywnie, 2 z 5.
+copy:
+Notatki z rozmowy odchodzącej
+
+Kultura: pozytywnie, 4 z 5. To moja własna opinia, oparta na moich odpowiedziach.
+
+Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Wynagrodzenie a obietnice: negatywnie, 2 z 5.

@@ -57,11 +57,11 @@
   "tiles": {
     "items": [
       {
-        "kind": "glassdoor",
+        "kind": "overview",
         "text": "Onboarding was chaotic, but the team helped."
       },
       {
-        "kind": "short_note",
+        "kind": "what_worked",
         "text": "Chaotic onboarding, good team."
       }
     ],

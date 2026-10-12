@@ -1,0 +1,10 @@
+platform: linkedin
+name: LinkedIn
+family: professional_post
+risk: high
+url: https://www.linkedin.com/
+warning: This is posted under your real name, in front of future employers. Check any confidentiality or non-disparagement clause you signed. Draft, not fact. Not legal advice.
+field: Who can see the post (visibility)
+section body | Post | A short, measured note on my exit interview. Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Growth: no rating. Pay vs promises: negative, 2 of 5. Culture: positive, 4 of 5. Reason for leaving: mixed, 3 of 5. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time.
+copy:
+A short, measured note on my exit interview. Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Growth: no rating. Pay vs promises: negative, 2 of 5. Culture: positive, 4 of 5. Reason for leaving: mixed, 3 of 5. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time.

@@ -1,0 +1,10 @@
+platform: facebook_group
+name: Grupa na Facebooku
+family: professional_post
+risk: high
+url: https://www.facebook.com/
+warning: Zwykle pod Twoim prawdziwym nazwiskiem. Każda grupa ma własne zasady; przeczytaj je przed publikacją. To szkic, nie fakt. To nie jest porada prawna.
+field: Grupa, w której publikujesz
+section body | Wpis | Krótka, rzeczowa notatka o mojej rozmowie odchodzącej. Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Rozwój: bez oceny. Wynagrodzenie a obietnice: negatywnie, 2 z 5. Kultura: pozytywnie, 4 z 5. Powód odejścia: mieszanie, 3 z 5. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem.
+copy:
+Krótka, rzeczowa notatka o mojej rozmowie odchodzącej. Wdrożenie: negatywnie, 2 z 5. Zarządzanie: negatywnie, 1 z 5. Rozwój: bez oceny. Wynagrodzenie a obietnice: negatywnie, 2 z 5. Kultura: pozytywnie, 4 z 5. Powód odejścia: mieszanie, 3 z 5. Patrząc wstecz, to są punkty, o których chciałbym wiedzieć przed dołączeniem.

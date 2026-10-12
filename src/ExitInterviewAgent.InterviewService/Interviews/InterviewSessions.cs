@@ -4,6 +4,7 @@ using ExitInterviewAgent.Agent.Protocol;
 using ExitInterviewAgent.Agent.Roles;
 using ExitInterviewAgent.Agent.Runner;
 using ExitInterviewAgent.Agent.Tiles;
+using ExitInterviewAgent.Agent.Tiles.Platforms;
 using ExitInterviewAgent.Contracts;
 using ExitInterviewAgent.InterviewService.Interviews.CostControls;
 using ExitInterviewAgent.InterviewService.Persistence;
@@ -274,10 +275,17 @@ public sealed class InterviewSessions(
         {
             var generator = new TileGenerator(new ModelTileWriter(new MeteredChatClient(model.Client, meter)), new TileGuard(new PiiGuard()));
             var set = await generator.GenerateAsync(new TileInput(result.Record!, result.Transcript?.Render()), session.Cancellation.Token).ConfigureAwait(false);
+            // Items carry the generic kinds only. The platform drafts are built by code from the family tiles (ADR-0083, spec §3.3, §3.4).
+            var items = set.Tiles
+                .Where(t => TileFamilies.Find(t.Kind) is null)
+                .Select(t => new InterviewTile(InterviewSession.ToSnake(t.Kind.ToString()), t.Text))
+                .ToList();
+            var drafts = PlatformDraftBuilder.Build(set, PlatformProfiles.Default, session.Language).Select(ToWireDraft).ToList();
             return new InterviewTiles(
-                set.Tiles.Select(t => new InterviewTile(InterviewSession.ToSnake(t.Kind.ToString()), t.Text)).ToList(),
+                items,
                 set.Dropped.Select(d => new InterviewDroppedTile(d.ReasonCode)).ToList(),
-                notice);
+                notice,
+                drafts);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -285,6 +293,18 @@ public sealed class InterviewSessions(
             return new InterviewTiles([], [new InterviewDroppedTile("tiles_unavailable")], notice);
         }
     }
+
+    /// <summary>A platform draft as the wire carries it (spec §3.4). The words are snake case; the texts are passed on untouched.</summary>
+    private static InterviewPlatformDraft ToWireDraft(PlatformDraft draft) => new(
+        draft.Id,
+        draft.Name,
+        InterviewSession.ToSnake(draft.Family.ToString()),
+        InterviewSession.ToSnake(draft.Risk.ToString()),
+        draft.Url,
+        draft.Warning,
+        draft.Sections.Select(s => new InterviewDraftSection(s.Key, s.Label, s.Text)).ToList(),
+        draft.CopyText,
+        draft.FieldsOnSite);
 
     private static string NewId() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

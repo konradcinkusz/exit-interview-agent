@@ -59,10 +59,7 @@ function draftToHtml(draft: PlatformDraft, language: InterviewLanguage): string 
 export function tilesToHtml(tiles: Tiles, language: InterviewLanguage): string {
   const copy = interviewCopy[language];
   const cards = tiles.items
-    .map((tile) => {
-      const wide = tile.kind === "reddit" ? " wide" : "";
-      return `<article class="card${wide}">\n<p class="kind">${esc(tileLabel(tile.kind, language))}</p>\n<p class="text">${esc(tile.text)}</p>\n</article>`;
-    })
+    .map((tile) => `<article class="card">\n<p class="kind">${esc(tileLabel(tile.kind, language))}</p>\n<p class="text">${esc(tile.text)}</p>\n</article>`)
     .join("\n");
   // With drafts and no generic tiles, the page says nothing about generic tiles rather than "none were made".
   const generic = tiles.items.length > 0 ? `<div class="grid">\n${cards}\n</div>` : tiles.drafts.length === 0 ? `<p>${esc(copy.tilesEmpty)}</p>` : "";

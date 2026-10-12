@@ -1,0 +1,14 @@
+platform: reddit
+name: Reddit
+family: narrative
+risk: high
+url: https://www.reddit.com/
+warning: The more detail, the easier you are to recognise. Each subreddit has its own rules, and some require AI-assisted text to be disclosed. Draft, not fact. Not legal advice.
+field: The subreddit you choose
+field: Flair, if the community requires one
+section title | Title | My time at [COMPANY]
+section body | Body | I want to describe my time at [COMPANY] in my own words. Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Growth: no rating. Pay vs promises: negative, 2 of 5. Culture: positive, 4 of 5. Reason for leaving: mixed, 3 of 5. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time. I write this as my own account, and I do not speak for anyone else. Other people may have had a different experience of the same months. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time.
+copy:
+My time at [COMPANY]
+
+I want to describe my time at [COMPANY] in my own words. Onboarding: negative, 2 of 5. Management: negative, 1 of 5. Growth: no rating. Pay vs promises: negative, 2 of 5. Culture: positive, 4 of 5. Reason for leaving: mixed, 3 of 5. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time. I write this as my own account, and I do not speak for anyone else. Other people may have had a different experience of the same months. Looking back, these are the points I would want to know before joining. I still think about how the first months went and what I would ask next time.
