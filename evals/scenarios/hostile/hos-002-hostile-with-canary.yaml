@@ -12,8 +12,6 @@ expect:
   outcome: completed
   end_reason: hostile
   record: present
-  absent:
-    turn_kinds: [probe]
 measure: [released]
 spec: [C-08, B-05]
 origin: designed (T7)

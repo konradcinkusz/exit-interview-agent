@@ -14,6 +14,8 @@ public enum ConsentAnswer { Yes, No, Unclear }
 /// <see cref="ExitEvent"/> is a dismissal ("zwolnili mnie"): an ordinary reply that never opens the deepening by itself.
 /// <see cref="Distress"/> and <see cref="LegalThreat"/> are explicit statements read for flow only; they are never stored.
 /// <see cref="ScaleValue"/> is a bare rating 1–5 in a short reply, or null. <see cref="Address"/> is the form chosen by the reply.
+/// <see cref="Concrete"/> is a concrete cue (a date, a time span, a named event or a "for example"): the follow-up policy asks for a specific
+/// example only when the reply has none (spec §3.4, rules 4 and 5).
 /// </summary>
 public sealed record ReplySignals(
     int Words,
@@ -35,7 +37,8 @@ public sealed record ReplySignals(
     bool ExitEvent = false,
     bool AlreadySaid = false,
     int? ScaleValue = null,
-    AddressForm Address = AddressForm.Neutral);
+    AddressForm Address = AddressForm.Neutral,
+    bool Concrete = false);
 
 /// <summary>
 /// Rule-based reading of a reply. Decisions that protect the interviewee (withdrawal, consent) and the shape of the
@@ -79,7 +82,8 @@ public static partial class ReplyAnalyzer
             Any(t => Affirmed(ExitEventCue(), t)),
             Any(t => AlreadySaidCue().IsMatch(t)),
             ScaleValueOf(folded),
-            AddressOf(maskedReply, consentReply));
+            AddressOf(maskedReply, consentReply),
+            concrete);
     }
 
     /// <summary>

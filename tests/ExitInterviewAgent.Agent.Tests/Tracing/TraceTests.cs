@@ -66,7 +66,7 @@ public class TraceTests
         var options = Options with { Logger = logger };
         var failing = new FakeChatClient((role, _) => throw new InvalidOperationException("provider echoed " + Canary));
         var runner = InterviewRunner.Create(failing, options);
-        string[] replies = ["Yes " + Canary, .. Enumerable.Range(1, 6).Select(i => $"It took {i + 2} weeks and nobody said why {Canary}.")];
+        string[] replies = ["Yes " + Canary, .. Enumerable.Range(1, 30).Select(i => $"It took {i + 2} weeks and nobody said why {Canary}.")];
 
         var result = await runner.RunAsync(new ScriptedInterviewee(replies));
 
@@ -160,7 +160,8 @@ public class TraceTests
         Assert.Equal(true, tags[InterviewTelemetry.Attr.AiDisclosed]);
         Assert.Equal(result.Diagnostics.ModelCalls, tags[InterviewTelemetry.Attr.ModelCalls]);
         Assert.Equal("invoke_agent", tags[InterviewTelemetry.Attr.OperationName]);
-        Assert.Equal(7, capture.Activities.Count(a => a.OperationName == InterviewTelemetry.Spans.PiiGuard));
+        // One masking span per reply: the number of replies the interviewee gave (protocol 1.3 asks more questions than 1.2 did).
+        Assert.Equal(result.Diagnostics.IntervieweeTurns, capture.Activities.Count(a => a.OperationName == InterviewTelemetry.Spans.PiiGuard));
         Assert.All(capture.Activities.Where(a => a.OperationName.StartsWith("chat ", StringComparison.Ordinal)), a =>
         {
             Assert.Equal("chat", a.GetTagItem(InterviewTelemetry.Attr.OperationName));

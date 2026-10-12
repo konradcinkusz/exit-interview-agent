@@ -82,6 +82,9 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 | `interview.role` | enum | `interviewer`, `prober` or `extractor` |
 | `interview.turn.index` | int | the interviewer-turn counter |
 | `interview.turn.kind` | enum | `opening`, `consent_reask`, `topic`, `probe`, `clarification`, `redirect`, `deep_probe`, `close`, `stop` |
+| `interview.turn.move` | enum | protocol 1.3 move behind the turn: `warmup`, `open`, `scale`, `scale_follow_up`, `example`, `elaborate`, `ladder`, `consequence`, `retention`, `anything_else`, `deep`, `clarify`, `redirect`; absent on turns that ask nothing (opening, consent, close, stop) |
+| `interview.turn.preface` | enum | the sentence said before the question: `none`, `acknowledge_frustration`, `deepening_reminder`, `check_in`, `already_said`, or `notice` for both a distress and a legal remark (they are not told apart) |
+| `interview.question.retried` | bool | the first model-worded question was rejected by the guard and asked once more with the reason code; true on both attempts' turn, never the text |
 | `interview.topic` | enum | the topic name, as in the record |
 | `interview.phase` | enum | the machine's phase when the turn was issued |
 | `interview.outcome` | string code | `completed`, `withdrawn`, `consent_not_given`, `abandoned`, `pii_guard_failed`, `extraction_failed` |
@@ -99,6 +102,9 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 | `interview.signal.withdrawal` | bool | the reply withdraws consent |
 | `interview.signal.names_person` | bool | the PII guard found a person name |
 | `interview.signal.injection_suspected` | bool | the reply reads like an instruction to a model |
+| `interview.signal.already_said` | bool | the reply says the thing was already said (protocol 1.3, rule 1 of the follow-up policy) |
+| `interview.signal.distress` | bool | the reply states distress explicitly; the topic is released and no follow-up or deepening follows; never stored, never traced as content |
+| `interview.signal.legal_threat` | bool | the reply names a legal remedy; the notice preface is said once per interview; never stored |
 | `interview.signal.serious` | bool | the reply carries a serious-account cue (bullying, harassment, threats, unsafe conditions and similar, EN and PL) that is not negated in the three words before it; opens the deepening phase (ADR-0075) |
 | `interview.pii.findings` | int | number of PII findings in the reply |
 | `interview.pii.kinds` | enum list | the kinds found, never the text |
@@ -122,8 +128,9 @@ names below are the ones in the 1.37 series and are pinned here). The rest use t
 
 - **No record without consent:** no `interview.extraction` span exists when `interview.outcome` is `withdrawn`, `consent_not_given` or `abandoned`.
 - **Disclosure first:** `interview.disclosure.delivered` precedes every `interview.turn` with `interview.turn.kind` = `topic`.
-- **Probe discipline:** per topic, at most `maxProbesPerTopic` turns of kind `probe`, and each follows a turn with `interview.signal.vague` = true.
-- **Deepening discipline (ADR-0075):** per topic, at most `maxDeepProbesPerTopic` turns of kind `deep_probe`, and each follows a turn on the same topic with `interview.signal.serious` = true.
+- **Probe discipline (protocol 1.3, spec §3.4):** per topic, at most `maxFollowUpsCore` (2; `maxFollowUpsReason` 2 on the reason for leaving; `maxFollowUpsLight` 1 on a light topic) turns of kind `probe`, and the same `interview.turn.move` is never asked twice on a topic.
+- **Scale discipline (spec §3.2):** a turn with `interview.turn.move` = `scale` is of kind `topic` and has a topic that is not the reason for leaving; `scale_follow_up` is a `probe` on a light topic only.
+- **Deepening discipline (ADR-0075, protocol 1.3):** per topic, at most `maxDeepProbesPerTopic` (3) turns of kind `deep_probe`, and each follows a turn on the same topic with `interview.signal.serious` = true.
 - **Names:** every turn with `interview.signal.names_person` = true is followed by a `redirect` decision (once per topic).
 - **Injection:** turns with `interview.signal.injection_suspected` = true do not change the sequence of `interview.turn.kind` values the machine would produce without them.
 - **Cost and latency:** `gen_ai.usage.*` and span durations per role, per interview.

@@ -132,11 +132,25 @@ public class Layer1Tests
     }
 
     [Fact]
-    public async Task Fuv_is_computed_from_the_hand_labels_and_the_vague_persona_is_fully_probed()
+    public async Task Every_fault_run_that_asked_a_question_fell_back_to_protocol_wording_and_counts_as_degraded_ok()
     {
+        // Protocol 1.3 has more fixed wording than 1.2 (warm-up, rating, retention, anything else, follow-ups): every one of it is the
+        // protocol's own, so a fault run that fell back to it is degraded_ok. A fabricated question would make the count smaller.
+        var run = await FullMockRun();
+        var degraded = Evaluation.Pool(run.Grades, "degraded_ok", g => g.ScenarioId.StartsWith("deg-", StringComparison.Ordinal));
+
+        Assert.True(degraded.N > 0);
+        Assert.Equal(degraded.N, degraded.K);
+    }
+
+    [Fact]
+    public async Task Fuv_is_computed_from_the_hand_labels_and_a_vague_reply_on_a_core_topic_is_probed()
+    {
+        // Protocol 1.3 (spec §3.4): a vague answer on a light topic is rated, not probed, so the 9 unprobed vague replies are the light topics
+        // of the three seeds. Every vague reply on the reason or a core topic is followed by a probe.
         var run = await FullMockRun();
         var vague = Evaluation.Pool(run.Grades, "fuv", g => g.ScenarioId.StartsWith("amb-001", StringComparison.Ordinal));
 
-        Assert.Equal(new Count(18, 18), vague);
+        Assert.Equal(new Count(12, 21), vague);
     }
 }

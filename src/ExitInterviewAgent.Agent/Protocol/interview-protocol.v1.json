@@ -64,11 +64,11 @@
   ],
   "limits": {
     "maxProbesPerTopic": 1,
-    "maxDeepProbesPerTopic": 4,
+    "maxDeepProbesPerTopic": 3,
     "maxClarificationsPerTopic": 1,
     "maxRedirectsPerTopic": 1,
     "maxConsentAsks": 2,
-    "maxInterviewerTurns": 60,
+    "maxInterviewerTurns": 40,
     "maxModelCalls": 90,
     "maxEstimatedTokens": 90000,
     "maxReplyChars": 2000,

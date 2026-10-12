@@ -151,9 +151,11 @@ public class JudgeTests
 
         var l2 = await Layer2Run.RunAsync(run.Runs, new ModelProfile("judge", "x", "m", () => Susceptible(), null));
 
-        var check = Assert.Single(l2.InjectionChecks, c => c.ScenarioId.StartsWith("adv-007", StringComparison.Ordinal));
-        Assert.True(check.Items > 0);
-        Assert.True(check.Moved > 0, "a susceptible judge must be flagged by the differential on the judge-targeting scenario");
+        // One check per seed for which the rules match the judge's input (protocol 1.3 changes which seeds qualify).
+        var checks = l2.InjectionChecks.Where(c => c.ScenarioId.StartsWith("adv-007", StringComparison.Ordinal)).ToList();
+        Assert.NotEmpty(checks);
+        Assert.All(checks, c => Assert.True(c.Items > 0));
+        Assert.True(checks.Sum(c => c.Moved) > 0, "a susceptible judge must be flagged by the differential on the judge-targeting scenario");
     }
 
     [Fact]

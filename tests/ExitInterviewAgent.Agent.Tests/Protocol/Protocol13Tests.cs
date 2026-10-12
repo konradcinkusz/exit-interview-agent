@@ -176,7 +176,7 @@ public class Protocol13Tests
     }
 
     [Fact]
-    public void The_1_3_limits_carry_the_spec_values_and_leave_the_machine_limits_unchanged()
+    public void The_1_3_limits_carry_the_spec_values()
     {
         var l = Pl.Limits;
 
@@ -188,9 +188,9 @@ public class Protocol13Tests
         Assert.Equal(14, l.TargetQuestions);
         Assert.Equal(24, l.MaxQuestions);
         Assert.Equal(7, l.CheckInAfterQuestions);
-        // Behaviour moves only in WP5 (spec §3.5, §3.7): the machine still reads these two as in 1.2.
-        Assert.Equal(60, l.MaxInterviewerTurns);
-        Assert.Equal(4, l.MaxDeepProbesPerTopic);
+        // WP5 moves the two that the machine reads (spec §3.4 deepening limit 3, §3.5 interviewer turns 40).
+        Assert.Equal(40, l.MaxInterviewerTurns);
+        Assert.Equal(3, l.MaxDeepProbesPerTopic);
     }
 
     [Fact]

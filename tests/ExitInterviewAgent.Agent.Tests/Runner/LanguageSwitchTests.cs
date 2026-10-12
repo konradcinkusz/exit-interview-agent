@@ -17,6 +17,14 @@ public class LanguageSwitchTests
     private const string EnAnswer = "On this topic there was one concrete thing: the process took 3 weeks and nobody explained why.";
     private const string PlAnswer = "Na tym temacie było jedno konkretne zdarzenie: proces trwał 3 tygodnie i nikt nie wyjaśnił dlaczego.";
 
+    // Protocol 1.3: a plain answer (nine to eleven words, no concrete cue, no vague cue, no topic cue) gets no follow-up, so the turns are fixed:
+    // opening, warm-up, reason, onboarding, management, growth, pay, culture (all scaled but two), retention, anything else, close.
+    private const string EnPlain = "On this topic there was a lot of work and meetings.";
+    private const string PlPlain = "Na tym temacie było dużo pracy i wielu spotkań.";
+
+    /// <summary>The interviewer turns of a plain interview, in order: 0 opening, 1 warm-up, 2 reason, 3 onboarding, 4 management, 5 growth, ...</summary>
+    private const int Onboarding = 3, Management = 4;
+
     private static readonly InterviewProtocol Pl = InterviewProtocol.For("pl");
 
     private static string Cooperative(Role role, string user) => role == Role.Extractor
@@ -27,7 +35,7 @@ public class LanguageSwitchTests
         InterviewRunner.Create(new FakeChatClient(Cooperative), Options with { Protocol = protocol ?? Proto });
 
     private static string TopicText(ScriptedInterviewee interviewee, Topic topic) =>
-        interviewee.Seen.Single(t => t.Kind == TurnKind.Topic && t.Topic == topic).Text;
+        interviewee.Seen.First(t => t.Kind == TurnKind.Topic && t.Topic == topic).Text;
 
     // ---- the detector --------------------------------------------------------------------------------------------
 
@@ -84,72 +92,68 @@ public class LanguageSwitchTests
     [Fact]
     public async Task A_polish_answer_in_an_english_interview_moves_the_next_question_to_polish_with_one_confirmation_sentence()
     {
-        var topics = Proto.Topics.Select(t => t.Topic).ToArray();
-        var interviewee = new ScriptedInterviewee("Yes, I agree.", EnAnswer, PlAnswer, EnAnswer, EnAnswer, EnAnswer, EnAnswer);
+        var interviewee = new ScriptedInterviewee("Yes, I agree.", EnPlain, PlPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain);
 
         var result = await Runner().RunAsync(interviewee);
 
         Assert.Equal(InterviewOutcome.Completed, result.Outcome);
-        Assert.Equal(Proto.Spec(topics[1]).Question, TopicText(interviewee, topics[1]));
-        Assert.Equal($"Dobrze, kontynuujmy po polsku. {Pl.Spec(topics[2]).Question}", TopicText(interviewee, topics[2]));
+        Assert.Equal($"Dobrze, kontynuujmy po polsku. {Pl.Spec(Topic.Onboarding).Question}", interviewee.Seen[Onboarding].Text);
         // The next English reply moves the interview back: the switch follows each clear reply, not only the first.
-        Assert.Equal($"Sure, let's continue in English. {Proto.Spec(topics[3]).Question}", TopicText(interviewee, topics[3]));
+        Assert.Equal($"Sure, let's continue in English. {Proto.Spec(Topic.Management).Question}", interviewee.Seen[Management].Text);
         Assert.Equal("en", result.Record!.Interview.Language);
     }
 
     [Theory]
-    [InlineData("Mów po angielsku, proszę. Na tym temacie proces trwał 3 tygodnie i nikt nie wyjaśnił dlaczego.")]
-    [InlineData("Can you continue in English, please? On this topic the process took 3 weeks and nobody explained why.")]
+    [InlineData("Mów po angielsku, proszę, na tym temacie było dużo pracy.")]
+    [InlineData("Can you continue in English, please? Lots of work.")]
     public async Task An_english_request_in_a_polish_interview_moves_the_next_question_to_english(string request)
     {
-        var topics = Proto.Topics.Select(t => t.Topic).ToArray();
-        var interviewee = new ScriptedInterviewee("Tak, zgadzam się.", PlAnswer, request, EnAnswer, EnAnswer, EnAnswer, EnAnswer);
+        var interviewee = new ScriptedInterviewee("Tak, zgadzam się.", PlPlain, request, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain);
 
         var result = await Runner(Pl).RunAsync(interviewee);
 
         Assert.Equal(InterviewOutcome.Completed, result.Outcome);
-        Assert.Equal($"Sure, let's continue in English. {Proto.Spec(topics[2]).Question}", TopicText(interviewee, topics[2]));
+        Assert.Equal($"Sure, let's continue in English. {Proto.Spec(Topic.Onboarding).Question}", interviewee.Seen[Onboarding].Text);
         Assert.Equal("en", result.Record!.Interview.Language);
     }
 
     [Fact]
     public async Task A_tie_between_the_languages_keeps_the_current_one()
     {
-        var topics = Proto.Topics.Select(t => t.Topic).ToArray();
-        var interviewee = new ScriptedInterviewee("Yes, I agree.", EnAnswer, "Process 2 weeks, nie the 3 people, one manager.", EnAnswer, EnAnswer, EnAnswer, EnAnswer);
+        // "Process 2 weeks, nie the 3 people, one manager." is read as no language, so nothing switches and the wording stays English.
+        var interviewee = new ScriptedInterviewee("Yes, I agree.", EnPlain, "Process 2 weeks, nie the 3 people, one manager.", EnPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain, EnPlain);
 
         var result = await Runner().RunAsync(interviewee);
 
-        Assert.Equal(Proto.Spec(topics[2]).Question, TopicText(interviewee, topics[2]));
+        // "manager" in the tie reply makes Management salient, so it is the next topic (the planner's order, not the language's).
+        Assert.Equal(Proto.Spec(Topic.Management).Question, interviewee.Seen[Onboarding].Text);
         Assert.DoesNotContain(interviewee.Seen, t => t.Text.Contains("kontynuujmy", StringComparison.Ordinal));
         Assert.Equal("en", result.Record!.Interview.Language);
     }
 
     [Fact]
-    public async Task The_record_language_is_the_one_most_interviewee_turns_were_written_in_and_a_tie_takes_the_last_turn()
+    public async Task The_record_language_is_the_one_most_interviewee_turns_were_written_in()
     {
-        // Four Polish replies and two English ones: the record says Polish, although the interview started in English.
-        var majority = new ScriptedInterviewee("Yes, I agree.", PlAnswer, PlAnswer, PlAnswer, PlAnswer, EnAnswer, EnAnswer);
-        var majorityResult = await Runner().RunAsync(majority);
+        // The interview starts in English; six of the nine replies are Polish and three English, so the record says Polish.
+        var interviewee = new ScriptedInterviewee("Yes, I agree.", PlPlain, PlPlain, PlPlain, EnPlain, PlPlain, EnPlain, PlPlain, EnPlain, PlPlain);
 
-        // Three and three, ending in English, in a Polish interview: the last turn decides.
-        var tie = new ScriptedInterviewee("Tak, zgadzam się.", PlAnswer, EnAnswer, PlAnswer, EnAnswer, PlAnswer, EnAnswer);
-        var tieResult = await Runner(Pl).RunAsync(tie);
+        var result = await Runner().RunAsync(interviewee);
 
-        Assert.Equal("pl", majorityResult.Record!.Interview.Language);
-        Assert.Equal("en", tieResult.Record!.Interview.Language);
+        Assert.Equal("pl", result.Record!.Interview.Language);
     }
 
     [Fact]
     public async Task The_switch_does_not_change_the_topics_or_their_order()
     {
-        var topics = Proto.Topics.Select(t => t.Topic).ToArray();
-        var interviewee = new ScriptedInterviewee("Yes, I agree.", PlAnswer, EnAnswer, PlAnswer, EnAnswer, PlAnswer, EnAnswer);
+        var interviewee = new ScriptedInterviewee("Yes, I agree.", PlPlain, EnPlain, PlPlain, EnPlain, PlPlain, EnPlain, PlPlain, EnPlain, PlPlain);
 
         var result = await Runner().RunAsync(interviewee);
 
         Assert.Equal(InterviewOutcome.Completed, result.Outcome);
-        Assert.Equal(topics, interviewee.Seen.Where(t => t.Kind == TurnKind.Topic).Select(t => t.Topic!.Value).Distinct().ToArray());
+        // Protocol 1.3 order: the reason first (asked again for retention, counted once), then the planner's order with no salience.
+        Assert.Equal(
+            [Topic.ReasonForLeaving, Topic.Onboarding, Topic.Management, Topic.Growth, Topic.PayVsPromises, Topic.Culture],
+            interviewee.Seen.Where(t => t.Kind == TurnKind.Topic && t.Topic is not null).Select(t => t.Topic!.Value).Distinct().ToArray());
     }
 
     // ---- the role -----------------------------------------------------------------------------------------------

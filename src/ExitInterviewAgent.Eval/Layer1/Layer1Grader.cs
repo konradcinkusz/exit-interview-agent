@@ -69,7 +69,15 @@ public static partial class Layer1Grader
         /// <summary>The prefixes the runner may add before a question (frustration acknowledgement, deepening reminder); the question itself is what the guard checked.</summary>
         private string StripPreface(string text)
         {
-            foreach (var preface in new[] { P.AckFrustration, P.DeepeningReminder })
+            // Protocol 1.3 prefaces are rendered per register, so each form of each preface is checked.
+            var prefaces = new List<string>();
+            foreach (var form in Enum.GetValues<AddressForm>())
+            {
+                prefaces.AddRange(P.Prefaces.Values.Select(p => P.Render(p, form)));
+                prefaces.Add(P.Render(P.FixedTexts.Single(f => f.Key == "acknowledgements.frustration").Text, form));
+                prefaces.Add(P.Render(P.FixedTexts.Single(f => f.Key == "deepeningReminder").Text, form));
+            }
+            foreach (var preface in prefaces.OrderByDescending(p => p.Length))
                 if (text.StartsWith(preface, StringComparison.Ordinal)) return text[preface.Length..].TrimStart();
             return text;
         }
@@ -164,13 +172,19 @@ public static partial class Layer1Grader
     {
         const string id = "L1.C-05";
         var problems = new List<string>();
-        var topicTurns = c.Turns.Where(t => t.Kind == "topic").Select(t => t.Topic).ToList();
-        if (!topicTurns.SequenceEqual(TopicOrder.Take(topicTurns.Count))) problems.Add("topic_order_or_repeat");
+        // Protocol 1.3: the planner orders the topics from what was said, so the order is not fixed; the reason for leaving is always first,
+        // every topic is one of the six, and each is opened once (its retention turn reuses the reason).
+        var opened = c.Turns.Where(t => t.Kind == "topic" && t.Topic is not null).Select(t => t.Topic!).Distinct().ToList();
+        if (opened.Count > 0 && opened[0] != Wire.Name(Topic.ReasonForLeaving)) problems.Add("reason_not_first");
+        if (opened.Any(t => !TopicOrder.Contains(t))) problems.Add("unknown_topic");
+        // A light topic is scaled (its turn carries the scale move); its one follow-up is the light limit (spec §3.4).
+        var scaled = c.Turns.Where(t => t.Span.Str("interview.turn.move") == "scale").Select(t => t.Topic).ToHashSet();
         foreach (var g in c.Turns.Where(t => t.Kind is "probe" or "clarification" or "redirect" or "deep_probe").GroupBy(t => (t.Kind, t.Topic)))
         {
             var limit = g.Key.Kind switch
             {
-                "probe" => c.P.Limits.MaxProbesPerTopic,
+                "probe" => g.Key.Topic == Wire.Name(Topic.ReasonForLeaving) ? c.P.Limits.MaxFollowUpsReason
+                    : scaled.Contains(g.Key.Topic) ? c.P.Limits.MaxFollowUpsLight : c.P.Limits.MaxFollowUpsCore,
                 "clarification" => c.P.Limits.MaxClarificationsPerTopic,
                 "deep_probe" => c.P.Limits.MaxDeepProbesPerTopic,
                 _ => c.P.Limits.MaxRedirectsPerTopic,
@@ -504,9 +518,9 @@ public static partial class Layer1Grader
         {
             // Every question the interviewee saw is the protocol's own wording: never a fabricated one. The quote the mock opens with is the
             // person's own words (WP4), so the check is on the question after it.
-            var allowed = new List<string> { c.P.Probe, c.P.Clarification, c.P.RedirectNames };
-            allowed.AddRange(c.P.Topics.Select(t => t.Question));
-            ok &= c.Questions.All(q => allowed.Contains(QuestionPart(q.Text), StringComparer.Ordinal));
+            // Every fixed wording of the protocol, rendered in each register, and the rating question of each light topic (protocol 1.3).
+            var allowed = ProtocolQuestions(c.P);
+            ok &= c.Questions.All(q => allowed.Contains(QuestionPart(q.Text)));
         }
         if (faults.Any(f => f.Kind == "usage_missing")) ok &= c.T.ChatSpans.All(x => (x.Int(InterviewTelemetry.Attr.UsageInputTokens) ?? 0) > 0);
         if (faults.Any(f => f.Roles.Contains("extractor") && f.Kind is "timeout" or "empty_answer" or "malformed_json"))
@@ -515,6 +529,18 @@ public static partial class Layer1Grader
             ok &= attempts >= 2 && (c.Rec is null ? c.R.Outcome == InterviewOutcome.ExtractionFailed : c.R.Validation is { IsValid: true });
         }
         return ok;
+    }
+
+    /// <summary>The protocol's own question wording in every register: all fixed texts, and each light topic's rating question.</summary>
+    private static HashSet<string> ProtocolQuestions(InterviewProtocol p)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var form in Enum.GetValues<AddressForm>())
+        {
+            foreach (var (_, text) in p.FixedTexts) set.Add(p.Render(text, form));
+            foreach (var topic in p.Topics.Where(t => t.ScaleLabel.Length > 0)) set.Add(p.ScaleQuestion(topic, form));
+        }
+        return set;
     }
 
     private static bool EdgeCase(Context c)
@@ -536,7 +562,6 @@ public static partial class Layer1Grader
             return;
         }
         var vague = Count.Zero;
-        var over = Count.Zero;
         var unlabelled = 0;
         for (var i = 0; i < interviewee.Count; i++)
         {
@@ -546,11 +571,16 @@ public static partial class Layer1Grader
             var next = turns.Skip(turn.Index).FirstOrDefault(t => t.Speaker == Speaker.Interviewer);
             var probed = next?.Kind == TurnKind.Probe ? 1 : 0;
             if (label == "vague") vague += new Count(probed, 1);
-            else over += new Count(probed, 1);
         }
         if (unlabelled > 0)
             results.Add(new AssertionResult("L1.LABELS.complete", AssertionResult.Expectation, Verdict.Fail, $"replies without a hand label={unlabelled} (add them to evals/labels/vagueness.yaml)"));
-        if (c.Run.Scenario.Measures("fuv")) { m["fuv"] = vague; m["opr"] = over; }
+        // opr is Q-13 (protocol 1.3): an Example after a reply labelled specific or decline, over those replies. Labels are aligned with the
+        // trace's interviewer turns; a base question's reply is labelled only when the turn is a topic question.
+        var facts = TurnFacts.FromTrace(c.T);
+        var labels = new List<string?>();
+        for (var i = 0; i < c.Run.RawReplies.Count && i < facts.Count; i++)
+            labels.Add(facts[i].Kind == "topic" && c.Labels.TryGetValue(LabelSets.Key(c.Run.RawReplies[i]), out var lb) ? lb : null);
+        if (c.Run.Scenario.Measures("fuv")) { m["fuv"] = vague; m["opr"] = TurnMetrics.OprLabelled(facts, labels); }
     }
 
     // ---- usage and latency (report-only) -----------------------------------------------------------------------------------

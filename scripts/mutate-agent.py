@@ -16,7 +16,7 @@ if subprocess.run(["git","status","--porcelain","--","src","tests","evals"],cwd=
     sys.exit("refusing to run on a dirty tree: the mutations restore files from memory, not from git")
 M=[
  ("M-01","guard-leading-checks-off","src/ExitInterviewAgent.Agent/Roles/QuestionGuard.cs",
-  "    public static string? LeadingReason(string question)\n    {\n","    public static string? LeadingReason(string question)\n    {\n        if (question.Length >= 0) return null;\n","QuestionGuard.LeadingReason always returns null (the leading/loaded/closed lint is switched off)"),
+  "    private static string? LeadingReason(string question, QuestionShape shape)\n    {\n","    private static string? LeadingReason(string question, QuestionShape shape)\n    {\n        if (question.Length >= 0) return null;\n","QuestionGuard.LeadingReason always returns null (the leading/loaded/closed lint is switched off)"),
  ("M-02","pii-guard-masks-nothing","src/ExitInterviewAgent.Agent/Roles/Abstractions.cs",
   "return new PiiGuardResult(true, result.MaskedText, result.Findings);","return new PiiGuardResult(true, text, []);","PiiGuard.Mask returns the text unmasked with no findings"),
  ("M-03","quote-verification-off","src/ExitInterviewAgent.Agent/Roles/RecordAssembler.cs",
@@ -34,15 +34,19 @@ M=[
  ("M-09","budget-never-exhausted","src/ExitInterviewAgent.Agent/Runner/InterviewRunner.cs",
   "var budgetGone = _meter.Exhausted;","var budgetGone = _meter.Exhausted && _meter.Calls < 0;","the model/token budget is never enforced"),
  ("M-10","probe-limit-removed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
-  "(s.Vague || s.Short) && ProbesUsed < limits.MaxProbesPerTopic &&","(s.Vague || s.Short) &&","vague answers are probed without the per-topic limit"),
+  "if (ProbesUsed >= limit || PastWrapUpPoint) return Advance(Preface.None);","if (PastWrapUpPoint) return Advance(Preface.None);","follow-ups on a topic are not limited (maxFollowUps is ignored)"),
  ("M-11","vague-answers-not-probed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
-  "(s.Vague || s.Short) && ProbesUsed < limits.MaxProbesPerTopic &&","(s.Vague || s.Short) && ProbesUsed < 0 &&","the interviewer never asks for a concrete example (the degenerate way to avoid leading questions)"),
+  "if (!Used(Move.Example) && (s.Short || s.Vague || substantive && !s.Concrete)) return Follow(Move.Example);","if (!Used(Move.Example) && ProbesUsed < 0 && (s.Short || s.Vague || substantive && !s.Concrete)) return Follow(Move.Example);","the interviewer never asks for a concrete example (the degenerate way to avoid leading questions)"),
  ("M-12","names-not-redirected","src/ExitInterviewAgent.Agent/Roles/Abstractions.cs",
   "public bool NamesPerson => Findings.Any(f => f.Kind == PiiKind.PersonName);","public bool NamesPerson => false;","a masked name no longer triggers the redirect to behaviour and role"),
  ("M-13","serious-account-does-not-deepen","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
-  "if (s.Serious || _deepening)","if (_deepening)","a serious account never opens the deepening phase (the interviewer moves on as if it were a plain answer)"),
+  "if (_topic is { } deepTopic && (s.Serious || _deepening))","if (_topic is { } deepTopic && (_deepening))","a serious account never opens the deepening phase (the interviewer moves on as if it were a plain answer)"),
  ("M-14","deep-probe-limit-removed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
-  "if (DeepProbesUsed < limits.MaxDeepProbesPerTopic && NextFocus(s.DeepCovered) is { } focus)","if (NextFocus(s.DeepCovered) is { } focus)","the deepening is no longer bounded by maxDeepProbesPerTopic (it runs the whole menu)"),
+  "if (DeepProbesUsed < _limits.MaxDeepProbesPerTopic && NextFocus(s.DeepCovered) is { } focus)","if (NextFocus(s.DeepCovered) is { } focus)","the deepening is no longer bounded by maxDeepProbesPerTopic (it runs the whole menu)"),
+ ("N-1","planner-injection-skip-dropped","src/ExitInterviewAgent.Agent/Machine/TopicPlanner.cs",
+  "if (sentence.Trim().Length == 0 || ReplyAnalyzer.LooksLikeInjection(sentence)) continue;","if (sentence.Trim().Length == 0) continue;","the topic planner reads sentences that look like instructions, so an injected sentence can reorder the topics (C-05)"),
+ ("N-2","light-mid-scale-follow-up","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
+  "return value is 1 or 2 or 5 && !Used(Move.ScaleFollowUp) ? Follow(Move.ScaleFollowUp) : Advance(Preface.None);","return !Used(Move.ScaleFollowUp) ? Follow(Move.ScaleFollowUp) : Advance(Preface.None);","a light topic rated in the middle of the scale (3 or 4) is followed up, which the protocol forbids (spec §3.4 rule 7, B-11)"),
 ]
 only=sys.argv[1:] 
 out=[]

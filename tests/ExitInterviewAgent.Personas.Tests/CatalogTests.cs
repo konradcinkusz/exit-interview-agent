@@ -15,7 +15,7 @@ public class CatalogTests
     /// the two added with protocol 1.3 (WP6): a Polish salient-pay persona and a Polish persona who states distress once.
     /// </summary>
     private static readonly string[] ExpectedIds =
-        ["contradictory", "distress-pl", "harassment-en", "hostile", "mobbing-pl", "mobbing-pl-withdraws", "names-manager", "pay-first-pl", "prompt-injection", "talkative", "terse", "vague", "withdraws-consent"];
+        ["contradictory", "distress-pl", "harassment-en", "hostile", "mobbing-pl", "mobbing-pl-withdraws", "names-manager", "pay-first-pl", "prompt-injection", "scale-mid", "talkative", "terse", "vague", "withdraws-consent"];
 
     private static string Raw(string id)
     {

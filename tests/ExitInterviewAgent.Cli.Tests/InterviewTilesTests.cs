@@ -26,6 +26,8 @@ public class InterviewTilesTests : IDisposable
     private static readonly InterviewProtocol Pl = InterviewProtocol.For("pl");
 
     private const string PlAnswer = "Na tym temacie było jedno konkretne zdarzenie: proces trwał 3 tygodnie i nikt nie wyjaśnił dlaczego.";
+    // Protocol 1.3: a plain Polish answer (nine to eleven words, no concrete or topic cue) gets no follow-up, so the next question is known.
+    private const string PlPlain = "Na tym temacie było dużo pracy i wielu spotkań.";
     private const string EnAnswer = "On this topic there was one concrete thing: the process took 3 weeks and nobody explained why.";
 
     private async Task<(int Code, string Out, string Err)> Run(string[] args, string stdin)
@@ -168,10 +170,12 @@ public class InterviewTilesTests : IDisposable
     {
         var topics = InterviewProtocol.Current.Topics.Select(t => t.Topic).ToArray();
 
-        var (code, output, _) = await Run(["interview", .. MockArgs, "--language", "en"], Stdin((2, PlAnswer)));
+        // Line 2 is the answer to the reason for leaving; a plain answer there opens the onboarding question, in Polish.
+        // The warm-up line is plain too: the persona's own onboarding answer names a manager and would make Management salient.
+        var (code, output, _) = await Run(["interview", .. MockArgs, "--language", "en"], Stdin((1, "On this topic there was a lot of work and meetings."), (2, PlPlain)));
 
         Assert.Equal(0, code);
-        AssertInOrder(output, "Dobrze, kontynuujmy po polsku.", Pl.Spec(topics[2]).Question);
+        AssertInOrder(output, "Dobrze, kontynuujmy po polsku.", Pl.Spec(Topic.Onboarding).Question);
     }
 
     [Fact]
@@ -183,7 +187,8 @@ public class InterviewTilesTests : IDisposable
         var (code, output, _) = await Run(["interview", .. MockArgs, "--language", "pl"], Stdin((1, request)));
 
         Assert.Equal(0, code);
-        AssertInOrder(output, "Sure, let's continue in English.", InterviewProtocol.Current.Spec(topics[1]).Question);
+        // Line 1 is the warm-up; the next question is the reason for leaving, in English.
+        AssertInOrder(output, "Sure, let's continue in English.", InterviewProtocol.Current.Spec(Topic.ReasonForLeaving).Question);
     }
 
     /// <summary>
@@ -210,7 +215,8 @@ public class InterviewTilesTests : IDisposable
     [Fact]
     public async Task The_record_language_is_the_language_most_interviewee_turns_were_written_in()
     {
-        var stdin = Stdin((1, PlAnswer), (2, PlAnswer), (3, PlAnswer), (4, PlAnswer));
+        // Eleven Polish answers after the consent line, so Polish is the majority of the interviewee's turns.
+        var stdin = Stdin(Enumerable.Range(1, 11).Select(i => (i, PlPlain)).ToArray());
 
         var (code, _, _) = await Run(["interview", .. MockArgs, "--language", "en", "--out", Out], stdin);
 

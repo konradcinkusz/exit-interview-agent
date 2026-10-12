@@ -165,8 +165,9 @@ public static class ConformanceReport
         ["k"] = c.K,
         ["n"] = c.N,
         ["rate"] = c.Rate is { } x ? Math.Round(x, 4) : null,
-        ["low"] = c.Interval is { } i ? Math.Round(i.Low, 4) : null,
-        ["high"] = c.Interval is { } j ? Math.Round(j.High, 4) : null,
+        // A count that is not a proportion (the yield per interview can exceed its one observation) has no finite interval: null, never NaN.
+        ["low"] = c.Interval is { } i && double.IsFinite(i.Low) ? Math.Round(i.Low, 4) : null,
+        ["high"] = c.Interval is { } j && double.IsFinite(j.High) ? Math.Round(j.High, 4) : null,
     };
 
     private static JsonObject Layer2Json(Layer2Result l)

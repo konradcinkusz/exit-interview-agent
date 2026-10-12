@@ -258,6 +258,38 @@ public class TurnMetricsTests
         Assert.Equal(new Count(1, 1), TurnMetrics.OprMoves(f, Sw));
     }
 
+    [Fact]
+    public void Q13_labelled_an_example_after_a_specific_label_is_over_probing()
+    {
+        var f = Facts(T(1, "topic", "culture", "open", 30), T(2, "probe", "culture", "example", 20));
+
+        Assert.Equal(new Count(1, 1), TurnMetrics.OprLabelled(f, ["specific", null]));
+    }
+
+    [Fact]
+    public void Q13_labelled_a_ladder_or_consequence_after_a_specific_label_is_intended()
+    {
+        var f = Facts(T(1, "topic", "culture", "open", 30), T(2, "probe", "culture", "consequence", 20));
+
+        Assert.Equal(new Count(0, 1), TurnMetrics.OprLabelled(f, ["specific", null]));
+    }
+
+    [Fact]
+    public void Q13_labelled_an_example_after_a_vague_label_is_intended_and_not_in_the_denominator()
+    {
+        var f = Facts(T(1, "topic", "culture", "open", 30), T(2, "probe", "culture", "example", 20));
+
+        Assert.Equal(Count.Zero, TurnMetrics.OprLabelled(f, ["vague", null]));
+    }
+
+    [Fact]
+    public void Q13_labelled_an_example_after_a_decline_is_over_probing_and_an_unlabelled_reply_is_not_an_opportunity()
+    {
+        var f = Facts(T(1, "topic", "culture", "open", 1), T(2, "probe", "culture", "example", 20), T(3, "topic", "culture", "open", 30), T(4, "probe", "culture", "example", 20));
+
+        Assert.Equal(new Count(1, 1), TurnMetrics.OprLabelled(f, ["decline", null, null, null]));
+    }
+
     // ---- the rating digit comes from the reply to the question, and only when the turns line up ----------------------------
 
     [Fact]

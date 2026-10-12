@@ -55,6 +55,12 @@ public static class InterviewTelemetry
         public const string Role = "interview.role";
         public const string TurnIndex = "interview.turn.index";
         public const string TurnKind = "interview.turn.kind";
+        /// <summary>The move behind the turn (interview dynamics spec §5.2): a controlled code, never text.</summary>
+        public const string Move = "interview.turn.move";
+        /// <summary>The preface said before the question: a controlled code; <c>notice</c> for distress and legal remarks.</summary>
+        public const string Preface = "interview.turn.preface";
+        /// <summary>True when the model's question was rejected once and asked again.</summary>
+        public const string QuestionRetried = "interview.question.retried";
         public const string Topic = "interview.topic";
         public const string Phase = "interview.phase";
         public const string Outcome = "interview.outcome";

@@ -1,0 +1,30 @@
+# Gated metrics that move with protocol 1.3 (WP5)
+
+For ADR-0040: each gated behaviour metric that changes against the committed baseline, with the reason. Mock profile only; the numbers are
+from `scripts/run-evals.sh report` on the WP5 branch, not from a real model. Baseline values are the committed `evals/baseline.json`.
+
+| Metric | Committed baseline | WP5 (mock) | Reason |
+|---|---|---|---|
+| `opr` (over-probe, Q-13) | 0/55 (0%) | 3/78 (3.8%) | Changed by design (spec §6.1 Q-13). The old definition counted any probe after a labelled reply, Ladder and Consequence included. The gate now counts only Example probes after a reply labelled specific or decline (`TurnMetrics.OprLabelled`). The 3 that remain are Example requests after a decline. |
+| `fuv` (follow-up on vague) | 33/33 (100%) | 22/38 (57.9%) | Changed by design (spec §3.4 rule 7). A light topic (rated 1 to 5) gets no example request for a vague answer that has no number, so every vague reply on a light topic is in the denominator and unprobed. Not a regression on the core topics; the owner decides whether `fuv` should be restricted to core and reason topics (a metric redefinition, not made here). |
+| `depth` (concrete quote per covered topic) | 110/156 (70%) | 105/186 (56.5%) | Changed by design. Light topics are answered with a rating, and a rating carries no concrete detail. The corpus also gained two scenarios (hap-005, hap-006) whose plain replies add covered topics without concrete detail. The numerator moved from 102 to 105 with the reworded answers of the contradictory persona (not analysed further). |
+| `coverage` (topic coverage, B-01) | 156/156 (100%) | 186/192 (96.9%) | Changed by the scenario set, not by the flow, and not by a planner or budget drop. The six missing topics are all in hap-006 (light topics rated in the middle are not followed up, persona `scale-mid`), seeds 1 to 3: Growth and PayVsPromises. The flow asked both topics (a scale question each, spec §3.1) and the person answered "3", with no words. The record marks a topic Covered only when it carries a verified quote (`RecordAssembler`: a topic with no quote becomes NoData, `TopicEntry.NoData` means "not discussed, declined or not answerable"). A bare rating therefore records no topic. No other run loses a topic: the runs with an uncovered topic in amb-003, hos-001, hos-002, deg-008 and adv-005 do not measure coverage. Owner decision, not changed here: whether a rating alone should count as a covered light topic. That is a record rule (Records invariants), outside WP5. Keeping the rule means a cooperative person who gives only a number loses that topic from the record; changing it is a record-schema change. |
+| `clarified` (contradiction clarified once, B-04) | 3/3 (100%) | 3/3 (100%) | Not a change in the metric or the machine. Under protocol 1.3 a contradiction needs two answers on one topic, and the planner made the contradictory persona's management topic light, so its single reply could not contradict. The persona's reason-for-leaving and growth answers now name the manager, which makes management salient and core (spec §3.3), so it gets a second answer and the clarification fires once on it (seeds 1 to 3). The test `The_contradictory_persona_is_clarified_at_most_once_neutrally_and_its_confidence_stays_capped` and scenario amb-002 (minimum 1) pin this. At machine level, `A_contradiction_gets_one_clarification_and_no_more_probes_or_clarifications` pins that one contradiction gives one Clarify turn and nothing more. A new "I do not understand the question" signal is not in the spec and is not implemented. |
+| `degraded_ok` (B-08) | 7/7 | 7/7 | Not a behaviour change. The grader accepted only the 1.2 wording; protocol 1.3 wording (warm-up, rating, retention, anything else) was counted as fabricated. The check now accepts all fixed protocol wording in every register and still rejects any other question (`Layer1Grader.ProtocolQuestions`, test `Every_fault_run_that_asked_a_question_fell_back_to_protocol_wording_and_counts_as_degraded_ok`). |
+
+Not gated and not changed in meaning: `coverage`, `released`, `redirected`, `edge_case`, `probe_on_core`, `no_probe_on_light_mid`,
+`questions_within_cap`. `yield_concrete` (WP6) is a per-interview count, reported without an interval; it should become a mean in WP6.
+
+## Mutation pass (ADR-0041), on the regenerated baseline a8b3b18
+
+`python3 scripts/mutate-agent.py`, every row. CAUGHT means the gate failed on an assertion finding (constraint, scenario or regression), never on the baseline digest (no row was caught by the digest alone).
+
+| Row | Result |
+|---|---|
+| M-01 to M-09 | CAUGHT by assertions |
+| M-10 probe limit removed in `CorePolicy` | SURVIVED, equivalent mutant (below) |
+| M-11 to M-14 | CAUGHT by assertions |
+| N-1 planner reads injected sentences | CAUGHT: `turn_sequence_differs_from_control` on adv-001 (seeds 1 to 3) |
+| N-2 light topic rated 3 or 4 followed up | CAUGHT: `max.probes` on hap-006 (seeds 1 to 3) |
+
+**M-10 is equivalent under the current move rules.** `CorePolicy` gives a non-first core topic at most one follow-up: Example, and the Consequence and Elaborate branches need `ProbesUsed == 0`. The reason topic gets Example then Ladder, which is two, the limit (`MaxFollowUpsReason` = 2). So no path reaches a third follow-up, and removing the check changes no behaviour. The list is unchanged; the parent accepted this as an equivalent mutant.
