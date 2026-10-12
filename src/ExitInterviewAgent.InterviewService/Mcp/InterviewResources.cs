@@ -15,10 +15,10 @@ public static class InterviewResources
     public static TextResourceContents RecordSchema() => new() { Uri = McpNames.RecordSchemaUri, MimeType = "application/schema+json", Text = Records.RecordSchema.JsonText };
 
     [McpServerResource(UriTemplate = McpNames.ProtocolUri, Name = "interview_protocol_v1", Title = "Interview protocol v1", MimeType = "application/json")]
-    [Description("The interview protocol document: the fixed opening, the six topics with neutral opening questions, wording for probes, limits and rules.")]
+    [Description("The interview protocol document: the fixed opening, the six topics with neutral opening questions, the wording of warm-up, follow-up, rating, closing and safety notices, limits and rules.")]
     public static TextResourceContents Protocol() => new() { Uri = McpNames.ProtocolUri, MimeType = "application/json", Text = InterviewProtocol.CurrentJson };
 
     [McpServerResource(UriTemplate = McpNames.TopicsUri, Name = "topics_v1", Title = "Topics and rating anchors v1", MimeType = "text/markdown")]
-    [Description("The six topics in order, what each covers, and how to set rating and confidence.")]
+    [Description("The six topics with their neutral opening questions and rating labels (the interview order is set by the prompt), and how to set rating and confidence.")]
     public static TextResourceContents Topics() => new() { Uri = McpNames.TopicsUri, MimeType = "text/markdown", Text = InterviewInstructions.TopicsDocument(InterviewProtocol.Current) };
 }

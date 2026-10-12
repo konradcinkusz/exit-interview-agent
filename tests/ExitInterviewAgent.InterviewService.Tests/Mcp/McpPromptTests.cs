@@ -67,7 +67,123 @@ public sealed class McpPromptTests
     [InlineData("it is shown only once")]
     [InlineData("it is the only way to delete the record")]
     [InlineData("Do not claim the record is anonymous")]
+    [InlineData("The reason for leaving comes first")]
+    [InlineData("Every one of the six topics must be put to the user")]
+    [InlineData("Ask at most two follow-ups on a topic")]
+    [InlineData("gets the question about what it changed")]
+    [InlineData("What would have had to be different for leaving not to be an option?")]
+    [InlineData("What else is worth adding that I have not asked about?")]
+    [InlineData("Act on what the person says explicitly, never on a guess")]
+    [InlineData("116 123")]
+    [InlineData("ask nothing more about that topic")]
+    [InlineData("not a report to your employer and not legal advice")]
+    [InlineData("being dismissed or laid off on its own does not start a deeper follow-up")]
+    [InlineData("at most three neutral, fact-seeking questions")]
+    [InlineData("Never presume that anything was reported or should have been")]
+    [InlineData("Finishing is not withdrawal: it keeps what was said")]
+    [InlineData("Right, that has already been said.")]
     public void The_required_behaviour_is_stated(string sentence) => Assert.Contains(sentence, Text());
+
+    [Fact]
+    public void The_reason_for_leaving_is_asked_straight_after_the_warm_up_and_before_the_other_topics()
+    {
+        var text = Text();
+        var warmup = text.IndexOf("1. Warm-up", StringComparison.Ordinal);
+        var reason = text.IndexOf("2. The reason for leaving comes first", StringComparison.Ordinal);
+        var others = text.IndexOf("3. The other five topics", StringComparison.Ordinal);
+
+        Assert.True(warmup > 0 && warmup < reason && reason < others);
+        Assert.Contains("in the order of what the user cares about most", text);
+    }
+
+    [Fact]
+    public void Topics_the_user_cares_about_get_follow_ups_and_the_rest_get_a_one_to_five_rating()
+    {
+        var text = Text();
+
+        Assert.Contains("The three topics they care about most get a full turn each", text);
+        Assert.Contains("gets a rating question from 1 to 5", text);
+        Assert.Contains("After a 1-to-5 rating: if it is 1, 2 or 5", text);
+        Assert.Contains(P.Moves["scaleFollowUp"].Text, text);
+    }
+
+    [Fact]
+    public void The_example_comes_first_and_what_it_changed_comes_second_and_the_catalogue_is_a_reference_only()
+    {
+        var text = Text();
+        var example = text.IndexOf("gets the example question", StringComparison.Ordinal);
+        var changed = text.IndexOf("gets the question about what it changed", StringComparison.Ordinal);
+
+        Assert.True(example > 0 && example < changed);
+        Assert.Contains("This is a reference, not the order of the interview", text);
+    }
+
+    [Fact]
+    public void Retention_then_anything_else_then_the_polite_close_come_last()
+    {
+        var text = Text();
+        var retention = text.IndexOf("4. Near the end", StringComparison.Ordinal);
+        var anything = text.IndexOf("5. Then ask", StringComparison.Ordinal);
+        var close = text.IndexOf("6. Close politely", StringComparison.Ordinal);
+
+        Assert.True(retention > 0 && retention < anything && anything < close);
+        Assert.Contains(P.Closings[CloseReason.AllTopicsCovered], text);
+    }
+
+    [Fact]
+    public void Distress_gets_the_support_text_with_both_numbers_and_releases_the_topic()
+    {
+        var text = Text();
+
+        Assert.Contains("- Distress:", text);
+        Assert.Contains(P.Prefaces["support"].Text, text);
+        Assert.Contains("116 123", text);
+        Assert.Contains("112", text);
+        Assert.Contains("do not probe it", text);
+        Assert.Contains("make the next topic a rating", text);
+    }
+
+    [Fact]
+    public void A_legal_remark_gets_the_not_a_report_notice_once_and_no_advice()
+    {
+        var text = Text();
+
+        Assert.Contains(P.Prefaces["legalNotice"].Text, text);
+        Assert.Contains("Give no legal advice", text);
+        Assert.Contains("say once:", text);
+    }
+
+    [Fact]
+    public void A_stated_check_in_is_said_once_and_skipped_after_two_terse_replies()
+    {
+        var text = Text();
+
+        Assert.Contains(P.Prefaces["checkIn"].Text.Replace("\"", "'", StringComparison.Ordinal), text);
+        Assert.Contains("after about seven questions", text);
+        Assert.Contains("Skip it if they have been terse twice", text);
+    }
+
+    [Fact]
+    public void A_form_of_address_is_only_in_the_polish_prompt_and_is_never_recorded()
+    {
+        var polish = Text("pl");
+
+        Assert.Contains("Form of address (Polish)", polish);
+        Assert.Contains("„tak, per Pani”", polish);
+        Assert.Contains("„tak, na Ty”", polish);
+        Assert.Contains("never written into the record", polish);
+        Assert.DoesNotContain("Form of address", Text());
+    }
+
+    [Fact]
+    public void The_record_steps_still_forbid_names_and_quotes_that_are_not_verbatim()
+    {
+        var text = Text();
+
+        Assert.Contains("Mask personal data BEFORE building the record", text);
+        Assert.Contains("no form of address", text);
+        Assert.Contains("ask the rating follow-up in section 2 first", text);
+    }
 
     [Fact]
     public void Validation_comes_before_confirmation_and_confirmation_before_submission()
