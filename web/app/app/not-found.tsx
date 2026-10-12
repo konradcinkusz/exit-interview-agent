@@ -9,10 +9,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NotFound() {
   const { t } = await getMessages();
   return (
-    <>
+    <div className="status-page">
+      <p className="eyebrow">404</p>
       <h1>{t.errors.notFoundTitle}</h1>
-      <p data-testid="not-found">{t.errors.notFound}</p>
+      <p className="lead muted" data-testid="not-found">{t.errors.notFound}</p>
       <p><Link className="button primary" href="/">{t.errors.home}</Link></p>
-    </>
+    </div>
   );
 }

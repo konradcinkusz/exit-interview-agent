@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getMessages } from "@/lib/i18n";
+import { BrandMark } from "./Icon";
 
 /** Everything a former employee does not need every day: privacy, the project, the developer pages, and the build notice, once. */
 export async function SiteFooter() {
@@ -7,6 +8,10 @@ export async function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="site-footer__inner">
+        <div className="footer-brand">
+          <span className="footer-name"><BrandMark size={22} />{t.site.name}</span>
+          <p className="dev-notice" data-testid="dev-notice">{t.site.devBuild}</p>
+        </div>
         <nav aria-label={t.footer.label}>
           <ul className="footer-links">
             <li><Link href="/privacy">{t.footer.privacy}</Link></li>
@@ -14,7 +19,6 @@ export async function SiteFooter() {
             <li><Link href="/developers">{t.footer.developers}</Link></li>
           </ul>
         </nav>
-        <p className="dev-notice" data-testid="dev-notice">{t.site.devBuild}</p>
       </div>
     </footer>
   );

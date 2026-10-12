@@ -13,13 +13,13 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   return (
-    <>
+    <div className="status-page">
       <h1 ref={heading} tabIndex={-1}>{m.errors.errorTitle}</h1>
       <p role="alert" data-testid="error-page">{m.errors.error}</p>
       <div className="actions">
         <button type="button" className="primary" onClick={reset}>{m.errors.retry}</button>
         <Link className="button secondary" href="/">{m.errors.home}</Link>
       </div>
-    </>
+    </div>
   );
 }

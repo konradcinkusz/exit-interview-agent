@@ -7,7 +7,7 @@ export function HeroArt() {
     <svg className="hero-art" viewBox="0 0 360 300" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="hero-glow" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="var(--accent)" stopOpacity="0.22" />
+          <stop offset="0" stopColor="var(--accent)" stopOpacity="0.3" />
           <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -22,9 +22,9 @@ export function HeroArt() {
       </g>
       {/* the person's answer */}
       <g>
-        <rect x="118" y="110" width="200" height="54" rx="16" fill="var(--accent)" />
-        <rect x="136" y="127" width="150" height="8" rx="4" fill="var(--on-accent)" opacity="0.9" />
-        <rect x="136" y="142" width="104" height="8" rx="4" fill="var(--on-accent)" opacity="0.55" />
+        <rect x="118" y="110" width="200" height="54" rx="16" fill="var(--accent-solid)" />
+        <rect x="136" y="127" width="150" height="8" rx="4" fill="var(--on-accent-solid)" opacity="0.9" />
+        <rect x="136" y="142" width="104" height="8" rx="4" fill="var(--on-accent-solid)" opacity="0.55" />
       </g>
       {/* the record */}
       <g>

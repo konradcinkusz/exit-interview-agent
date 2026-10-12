@@ -74,10 +74,17 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
   return (
     <section aria-labelledby="chat-heading">
       <h2 id="chat-heading" className={styles.visuallyHidden}>{copy.chatTitle}</h2>
-      <p className={styles.progress} data-testid="chat-progress">
-        {topic === 0 ? copy.progressIntro : copy.progress(topic, TOPIC_TOTAL)}
-      </p>
       <div className={styles.chat}>
+        <div className={styles.chatHead}>
+          <span className={styles.chatWho}>
+            <BrandMark size={24} />
+            {copy.interviewer}
+            <span className={styles.aiTag}>AI</span>
+          </span>
+          <p className={styles.progress} data-testid="chat-progress">
+            {topic === 0 ? copy.progressIntro : copy.progress(topic, TOPIC_TOTAL)}
+          </p>
+        </div>
         {/* A div, not a list: role="log" replaces the list semantics of an ol, and the lines are not list items for assistive tech.
             Focusable, because it scrolls: a keyboard user must be able to reach and scroll an earlier question (WCAG 2.1.1). */}
         <div ref={log} className={styles.log} role="log" aria-live="polite" aria-label={copy.conversation} lang={state.language} tabIndex={0}>
@@ -112,7 +119,8 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
           void submit();
         }}
       >
-        <label htmlFor="reply">{copy.replyLabel}</label>
+        <Notice failure={notice} copy={copy} waitLeft={waitLeft} />
+        <label htmlFor="reply" className={styles.replyLabel}>{copy.replyLabel}</label>
         <textarea
           id="reply"
           ref={answer}
@@ -123,13 +131,13 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
           onKeyDown={onKeyDown}
           aria-describedby="reply-hint reply-count"
           aria-invalid={tooLong}
+          placeholder={copy.replyPlaceholder}
         />
         <div className={styles.replyMeta}>
-          <p id="reply-hint" className="hint">{copy.replyHint}</p>
-          <p id="reply-count" className={tooLong ? styles.countOver : "hint"}>{copy.charCount(text.length, MAX_REPLY_CHARS)}</p>
-        </div>
-        <Notice failure={notice} copy={copy} waitLeft={waitLeft} />
-        <div className="actions">
+          <div className={styles.replyNotes}>
+            <p id="reply-hint" className={`hint ${styles.keysHint}`}>{copy.replyHint}</p>
+            <p id="reply-count" className={tooLong ? styles.countOver : "hint"}>{copy.charCount(text.length, MAX_REPLY_CHARS)}</p>
+          </div>
           <button type="submit" className="primary" disabled={!canSend}>
             {notice && RETRYABLE.has(notice.kind) && trimmed.length > 0 ? copy.sendAgain : copy.send}
             <Icon name="arrow" size={18} />
