@@ -10,9 +10,12 @@ namespace ExitInterviewAgent.Personas.Tests;
 
 public class CatalogTests
 {
-    /// <summary>The eight personas of the brief, and the three deepening personas added with protocol 1.2 (Y2): Polish mobbing (two) and English harassment.</summary>
+    /// <summary>
+    /// The eight personas of the brief, the three deepening personas added with protocol 1.2 (Y2: Polish mobbing (two) and English harassment), and
+    /// the two added with protocol 1.3 (WP6): a Polish salient-pay persona and a Polish persona who states distress once.
+    /// </summary>
     private static readonly string[] ExpectedIds =
-        ["contradictory", "harassment-en", "hostile", "mobbing-pl", "mobbing-pl-withdraws", "names-manager", "prompt-injection", "talkative", "terse", "vague", "withdraws-consent"];
+        ["contradictory", "distress-pl", "harassment-en", "hostile", "mobbing-pl", "mobbing-pl-withdraws", "names-manager", "pay-first-pl", "prompt-injection", "talkative", "terse", "vague", "withdraws-consent"];
 
     private static string Raw(string id)
     {
@@ -28,7 +31,37 @@ public class CatalogTests
     }
 
     [Fact]
-    public void The_box_ships_the_eight_personas_of_the_brief_and_the_three_deepening_personas() => Assert.Equal(ExpectedIds, PersonaCatalog.All.Select(p => p.Id));
+    public void The_box_ships_the_brief_personas_the_deepening_personas_and_the_two_protocol_1_3_personas() => Assert.Equal(ExpectedIds, PersonaCatalog.All.Select(p => p.Id));
+
+    [Fact]
+    public void Only_the_pay_persona_declares_a_salient_topic_and_it_is_a_real_topic() =>
+        Assert.All(PersonaCatalog.All, p =>
+        {
+            if (p.Id == "pay-first-pl") Assert.Equal("pay_vs_promises", p.Salient);
+            else Assert.Null(p.Salient);
+        });
+
+    [Fact]
+    public void The_schema_rejects_a_salient_topic_that_is_not_one_of_the_six() =>
+        Assert.Throws<InvalidDataException>(() => PersonaCatalog.Parse(Mutated("pay-first-pl", n => n["salient"] = "pay")));
+
+    [Fact]
+    public void The_schema_rejects_a_behaviour_outside_the_closed_vocabulary() =>
+        Assert.Throws<InvalidDataException>(() => PersonaCatalog.Parse(Mutated("talkative", n => n["behaviors"] = new JsonArray(JsonValue.Create("sad")))));
+
+    [Fact]
+    public void The_distress_persona_states_distress_explicitly_exactly_once_in_all_its_answers()
+    {
+        var p = PersonaCatalog.Get("distress-pl");
+        var all = p.Responses.Topics.Values.SelectMany(x => x).Concat(p.Responses.Fallback).Concat(p.Responses.Consent);
+
+        Assert.Single(all.Where(t => t.Contains("nie daję rady psychicznie", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void Every_rating_answer_is_a_single_digit_from_one_to_five() =>
+        Assert.All(PersonaCatalog.All.Where(p => p.Responses.Scale is not null), p =>
+            Assert.All(p.Responses.Scale!.Values.SelectMany(x => x), a => Assert.Matches("^[1-5]$", a)));
 
     [Fact]
     public void Every_persona_covers_all_six_topics_and_declares_what_a_correct_run_looks_like() =>

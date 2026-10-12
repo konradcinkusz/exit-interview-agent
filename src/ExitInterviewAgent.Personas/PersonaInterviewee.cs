@@ -46,22 +46,43 @@ public sealed class PersonaInterviewee : IInterviewee
     {
         var r = _persona.Responses;
         var topic = turn.Topic is { } t ? Wire.Name(t) : null;
-        var (slot, alternatives) = turn.Kind switch
-        {
-            TurnKind.Opening => ("consent", r.Consent),
-            TurnKind.ConsentReask => ("consent-reask", r.ConsentReask ?? r.Consent),
-            TurnKind.Topic when topic is not null => ($"topic:{topic}", r.Topics[topic]),
-            TurnKind.Probe => ($"probe:{topic}", ByTopic(r.Probes, topic)),
-            TurnKind.Clarification => ($"clarification:{topic}", ByTopic(r.Clarifications, topic)),
-            TurnKind.Redirect => ($"redirect:{topic}", ByTopic(r.Redirects, topic)),
-            TurnKind.DeepProbe => ($"deep:{topic}", ByTopic(r.DeepProbes, topic)),
-            _ => ("fallback", r.Fallback),
-        };
+        var (slot, alternatives) = MoveAnswer(turn.Move, topic, r) is { } moved ? moved : KindAnswer(turn.Kind, topic, r);
         alternatives ??= r.Fallback;
         _occurrences[slot] = _occurrences.GetValueOrDefault(slot) + 1;
         var index = (int)((SplitMix64(_seed ^ Fnv(_persona.Id + "|" + slot)) + (ulong)_occurrences[slot] - 1) % (ulong)alternatives.Count);
         return alternatives[index];
     }
+
+    /// <summary>
+    /// The answers the persona has for a move of protocol 1.3 (warm-up, retention, anything-else, a rating). Null when it has none, so the turn
+    /// is answered by its kind, as before: a move without its own answers falls back to the topic answers.
+    /// </summary>
+    private static (string Slot, IReadOnlyList<string>? Alternatives)? MoveAnswer(Move? move, string? topic, PersonaResponses r)
+    {
+        switch (move)
+        {
+            case Move.Warmup when r.Warmup is { } warmup: return ("warmup", warmup);
+            case Move.Retention when r.Retention is { } retention: return ("retention", retention);
+            case Move.AnythingElse when r.AnythingElse is { } anything: return ("anything-else", anything);
+            case Move.Scale when topic is not null && ScaleFor(r, topic) is { } scale: return ($"scale:{topic}", scale);
+            default: return null;
+        }
+    }
+
+    private static IReadOnlyList<string>? ScaleFor(PersonaResponses r, string topic) =>
+        r.Scale is null ? null : r.Scale.TryGetValue(topic, out var specific) ? specific : r.Scale.GetValueOrDefault("*");
+
+    private static (string Slot, IReadOnlyList<string>? Alternatives) KindAnswer(TurnKind kind, string? topic, PersonaResponses r) => kind switch
+    {
+        TurnKind.Opening => ("consent", r.Consent),
+        TurnKind.ConsentReask => ("consent-reask", r.ConsentReask ?? r.Consent),
+        TurnKind.Topic when topic is not null => ($"topic:{topic}", r.Topics[topic]),
+        TurnKind.Probe => ($"probe:{topic}", ByTopic(r.Probes, topic)),
+        TurnKind.Clarification => ($"clarification:{topic}", ByTopic(r.Clarifications, topic)),
+        TurnKind.Redirect => ($"redirect:{topic}", ByTopic(r.Redirects, topic)),
+        TurnKind.DeepProbe => ($"deep:{topic}", ByTopic(r.DeepProbes, topic)),
+        _ => ("fallback", r.Fallback),
+    };
 
     private static IReadOnlyList<string>? ByTopic(IReadOnlyDictionary<string, IReadOnlyList<string>>? map, string? topic) =>
         map is null ? null : topic is not null && map.TryGetValue(topic, out var specific) ? specific : map.GetValueOrDefault("*");
