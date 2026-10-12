@@ -6,13 +6,6 @@ namespace ExitInterviewAgent.Agent.Machine;
 public enum ConsentAnswer { Yes, No, Unclear }
 
 /// <summary>
-/// The form of address the interviewee chose for the interviewer (Polish only). Held in the runner's memory and never traced,
-/// stored or written to a record: a grammatical-gender choice is personal data with no evaluation value (interview-dynamics §5.2).
-/// Defined here until <c>Protocol/Kinds.cs</c> carries it (WP4); WP5 removes the duplicate.
-/// </summary>
-public enum AddressForm { Neutral, Pan, Pani, Ty }
-
-/// <summary>
 /// What the deterministic analyser read from one (already masked) reply. Booleans and counts only, so it can be
 /// traced. <see cref="Polarity"/> is a protocol signal (does this answer lean one way about the employer?) used only to
 /// notice contradictions; it is never stored, never put in the record, and is not an assessment of the person.
