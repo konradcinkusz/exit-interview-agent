@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1",
+  "id": "pay-first-pl",
+  "title": "Pensja przede wszystkim (PL)",
+  "description": "Chce mówić przede wszystkim o pensji i obietnicach. Pensja jest tematem, który najbardziej go porusza: protokół 1.3 powinien otworzyć ją jako pierwszy temat rdzeniowy po powodzie odejścia (Q-01). Syntetyczny, fikcyjny rozmówca.",
+  "language": "pl",
+  "employer": {
+    "ref": "widgetron-ltd",
+    "names": [
+      "Widgetron"
+    ]
+  },
+  "context": {
+    "tenureBand": "1y_3y",
+    "seniorityBand": "mid",
+    "functionBand": "engineering"
+  },
+  "behaviors": [
+    "talkative"
+  ],
+  "salient": "pay_vs_promises",
+  "typing": {
+    "wordsPerMinute": 40,
+    "thinkSeconds": 12
+  },
+  "responses": {
+    "consent": [
+      "Tak, zgadzam się na rozmowę. Mam dużo do powiedzenia, zwłaszcza o pieniądzach."
+    ],
+    "consentReask": [
+      "Tak, zgadzam się."
+    ],
+    "warmup": [
+      "Praca dotyczyła rozwoju usług dla klientów, w zespole inżynierskim. Od początku najważniejsze było wynagrodzenie, ale o tym jeszcze wrócę."
+    ],
+    "topics": {
+      "onboarding": [
+        "Pierwsze tygodnie były chaotyczne. Laptop przyszedł dopiero w piątym dniu, a zespół nie wiedział, że ktoś nowy zaczyna. Potem koleżanka z zespołu przez całe popołudnie tłumaczyła kod, i to naprawdę pomogło.",
+        "Na pierwszy dzień nie było gotowego miejsca pracy, a dostęp do systemów zajął cztery dni. Gdy dostęp już był, dobra była lista rzeczy do przeczytania."
+      ],
+      "management": [
+        "Przełożony był życzliwy i dało się z nim rozmawiać. Priorytety zmieniały się jednak co dwa tygodnie i nikt nie tłumaczył dlaczego.",
+        "Spotkania jeden na jeden były regularne. Trudne było to, że plany przestawiano bez wyjaśnienia."
+      ],
+      "growth": [
+        "Były szkolenia i budżet na konferencje, ale ścieżka awansu była niejasna. Po trzech latach nikt nie umiał powiedzieć, czego brakuje do następnego poziomu.",
+        "Pracowało się na kilku projektach naraz, co dużo dawało. Gdy pytano o awans, odpowiedź nigdy nie była konkretna."
+      ],
+      "pay_vs_promises": [
+        "Najwięcej mam do powiedzenia o pieniądzach. W ofercie była obiecana podwyżka po sześciu miesiącach, a przegląd wynagrodzeń odbył się dopiero po czternastu. Podwyżka wyniosła trzy procent, choć przy rekrutacji mówiono o znacznie więcej. Premia opisana przy zatrudnieniu nigdy się nie pojawiła.",
+        "Stawka zgadzała się z umową od pierwszego dnia. Problem były obietnice: przegląd miał być po pół roku, a był po roku, i różnica między tym, co obiecano, a tym, co ostatecznie wypłacono, była duża."
+      ],
+      "culture": [
+        "Ludzie byli uprzejmi i pomagali sobie, ale oczekiwano odpowiadania na wiadomości wieczorem. Po pewnym czasie to męczyło.",
+        "Większość osób była rzeczowa i dzieliła się wiedzą. Trudne było to, że późne wyjścia uchodziły za normę."
+      ],
+      "reason_for_leaving": [
+        "Głównie z powodu wynagrodzenia. Obiecana podwyżka nie przyszła, a przegląd ciągle się przesuwał. Gdy pojawiła się oferta z jasną ścieżką i lepszą pensją, odejście stało się prostą decyzją.",
+        "Przede wszystkim pieniądze. Przegląd wciąż się przesuwał, a bez konkretnej odpowiedzi o awansie nie było dokąd iść dalej."
+      ]
+    },
+    "scale": {
+      "onboarding": [
+        "3"
+      ],
+      "management": [
+        "2"
+      ],
+      "growth": [
+        "3"
+      ],
+      "culture": [
+        "4"
+      ]
+    },
+    "fallback": [
+      "Nie mam nic więcej do dodania, myślę, że to wszystko."
+    ]
+  },
+  "expected": {
+    "outcome": "completed",
+    "endReason": "all_topics_covered",
+    "submittable": true
+  }
+}

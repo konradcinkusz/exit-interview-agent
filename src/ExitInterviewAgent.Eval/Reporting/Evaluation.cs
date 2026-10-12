@@ -39,6 +39,13 @@ public static class MetricCatalog
         new("lqr.guard_rules", "Leading questions by the guard's rules (report)", Direction.Report, null, false, "questions flagged by QuestionGuard.LeadingReason / questions"),
         new("lqr.independent_rules", "Leading questions by the independent rules (report)", Direction.Report, null, false, "questions flagged by IndependentRules / questions"),
         new("lqr.rules_disagree", "Questions the two rule sets disagree on (report)", Direction.Report, null, false, "questions flagged by exactly one rule set / questions"),
+        new("order_follows_salience", "Salient topic opened first after the reason (protocol 1.3, Q-01, report)", Direction.Report, null, false, "interviews whose first core topic after the reason is the persona's salient topic / interviews with a salient topic"),
+        new("probe_on_core", "Substantive core topics with a follow-up (protocol 1.3, Q-02, report)", Direction.Report, "opr_moves", false, "substantive core topics followed up on the same topic / substantive core topics"),
+        new("no_probe_on_light_mid", "Light topics rated 3 or 4 that were not followed up (protocol 1.3, Q-03, report)", Direction.Report, null, false, "light topics rated 3 or 4 with no follow-up / light topics rated 3 or 4"),
+        new("questions_within_cap", "Interviews within their question cap (protocol 1.3, Q-04, report)", Direction.Report, "yield_concrete", false, "interviews asking no more questions than the cap (talkative 18, terse 6) / interviews with a cap"),
+        new("replaced_rate", "Questions replaced by the fixed text after the retry (protocol 1.3, Q-09, report)", Direction.Report, null, false, "questions rejected again after the retry / questions"),
+        new("yield_concrete", "Distinct verified quotes with a concrete cue per interview (protocol 1.3, Q-12, report)", Direction.Report, "questions_within_cap", false, "distinct quotes with a concrete cue / interviews (a mean per interview)"),
+        new("opr_moves", "Example probes after a specific answer or a decline (protocol 1.3, Q-13 redefined, report)", Direction.Report, "probe_on_core", false, "example probes after a specific answer or a decline / specific answers and declines"),
     ];
 
     public static MetricDef Get(string id) => All.Single(m => m.Id == id);

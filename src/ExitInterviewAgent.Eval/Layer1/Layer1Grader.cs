@@ -464,6 +464,26 @@ public static partial class Layer1Grader
         }
 
         if (s.Faults is null or { Count: 0 }) m["edge_case"] = new Count(EdgeCase(c) ? 1 : 0, 1);
+
+        TurnMeasurements(c, m);
+    }
+
+    /// <summary>
+    /// The protocol 1.3 turn metrics (WP6, report-only until WP5 gives them a baseline). Measured only when the trace carries moves: a
+    /// trace from before 1.3 carries none, so it measures nothing new.
+    /// </summary>
+    private static void TurnMeasurements(Context c, Dictionary<string, Count> m)
+    {
+        var facts = TurnFacts.WithRatings(TurnFacts.FromTrace(c.T), c.Tr);
+        if (facts.All(f => f.Move is null)) return;
+        var sw = c.P.Limits.SubstantiveWords;
+        m["order_follows_salience"] = TurnMetrics.OrderFollowsSalience(facts, c.Run.Persona.Salient);
+        m["probe_on_core"] = TurnMetrics.ProbeOnCore(facts, sw);
+        m["no_probe_on_light_mid"] = TurnMetrics.NoProbeOnLightMid(facts);
+        m["questions_within_cap"] = TurnMetrics.QuestionsWithinCap(facts, TurnMetrics.QuestionCap(c.Run.Persona.Behaviors));
+        m["replaced_rate"] = TurnMetrics.ReplacedRate(facts);
+        m["opr_moves"] = TurnMetrics.OprMoves(facts, sw);
+        if (c.Rec is not null) m["yield_concrete"] = TurnMetrics.YieldConcrete(c.Quotes);
     }
 
     /// <summary>The question after the scripted mock's acknowledgement quote (`„…”. `), or the whole text when there is none.</summary>

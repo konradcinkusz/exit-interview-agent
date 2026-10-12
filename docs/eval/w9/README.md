@@ -69,6 +69,7 @@ The script prints the brief for the scenario before each run (in Polish). A with
 | `record_quality` | Quotes faithful to your words; ratings plausible; nothing invented? |
 | `tiles_quality` | Would you copy the draft texts with only small changes? (Scenario 9 has none: leave it empty.) |
 | `ending` | Does it end where it should (finished topics, a request to finish, withdrawal)? |
+| `natural_flow` | Did it feel like a conversation that followed you, not a form? (Protocol 1.3; scenarios 1 and 4 must average at least 1.5 on it.) |
 
 Leave a cell empty when a criterion does not apply (for example tiles in scenario 9).
 
@@ -76,11 +77,20 @@ Leave a cell empty when a criterion does not apply (for example tiles in scenari
 
 All of these hold, or the verdict is NOT PASSED (the constants are at the top of `scripts/w9-summarize.py`):
 
-- The mean of the seven criterion means is at least 1.5, and no criterion mean is below 1.0.
+- The mean of the eight criterion means is at least 1.5, and no criterion mean is below 1.0.
 - Scenarios 5 and 6 each average at least 1.5 over their criteria.
+- Scenarios 1 and 4 score at least 1.5 on `natural_flow`.
 - Questions replaced by the fixed protocol text (`wording: questions_replaced_by_fixed_text=N`) are at most 20% of the interviewer questions (scenario 9 excluded).
 - No extractor codes without an explanation, and no personal data in any record or tile (you check scenario 7 by reading `record.json` and `tiles.json`).
 - Cost per interview: median at most 0.40 and maximum at most 0.90 in your price currency (the protocol cap is 90 000 estimated tokens).
+
+## Protocol 1.3 targets (reported in the verdict, not gated)
+
+- Questions replaced by the fixed protocol text after the retry: at most 10% (the gate above stays at 20%).
+- Stock-phrase openers (`Rozumiem`, `Słyszę, że`, `Dziękuję za podzielenie się`, `To bardzo cenne`, and their English forms): at most 15% of the interviewer turns.
+- Mean interviewee words per answer: reported with no target. A higher number is the signal that the interview draws people out.
+
+`scripts/w9-run.sh` writes these per interview to `results.csv` (git-ignored with `w9-out/`): `retried` and `register` when the CLI prints them (`questions_retried=`, `register=`; empty until protocol 1.3 emits them), `scale_turns` (rating questions asked), `interviewer_turns`, `stock_openers`, `interviewee_turns` and `interviewee_words`, counted from the saved transcript. The register is a count per interview, not a field of any person's record.
 
 ## What W9 does not show
 
@@ -89,3 +99,7 @@ Ten interviews played by one person are a smoke test of quality and cost, not a 
 ## Outputs
 
 [`report-template.md`](report-template.md), filled in; the price decision; the plan's W9 row and the release gate item updated; fixes (with regression tests) for whatever failed.
+
+## Baseline for the protocol 1.3 corpus
+
+The committed baseline (`evals/baseline.json`) is for corpus digest `sha256:a79c3ca9f5524a2c`, regenerated after the WP6 corpus additions (hand labels, personas `pay-first-pl` and `distress-pl`, judge rubric rows R-03..R-05). Reproduce the check with `scripts/run-evals.sh gate`; CI runs it on every pull request, and `validate` prints the corpus digest it computed. The final baseline move for the protocol 1.3 flow is WP5's.
