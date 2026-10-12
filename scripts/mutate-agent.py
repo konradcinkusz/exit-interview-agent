@@ -36,7 +36,7 @@ M=[
  ("M-10","probe-limit-removed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
   "if (ProbesUsed >= limit || PastWrapUpPoint) return Advance(Preface.None);","if (PastWrapUpPoint) return Advance(Preface.None);","follow-ups on a topic are not limited (maxFollowUps is ignored)"),
  ("M-11","vague-answers-not-probed","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",
-  "if (!Used(Move.Example) && (s.Short || s.Vague || substantive && !s.Concrete)) return Follow(Move.Example);","if (false) return Follow(Move.Example);","the interviewer never asks for a concrete example (the degenerate way to avoid leading questions)"),
+  "if (!Used(Move.Example) && (s.Short || s.Vague || substantive && !s.Concrete)) return Follow(Move.Example);","if (!Used(Move.Example) && ProbesUsed < 0 && (s.Short || s.Vague || substantive && !s.Concrete)) return Follow(Move.Example);","the interviewer never asks for a concrete example (the degenerate way to avoid leading questions)"),
  ("M-12","names-not-redirected","src/ExitInterviewAgent.Agent/Roles/Abstractions.cs",
   "public bool NamesPerson => Findings.Any(f => f.Kind == PiiKind.PersonName);","public bool NamesPerson => false;","a masked name no longer triggers the redirect to behaviour and role"),
  ("M-13","serious-account-does-not-deepen","src/ExitInterviewAgent.Agent/Machine/InterviewMachine.cs",

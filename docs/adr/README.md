@@ -2,7 +2,7 @@
 
 This directory holds all architecture decisions made during the project, indexed by domain. Every ADR is marked as `accepted` (a principle or decision adopted into the brief/architecture), `proposed` (awaiting decision), or `deprecated` (superseded).
 
-**Total: 76 ADRs** (numbered 0001–0083). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
+**Total: 77 ADRs** (numbered 0001–0084; 0083 is the platform-drafts ADR, which has no row in the section 21 table yet). Gaps: numbers 0015–0016, 0020–0021 and 0064–0066 have no files (brak plików o tych numerach); nothing in the repository says they are reserved. Counted with `ls docs/adr/[0-9]*.md | grep -vc 0000` (the template is excluded).
 
 ---
 
@@ -246,6 +246,7 @@ Every ADR references its principle (P1–P16, from `PROJECT-BRIEF.md`), related 
 | ID | Title | Status | Summary |
 |---|---|---|---|
 | [0082](0082-portal-in-polish-and-english-and-a-header-for-the-former-employee.md) | The portal in Polish and English, and a header for the former employee | accepted | A typed Polish catalog for every page on the former employee's path, chosen per request (switch cookie, then Accept-Language); developer pages stay English-only behind the footer; header is Interview, Account/Sign in, Sign out, language; `DEV_HINTS=1` (AppHost only) shows the local test account on sign-in |
+| [0084](0084-adaptive-interview-flow-inside-the-state-machine.md) | Adaptive interview flow inside the state machine | accepted | Protocol 1.3 flow in `InterviewMachine`: warm-up, reason, planner order (core topics get the follow-up policy, light topics one rating), retention, close; safety branches; the runner feeds the planner, holds the register in memory, retries a guard rejection once; trace attributes for move, preface and retry |
 
 ## 22. Per-platform drafts (0083)
 
