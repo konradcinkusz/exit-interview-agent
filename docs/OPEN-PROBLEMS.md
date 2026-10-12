@@ -38,6 +38,7 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 | OP-29 | The double-barrelled check is lexical | Low |
 | OP-30 | Fail-closed over-masking of capitalised topic words is bounded only by a list | Low |
 | OP-31 | Obfuscated-email spellings beyond the bracketed forms are not detected | Low |
+| OP-32 | Platform rules are cited from search summaries | High |
 
 ## OP-1. Real employment verification
 
@@ -288,3 +289,10 @@ Status vocabulary: [ADR-0017](adr/0017-documentation-layout-and-claim-status.md)
 - **Why it matters.** Only `name[at]host[dot]tld`, the round and curly `at` markers, and a plain `.` before the top-level part are recognised. `name{at}host{dot}tld`, "name at host dot com" written in words, and spellings in other languages are not ([ADR-0063](adr/0063-pii-detector-rule-cost-and-over-masking.md) kept the rule's coverage exactly as it was).
 - **What we do now.** Listed as a known limit in the detector documentation; the interview agent is instructed not to ask for contact data and the person reviews the record before it is sent.
 - **What would close it.** New spellings added to the marker-anchored rule together with corpus lines (`Corpus/email-obfuscated.txt`) and a cost measurement; words-for-symbols forms need a precision measurement first, since "at" and "dot" are ordinary words.
+
+## OP-32. Platform rules are cited from search summaries
+
+- **Why it matters.** The draft profiles tell a user what each site allows: length, identity, what may be named, AI-assisted text, and who may review. The research ([review-platforms-2026-10-12.md](research/review-platforms-2026-10-12.md), §3) took those facts from search engines' summaries of indexed copies of the platforms' pages. Some copies are years old. No platform's rules page was read in full, and several rules (Kununu's entirely, GoWork's regulamin, Blind's and Wykop's on AI content) were not found at all. A wrong rule shown on a card can lead a person to post something the site forbids, and a wrong warning is worse than none.
+- **What we do now.** The planned profiles (WP2) record each source's level (`search_summary` or `unverified`), and the planned Kununu profile ships disabled. The planned warnings end "Draft, not fact. Not legal advice.", and the terms (§3) tell the person to check each site's rules. The WP6 re-check was attempted in the session of 2026-10-12 and could not reach any platform page, so no level was raised ([research §6](research/review-platforms-2026-10-12.md#outcome-of-the-wp6-re-check-session-of-2026-10-12)).
+- **What would close it.** A session with normal web access opens every URL in the research's §3, sets each fact to `fetched` or keeps it, records the date, and corrects any number that differs. Kununu is enabled only after its rules are read. Until then, the profiles and the cards must keep the "check the site's rules" text.
+- **Trigger.** Before any real draft is shown to a person, and before the first paid interview.

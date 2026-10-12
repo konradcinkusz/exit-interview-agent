@@ -23,7 +23,7 @@
 
 1. You are responsible for the accuracy of what you say in the Interview and for what you publish.
 2. Before publishing, read the text and decide yourself what to publish. You may edit, shorten or not publish it.
-3. Do not post on review sites (for example Glassdoor, Google reviews, Reddit) content that breaks that site's rules. Check each site's rules, including those on reviews by former employees and on sponsored or incentivised reviews. The Service does not assess compliance with those rules.
+3. Do not post on review sites (for example Glassdoor, Indeed, GoWork, LinkedIn, Facebook groups, Reddit, Wykop, Blind or X) content that breaks that site's rules. Check each site's rules, including those on reviews by former employees and on sponsored or incentivised reviews. Some review sites do not allow reviews by former or current employees at all. The Service does not assess compliance with those rules, and the list of sites may change.
 4. Do not include personal data of third parties, including names, addresses, phone numbers, images, health information and other sensitive data, unless it is necessary. The Service tries to mask such data but does not guarantee it.
 5. Do not use the Service to defame, harass, blackmail, or pressure specific people.
 

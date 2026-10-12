@@ -30,6 +30,12 @@
 - **Question:** Do the rules of Glassdoor, Google (business reviews) and Reddit prohibit posts written with an AI tool, posts from people who are not verified, or posts written for a service? Does a tile formatted to look like a review on one of these platforms create a risk of being treated as a fake or sponsored review?
 - **Question:** Does the EU/Polish rule on fake and incentivised reviews (the 2019/2161 "omnibus" directive as implemented in Poland) apply to a service that drafts reviews for a user, even if the user publishes them? Does it apply to the service itself?
 - **Question:** Should tiles avoid platform-specific formats altogether, or carry a disclosure ("written with an AI assistant from my interview")?
+- **Notes from the platform research (2026-10-12; facts from search summaries, not an answer; see [research §3.13](../research/review-platforms-2026-10-12.md#313-what-the-platforms-share) and [research §6](../research/review-platforms-2026-10-12.md#6-what-could-not-be-verified)):**
+  - The platforms' own pages were **not** opened: the WP6 re-check could not reach them. Every fact below is UNVERIFIED against the platform's text until that is done.
+  - Glassdoor and Indeed say that whoever adds AI-generated content "adopts, confirms and ratifies" it. LinkedIn says members are responsible for content made with AI tools. Reddit wants AI-assisted content disclosed under each community's rules.
+  - No review site in the chosen set offers an API for posting a review. The product therefore only drafts, copies and opens the site.
+  - Google (business profiles) and Trustpilot exclude reviews from current or former employees. The `google_review` tile is retired on that ground.
+  - The spec does not add an AI-assistance line to the drafts. Whether one is needed is the question above, for the lawyer.
 - **status:** NOT REVIEWED
 - **Answer:**
 
