@@ -148,7 +148,13 @@ export function CopyButton({
     const timer = setTimeout(() => setState("idle"), COPIED_MS);
     return () => clearTimeout(timer);
   }, [state]);
-  // A button that is disabled again (the warning unticked) no longer says it copied.
+  // A button that is disabled again (the warning unticked) forgets that it copied, so ticking the box again does not bring "Copied"
+  // back. State adjusted while rendering, on the change of `disabled` (no effect, no extra render pass).
+  const [wasDisabled, setWasDisabled] = useState(disabled);
+  if (disabled !== wasDisabled) {
+    setWasDisabled(disabled);
+    if (disabled) setState("idle");
+  }
   const done = state === "done" && !disabled;
   async function copyText() {
     try {

@@ -226,6 +226,12 @@ select arrow are drawn by the stylesheet. The header items are pills (the curren
 interview's progress is a slim line of three badges; the chat is one window with a title bar ("Interviewer · AI", topic n of about 6)
 and a composer whose Send sits beside the hints; disabled buttons are neutral grey, not a faded accent.
 
+Refined again on 2026-10-13 ([write-up](redesign-2026-10-13/README.md)): the chat reads like a conversation (bubbles without a
+printed name, the conversation at the bottom of the window, quick answers and 1-5 rating answers as chips under the question, the
+phase line as a caption); each platform draft is a card with a head, one callout for the warning and its acknowledgement, the texts as
+quiet sheets and a footer; "Copied" is announced each time and clears itself; focus moves to the result, the end screen and the
+deletion notice when they replace the chat.
+
 ## Accessibility and quality bar
 
 - Keyboard-only operable; a skip link; one `h1` per page; every control labelled; errors in `role="alert"`; focus moves
@@ -240,7 +246,7 @@ and a composer whose Send sits beside the hints; disabled buttons are neutral gr
 - An automated check (axe-core, WCAG 2.0/2.1 A and AA rules) runs in the browser suite on every page and on every interview state
   the stub can reach, in both schemes and both languages. It finds a subset of problems; screen-reader testing by a person is still
   owed ([OP-16](../OPEN-PROBLEMS.md)). What was and was not checked: [redesign phase 3](redesign-2026-10-11/phase3/README.md) and
-  [the 2026-10-12 refinement](redesign-2026-10-12/README.md).
+  [the 2026-10-12 refinement](redesign-2026-10-12/README.md) and [the 2026-10-13 round](redesign-2026-10-13/README.md).
 - The former employee's journey runs end to end in Polish in the browser suite (`journey-pl.spec.ts`).
 
 ## Ranked backlog
