@@ -79,7 +79,8 @@ public sealed record DraftSection(string Key, string Label, string Text);
 
 /// <summary>
 /// A draft for one platform, in the interview's language (spec §3.3). <see cref="CopyText"/> is the sections in profile order, with
-/// labels only when the profile joins them. <see cref="Url"/> is the profile's URL with no parameters.
+/// labels only when the profile joins them. <see cref="Url"/> is the profile's URL with no parameters. <see cref="Primary"/> is true when the
+/// profile's markets include the interview's language.
 /// </summary>
 public sealed record PlatformDraft(
     string Id,
@@ -90,4 +91,5 @@ public sealed record PlatformDraft(
     string Warning,
     IReadOnlyList<DraftSection> Sections,
     string CopyText,
-    IReadOnlyList<string> FieldsOnSite);
+    IReadOnlyList<string> FieldsOnSite,
+    bool Primary);

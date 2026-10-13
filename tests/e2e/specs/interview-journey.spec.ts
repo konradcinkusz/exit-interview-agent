@@ -110,12 +110,21 @@ test("a visitor with no credit buys one, interviews, reads the result, copies, d
   await expect(page.getByTestId("tiles-notice")).toContainText("These are draft texts, not facts.");
   await expect(page.getByText("Rating 2 of 5")).toBeVisible();
   await expect(page.getByText("Onboarding was chaotic.")).toBeVisible();
-  // The drafts (spec §3.5, ADR-0083): Glassdoor first, then LinkedIn and Reddit, in the order the service sends them for an English
-  // interview; no Google card. Each high-risk card has its own gate.
+  // The drafts (spec §3.5, ADR-0083): the platforms whose markets include English first (Glassdoor, LinkedIn, Reddit); GoWork's market
+  // is Polish only, so it is under "Other platforms", a closed list. No Google card. Each high-risk card has its own gate.
   const drafts = page.getByRole("region", { name: "Drafts for a platform" });
   await expect(drafts.getByRole("heading", { level: 4 })).toHaveText(["Glassdoor", "LinkedIn", "Reddit"]);
   await expect(drafts).not.toContainText(/google/i);
   await expect(page.getByRole("article", { name: /google/i })).toHaveCount(0);
+  const otherPlatforms = drafts.locator("details");
+  await expect(otherPlatforms).toHaveCount(1);
+  await expect(otherPlatforms.locator("summary")).toHaveText("Other platforms");
+  await expect(otherPlatforms).not.toHaveAttribute("open", "");
+  // The list opens from the keyboard: the summary is a tab stop, and Enter opens it.
+  await otherPlatforms.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(otherPlatforms).toHaveAttribute("open", "");
+  await expect(otherPlatforms.getByRole("heading", { level: 4 })).toHaveText(["GoWork.pl"]);
 
   const glassdoor = page.getByRole("article", { name: "Glassdoor" });
   await expect(glassdoor).toHaveCount(1);

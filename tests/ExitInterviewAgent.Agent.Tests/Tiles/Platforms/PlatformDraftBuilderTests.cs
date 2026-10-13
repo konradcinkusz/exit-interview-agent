@@ -4,7 +4,7 @@ using ExitInterviewAgent.Agent.Tiles.Platforms;
 namespace ExitInterviewAgent.Agent.Tests.Tiles.Platforms;
 
 /// <summary>
-/// The draft builder (platform-drafts-spec §3.3, WP4): one draft per enabled profile whose family tile was accepted, in profile order,
+/// The draft builder (platform-drafts-spec §3.3, WP4): one draft per enabled profile whose family tile was accepted, in market order,
 /// with the profile's sections, labels and copy rule, and never an edited word. Fixture profiles test the rules; the shipped profiles
 /// carry the never-edit property.
 /// </summary>
@@ -54,7 +54,7 @@ public class PlatformDraftBuilderTests
     private static TileSet SetOf(string language, params Tile[] tiles) => new(TileSet.CurrentVersion, language, tiles, []);
 
     [Fact]
-    public void One_draft_per_enabled_profile_in_profile_order()
+    public void One_draft_per_enabled_profile_in_profile_order_when_every_profile_has_the_language()
     {
         var profiles = new Fixture(
             Profile("a", DraftFamily.StructuredReview, false, Section("pros", "Pros")),
@@ -68,6 +68,46 @@ public class PlatformDraftBuilderTests
 
         Assert.Equal(new[] { "a", "c" }, drafts.Select(d => d.Id));
     }
+
+    [Fact]
+    public void Profiles_whose_markets_include_the_language_come_first_in_profile_order_and_the_others_after_them()
+    {
+        var profiles = new Fixture(
+            Profile("a", DraftFamily.StructuredReview, false, Section("pros", "Pros")) with { Markets = new[] { "en" } },
+            Profile("b", DraftFamily.StructuredReview, false, Section("pros", "Pros")) with { Markets = new[] { "pl" } },
+            Profile("c", DraftFamily.StructuredReview, false, Section("pros", "Pros")) with { Markets = new[] { "en", "pl" } });
+        var set = SetOf("pl", FamilyTile(TileKind.StructuredReview, ("pros", "Dobry zespół.")));
+
+        var drafts = PlatformDraftBuilder.Build(set, profiles, "pl");
+
+        Assert.Equal(new[] { "b", "c", "a" }, drafts.Select(d => d.Id));
+        Assert.Equal(new[] { true, true, false }, drafts.Select(d => d.Primary));
+    }
+
+    [Fact]
+    public void In_polish_every_shipped_profile_has_a_polish_market_so_the_profile_order_stands_and_none_is_other()
+    {
+        var drafts = PlatformDraftBuilder.Build(AllFamilies("pl"), PlatformProfiles.Default, "pl");
+
+        Assert.Equal(new[] { "glassdoor", "indeed", "gowork", "linkedin", "facebook_group", "reddit", "wykop", "blind", "x" }, drafts.Select(d => d.Id));
+        Assert.All(drafts, d => Assert.True(d.Primary));
+    }
+
+    [Fact]
+    public void In_english_the_polish_only_platforms_come_last_and_are_not_primary()
+    {
+        var drafts = PlatformDraftBuilder.Build(AllFamilies("en"), PlatformProfiles.Default, "en");
+
+        Assert.Equal(new[] { "glassdoor", "indeed", "linkedin", "facebook_group", "reddit", "blind", "x", "gowork", "wykop" }, drafts.Select(d => d.Id));
+        Assert.Equal(new[] { true, true, true, true, true, true, true, false, false }, drafts.Select(d => d.Primary));
+    }
+
+    /// <summary>One accepted tile per family, carrying every section key the shipped profiles name.</summary>
+    private static TileSet AllFamilies(string language) => SetOf(language,
+        FamilyTile(TileKind.StructuredReview, ("title", "Tytuł."), ("pros", "Plusy."), ("cons", "Minusy."), ("advice", "Rada.")),
+        FamilyTile(TileKind.Narrative, ("title", "Tytuł."), ("body", "Treść.")),
+        FamilyTile(TileKind.ProfessionalPost, ("body", "Wpis.")),
+        FamilyTile(TileKind.ShortPost, ("body", "Krótki wpis.")));
 
     [Fact]
     public void A_profile_whose_family_tile_was_dropped_gets_no_draft()

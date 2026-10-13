@@ -3,7 +3,8 @@ import { expect, test, type APIRequestContext, type Page, type Route } from "@pl
 import { STUB_URL, emailFor } from "../support/constants.mjs";
 import { accountName, signIn, watchViolations } from "./support";
 
-// The platform drafts on the result page (platform-drafts-spec §3.5, WP5), in both languages. The stub's own draft is one Glassdoor draft,
+// The platform drafts on the result page (platform-drafts-spec §3.5, WP5), in both languages, with the primary drafts first and the others
+// in a closed "Other platforms" list. The stub's own draft is one Glassdoor draft,
 // so each test asks the stub for a real result and replaces `tiles.drafts` with its synthetic drafts on the way to the page. Everything
 // else the page shows still comes from the stub.
 
@@ -162,5 +163,42 @@ test.describe("Polish portal", () => {
     await expect(gowork.getByRole("button", { name: "Kopiuj: GoWork.pl, Plusy" })).toBeEnabled();
     await expect(gowork.getByRole("link", { name: /Otwórz GoWork.pl/ })).toHaveAttribute("href", "https://www.gowork.pl/");
     await expect(gowork.getByText("Uzupełnisz w serwisie:")).toBeVisible();
+  });
+
+  test("Polish drafts outside the Polish market sit in a closed 'Inne serwisy' list that opens from the keyboard and is axe-clean", async ({ page, context, request }) => {
+    const name = accountName("drafts-pl-other");
+    await configure(request, name, "credits=1");
+    // A draft whose markets exclude Polish (synthetic: every shipped profile lists `pl`) is not primary, so it is listed after them.
+    await withDrafts(page, [
+      ...DRAFTS_PL,
+      {
+        platform: "glassdoor",
+        name: "Glassdoor",
+        family: "structured_review",
+        risk: "medium",
+        url: "https://www.glassdoor.com/",
+        warning: "Szkic, nie fakt. To nie jest porada prawna.",
+        sections: [{ key: "pros", label: "Plusy", text: "Dobry zespół i jasne zasady." }],
+        copyText: "Dobry zespół i jasne zasady.",
+        fieldsOnSite: [],
+        primary: false,
+      },
+    ]);
+
+    await openInterview(page, name, "pl");
+    await finishInterview(page, "pl");
+
+    const drafts = page.getByRole("region", { name: "Szkice dla serwisów" });
+    await expect(drafts.getByRole("heading", { level: 4 })).toHaveText(["GoWork.pl"]);
+    const other = drafts.locator("details");
+    await expect(other.locator("summary")).toHaveText("Inne serwisy");
+    await expect(other).not.toHaveAttribute("open", "");
+    await other.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(other).toHaveAttribute("open", "");
+    await expect(other.getByRole("heading", { level: 4 })).toHaveText(["Glassdoor"]);
+
+    const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+    expect(results.violations.map((v) => v.id)).toEqual([]);
   });
 });

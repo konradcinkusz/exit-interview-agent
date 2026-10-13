@@ -304,7 +304,8 @@ public sealed class InterviewSessions(
         draft.Warning,
         draft.Sections.Select(s => new InterviewDraftSection(s.Key, s.Label, s.Text)).ToList(),
         draft.CopyText,
-        draft.FieldsOnSite);
+        draft.FieldsOnSite,
+        draft.Primary);
 
     private static string NewId() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

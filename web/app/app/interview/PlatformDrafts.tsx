@@ -16,18 +16,25 @@ interface Props {
  * One draft per platform (ADR-0083): the platform's name and its risk in words, its warning as a note, each section with its own copy
  * button, "Copy all", the fields the person fills in on the site, and a link to the site. A high-risk draft's copy buttons stay disabled
  * until the warning has been acknowledged on that card. The acknowledgement is component state only: it is not stored and not sent.
+ * The primary drafts (their markets include the interview's language) come first; the others sit in a closed "Other platforms" list
+ * (platform-drafts-spec §3.5). The order inside each group is the server's.
  */
 export function PlatformDrafts({ copy, language, drafts }: Props) {
   if (drafts.length === 0) return null;
+  const primary = drafts.filter((draft) => draft.primary);
+  const others = drafts.filter((draft) => !draft.primary);
+  const card = (draft: PlatformDraft) => <DraftCard key={draft.platform} copy={copy} language={language} draft={draft} />;
   return (
     <section aria-labelledby="drafts-heading" className={styles.drafts}>
       <h3 id="drafts-heading">{copy.draftsTitle}</h3>
       <p className="hint">{copy.draftsIntro}</p>
-      <div className={styles.draftList}>
-        {drafts.map((draft) => (
-          <DraftCard key={draft.platform} copy={copy} language={language} draft={draft} />
-        ))}
-      </div>
+      <div className={styles.draftList}>{primary.map(card)}</div>
+      {others.length > 0 ? (
+        <details>
+          <summary>{copy.draftsOther}</summary>
+          <div className={styles.draftList}>{others.map(card)}</div>
+        </details>
+      ) : null}
     </section>
   );
 }

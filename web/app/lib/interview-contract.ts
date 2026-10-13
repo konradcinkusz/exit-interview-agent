@@ -117,6 +117,8 @@ export interface PlatformDraft {
   sections: DraftSection[];
   copyText: string;
   fieldsOnSite: string[];
+  /** True when the platform's markets include the interview's language; the others sit under "Other platforms" (spec §3.5). */
+  primary: boolean;
 }
 
 export interface Tiles {
@@ -276,6 +278,8 @@ export function parseDraft(v: unknown): PlatformDraft | null {
     sections,
     copyText: v.copyText,
     fieldsOnSite: v.fieldsOnSite,
+    // A service that predates the field sends none: every draft is then primary, as the page always showed them (tolerant, ADR-0083).
+    primary: typeof v.primary === "boolean" ? v.primary : true,
   };
 }
 

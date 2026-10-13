@@ -11,7 +11,8 @@ public static class PlatformDraftBuilder
     internal const string SectionSeparator = "\n\n";
 
     /// <summary>
-    /// One draft per enabled profile, in profile-file order. A section the profile lists but the family tile does not carry (an
+    /// One draft per enabled profile. The profiles whose markets include the interview's language come first (<see cref="PlatformDraft.Primary"/>),
+    /// then the rest; each group keeps profile-file order (spec §3.5). A section the profile lists but the family tile does not carry (an
     /// optional one the writer left out, or a blank text) is left out; nothing is filled in for it.
     /// </summary>
     public static IReadOnlyList<PlatformDraft> Build(TileSet set, IPlatformProfiles profiles, string language)
@@ -19,7 +20,8 @@ public static class PlatformDraftBuilder
         ArgumentNullException.ThrowIfNull(set);
         ArgumentNullException.ThrowIfNull(profiles);
 
-        var drafts = new List<PlatformDraft>();
+        var primary = new List<PlatformDraft>();
+        var others = new List<PlatformDraft>();
         foreach (var profile in profiles.Enabled)
         {
             var kind = KindOf(profile.Family);
@@ -40,7 +42,8 @@ public static class PlatformDraftBuilder
                 ? string.Join(SectionSeparator, sections.Select(s => $"{s.Label}\n{s.Text}"))
                 : string.Join(SectionSeparator, sections.Select(s => s.Text));
 
-            drafts.Add(new PlatformDraft(
+            var primaryDraft = profile.Markets.Contains(language, StringComparer.Ordinal);
+            (primaryDraft ? primary : others).Add(new PlatformDraft(
                 profile.Id,
                 profile.Names.For(language),
                 profile.Family,
@@ -49,9 +52,11 @@ public static class PlatformDraftBuilder
                 profile.Warning.For(language),
                 sections,
                 copy,
-                profile.FieldsOnSite.Select(f => f.For(language)).ToArray()));
+                profile.FieldsOnSite.Select(f => f.For(language)).ToArray(),
+                primaryDraft));
         }
-        return drafts;
+        primary.AddRange(others);
+        return primary;
     }
 
     /// <summary>The tile kind that carries a family's draft (the same names as <see cref="DraftFamily"/> in <see cref="TileKind"/>).</summary>
