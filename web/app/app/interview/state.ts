@@ -151,5 +151,31 @@ const CONSENT_KINDS: ReadonlySet<TurnKind> = new Set<TurnKind>(["opening", "cons
 /** Quick replies are offered on the consent turn, while the interviewer waits for an answer and no reply is pending. */
 export function canQuickReply(s: State): boolean {
   const kind = lastInterviewerKind(s.lines);
-  return s.phase === "chat" && !s.pending && kind !== undefined && CONSENT_KINDS.has(kind);
+  return s.phase === "chat" && !s.pending && !answered(s) && kind !== undefined && CONSENT_KINDS.has(kind);
+}
+
+/** The person's answer is the last line (a reply that failed and waits to be sent again): the quick answers no longer apply. */
+function answered(s: State): boolean {
+  return s.lines.at(-1)?.from === "you";
+}
+
+/**
+ * A 1-5 rating question (interview dynamics 1.3, the `scale` move: "On a scale from 1 to 5…", "W skali od 1 do 5…"). The wire has no
+ * turn kind for it (it travels as a topic or probe turn), so the page recognises the wording: a scale named together with 1 and 5 in
+ * one sentence. A miss only means no number buttons; typing works either way.
+ */
+const RATING_QUESTION = /\b(scale|skali|skala)\b[^.?!]*?\b1\b[^.?!]*?\b5\b/i;
+
+export function isRatingQuestion(text: string): boolean {
+  return RATING_QUESTION.test(text);
+}
+
+/** The number buttons are offered while the interviewer's last turn is a rating question and no reply is pending. */
+export function canRate(s: State): boolean {
+  if (s.phase !== "chat" || s.pending || answered(s)) return false;
+  for (let i = s.lines.length - 1; i >= 0; i--) {
+    const line = s.lines[i];
+    if (line.from === "interviewer") return line.kind !== undefined && QUESTION_KINDS.has(line.kind) && isRatingQuestion(line.text);
+  }
+  return false;
 }

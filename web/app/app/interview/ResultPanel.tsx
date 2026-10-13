@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InterviewFailure } from "@/lib/interview-api";
 import { TOPIC_KEYS, type InterviewRecord, type InterviewResult, type RecordTopic, type Tile, type TopicKey } from "@/lib/interview-contract";
 import { interviewCopy, type InterviewCopy } from "@/lib/messages/interview";
@@ -30,11 +30,16 @@ const RESULT_LIFETIME_MS = 30 * 60_000;
 export function ResultPanel({ copy, state, onDelete, notice, onRetry }: Props) {
   const result = state.result;
   const [confirming, setConfirming] = useState(false);
+  // The chat that had focus is gone: the result's heading takes it, so a keyboard or screen-reader user starts at the top of the result.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
 
   if (!result) {
     return (
       <section aria-labelledby="result-heading">
-        <h2 id="result-heading" tabIndex={-1}>{copy.resultTitle}</h2>
+        <h2 id="result-heading" ref={heading} tabIndex={-1}>{copy.resultTitle}</h2>
         {notice ? (
           <>
             <Notice failure={notice} copy={copy} />
@@ -58,7 +63,7 @@ export function ResultPanel({ copy, state, onDelete, notice, onRetry }: Props) {
   const untilText = until ? until.toLocaleTimeString(copy === interviewCopy.pl ? "pl-PL" : "en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
   return (
     <section aria-labelledby="result-heading">
-      <h2 id="result-heading" tabIndex={-1}>{copy.resultTitle}</h2>
+      <h2 id="result-heading" ref={heading} tabIndex={-1}>{copy.resultTitle}</h2>
       <div className={`card ${styles.summary}`} data-testid="result-summary">
         <span className={styles.summaryIcon}><Icon name="check" size={22} /></span>
         <div>
@@ -238,7 +243,7 @@ function TilesView({ copy, language, result }: { copy: InterviewCopy; language: 
             <li key={`${i}-${tile.kind}`} className={styles.tile}>
               <div className={styles.tileHead}>
                 <h4>{label}</h4>
-                <CopyButton copy={copy} label={label} text={tileCopyText(tile)} />
+                <CopyButton copy={copy} label={label} text={tileCopyText(tile)} quiet />
               </div>
               <p className={styles.text}>{tile.text}</p>
             </li>

@@ -21,6 +21,8 @@ interface State {
   viewports?: readonly { name: string; width: number; height: number; scale?: number }[];
   /** Skip the state when the page ends somewhere else (the route does not exist on this build). */
   expectPath?: string;
+  /** Capture while a request is still open (the typing state): do not wait for the network to go idle. */
+  busy?: boolean;
   run: (page: Page, request: APIRequestContext) => Promise<void>;
 }
 
@@ -53,6 +55,22 @@ async function answer(page: Page, text: string) {
   await box.press("Enter");
   await page.waitForTimeout(700);
 }
+
+/** The 1.3 dynamics script (stub switch `dynamics`): consent, then `answers` replies. 1: warm-up, 2: the 1-5 rating, 3: check-in, 4: support, 5: legal. */
+async function toDynamics(page: Page, request: APIRequestContext, answers: number) {
+  await interview(page, request, "credits=1&dynamics=1");
+  await toChat(page);
+  const pl = (await page.locator("html").getAttribute("lang")) === "pl";
+  const replies = pl
+    ? ["Tak, per Pan", "Byłem programistą w zespole płatności.", "2", "Brak planu i odwoływane spotkania.", "Było mi naprawdę ciężko."]
+    : ["Yes", "I was a developer in the payments team.", "2", "No plan, and cancelled meetings.", "It was really hard for me."];
+  for (const text of replies.slice(0, answers)) await answer(page, text);
+}
+
+const LONG_ANSWER = {
+  en: "Honestly, onboarding was chaotic. There was no written plan, my laptop arrived in the second week, and the person who was supposed to show me around left a month after I joined. I learned most things by asking colleagues between their own tasks. They were patient, but it felt like everyone was improvising, and nobody owned the process.",
+  pl: "Szczerze mówiąc, wdrożenie było chaotyczne. Nie było spisanego planu, laptop dotarł w drugim tygodniu, a osoba, która miała mnie wprowadzić, odeszła miesiąc po moim przyjściu. Większości rzeczy uczyłem się, pytając kolegów między ich zadaniami. Byli cierpliwi, ale miałem wrażenie, że wszyscy improwizują i nikt nie odpowiada za ten proces.",
+};
 
 async function toResult(page: Page) {
   await toChat(page);
@@ -177,6 +195,132 @@ const STATES: State[] = [
       await p.waitForTimeout(800);
     },
   },
+  // the 1.3 dynamics and the chat's states (2026-10-13)
+  {
+    name: "interview-chat-quick",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+    },
+  },
+  {
+    name: "interview-chat-quick-pl",
+    lang: "pl",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+    },
+  },
+  { name: "interview-chat-warmup", lang: "en", run: async (p, r) => toDynamics(p, r, 1) },
+  { name: "interview-chat-rating", lang: "en", run: async (p, r) => toDynamics(p, r, 2) },
+  { name: "interview-chat-rating-pl", lang: "pl", run: async (p, r) => toDynamics(p, r, 2) },
+  { name: "interview-chat-checkin", lang: "en", run: async (p, r) => toDynamics(p, r, 3) },
+  { name: "interview-chat-support", lang: "en", run: async (p, r) => toDynamics(p, r, 4) },
+  { name: "interview-chat-support-pl", lang: "pl", run: async (p, r) => toDynamics(p, r, 4) },
+  { name: "interview-chat-legal", lang: "en", run: async (p, r) => toDynamics(p, r, 5) },
+  {
+    name: "interview-chat-long",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+      await answer(p, "Yes");
+      await answer(p, LONG_ANSWER.en);
+    },
+  },
+  {
+    name: "interview-chat-long-pl",
+    lang: "pl",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+      await answer(p, "Tak");
+      await answer(p, LONG_ANSWER.pl);
+    },
+  },
+  {
+    name: "interview-chat-typing",
+    lang: "en",
+    busy: true,
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+      // Hold the reply so the waiting state can be seen (capture only).
+      await p.route("**/reply", () => undefined);
+      const box = p.locator("textarea");
+      await box.fill("Onboarding was chaotic.");
+      await box.press("Enter");
+      await p.waitForTimeout(500);
+    },
+  },
+  {
+    name: "interview-result-long",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1&longDrafts=1");
+      await toResult(p);
+    },
+  },
+  {
+    name: "interview-result-long-pl",
+    lang: "pl",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1&longDrafts=1");
+      await toResult(p);
+    },
+  },
+  {
+    name: "interview-result-copied",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toResult(p);
+      const card = p.locator("article").filter({ hasText: "LinkedIn" });
+      await card.getByRole("checkbox").check();
+      await card.getByRole("button", { name: /Copy/ }).first().click();
+      await p.locator("article").filter({ hasText: "Glassdoor" }).getByRole("button", { name: /Copy/ }).first().click();
+      await p.waitForTimeout(200);
+    },
+  },
+  {
+    name: "interview-result-other",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toResult(p);
+      await p.locator("details summary").filter({ hasText: "Other platforms" }).click();
+    },
+  },
+  {
+    name: "interview-result-loading",
+    lang: "en",
+    busy: true,
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await p.route("**/result", () => undefined);
+      await toResult(p);
+    },
+  },
+  {
+    name: "interview-result-failed",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await p.route("**/result", (route) => route.fulfill({ status: 503, contentType: "application/problem+json", body: JSON.stringify({ code: "unavailable" }) }));
+      await toResult(p);
+    },
+  },
+  {
+    name: "interview-stopped",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toChat(p);
+      await answer(p, "stop");
+      await p.waitForTimeout(1500);
+    },
+  },
   { name: "interview-start-pl", lang: "pl", run: async (p, r) => void (await interview(p, r, "credits=1")) },
   {
     name: "interview-chat-pl",
@@ -247,12 +391,13 @@ for (const state of STATES) {
         locale: state.lang === "pl" ? "pl-PL" : "en-GB",
         colorScheme: process.env.CAPTURE_SCHEME === "dark" ? "dark" : "light",
         reducedMotion: "reduce", // stable captures: no animation or smooth scroll caught mid-way
+        permissions: ["clipboard-read", "clipboard-write"],
       });
       if (state.lang === "pl") await context.addCookies([{ name: "locale", value: "pl", url: baseURL! }]);
       const page = await context.newPage();
       await state.run(page, request);
       test.skip(Boolean(state.expectPath) && new URL(page.url()).pathname !== state.expectPath, `${state.name} does not exist on this build`);
-      await page.waitForLoadState("networkidle");
+      if (!state.busy) await page.waitForLoadState("networkidle");
       await expect(page.locator("main")).toBeVisible();
       // A full-page capture draws sticky elements where the page happens to be scrolled; lay them out in place for the picture.
       // (Through the CSSOM: the CSP refuses injected style elements.)

@@ -162,13 +162,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 204 delete. A closing or stop turn comes back with status in_progress; the status turns completed or stopped on the next GET.
 // Checkout sessions are https addresses that the browser suite intercepts; a paid event adds its quantity once per event id. Errors are problem documents with a lowercase stable `code`. The conversation is a SCRIPT, not a
 // model: two interviewer questions after the opening, then the close on the third reply (or on a request to finish after the first);
-// the word "stop" ends it without a record.
+// the word "stop" ends it without a record. With the `dynamics` switch the questions are the 1.3 moves and prefaces instead (warm-up, a
+// 1-5 rating, the check-in, the support notice, the legal notice), then the close.
 // The record matches the shape of schemas/exit-interview-record.v1.schema.json as the page reads it; the tiles use the six kinds of
 // the contract and the CLI's notice, verbatim (ExitInterviewAgent.Cli/Tiles/TileRenderer.cs). All of it is synthetic.
 const INTERVIEW_SCRIPT = {
   pl: {
     opening: "Dzień dobry. Jestem rozmówcą AI. Porozmawiamy o Twoim czasie w firmie, w Twoich własnych słowach. Jak wyglądało wdrożenie?",
     turns: ["Dziękuję. Jak oceniasz kontakt z przełożonym?", "Czy możesz podać jeden konkretny przykład?"],
+    // The interview dynamics 1.3 moves and prefaces, verbatim from interview-protocol.pl.v1.json (a preface is joined to its question with
+    // a space, InterviewRunner.cs). Served instead of `turns` when the account's `dynamics` switch is on.
+    dynamics: [
+      "Na początek coś prostego: na czym polega praca w tej firmie?",
+      "W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić wdrożenie?",
+      "Jesteśmy mniej więcej w połowie. Jeśli Pan woli skończyć wcześniej, wystarczy napisać „możemy kończyć”, a to, co już padło, zostanie zachowane. Co najbardziej zaważyło na tej ocenie?",
+      "Dziękuję, że Pan o tym mówi. Możemy ten wątek pominąć albo zakończyć rozmowę, zachowując to, co już padło. Jeśli jest teraz bardzo ciężko, można bezpłatnie zadzwonić pod 116 123 (telefon zaufania dla dorosłych), a w nagłym zagrożeniu pod 112. Co musiałoby być inaczej, żeby odejście w ogóle nie wchodziło w grę?",
+      "Ta rozmowa nie jest zgłoszeniem do pracodawcy ani poradą prawną; służy tylko do przygotowania zapisu i szkiców dla Pana. Co jeszcze warto dodać, o co nie padło pytanie?",
+    ],
     close: "Dziękuję, to wszystkie pytania. Zapis i szkice tekstów są gotowe.",
     stop: "Rozumiem. Rozmowa została przerwana i nic z niej nie jest zachowywane.",
     quote: "Wdrożenie było chaotyczne.",
@@ -234,6 +244,13 @@ const INTERVIEW_SCRIPT = {
   en: {
     opening: "Hello. I am an AI interviewer. We will talk about your time at the company, in your own words. How did onboarding go?",
     turns: ["Thank you. How would you describe your relationship with your manager?", "Can you give one concrete example?"],
+    dynamics: [
+      "To start with something easy: what was your job there?",
+      "On a scale from 1 to 5, where 1 is very bad and 5 very good, how would you rate onboarding?",
+      'We are about halfway. If you would rather finish earlier, just write "let\'s wrap up", and what has been said so far will be kept. What shaped that rating most?',
+      "Thank you for telling me. We can skip this topic or end the interview, keeping what has already been said. If things are very hard right now, please reach out to someone you trust or to a local helpline; in an emergency, call your local emergency number. What would have had to be different for leaving not to be an option?",
+      "This conversation is not a report to your employer and not legal advice; it only helps prepare the record and drafts for you. What else is worth adding that I have not asked about?",
+    ],
     close: "Thank you, that is all my questions. Your record and draft texts are ready.",
     stop: "Understood. The interview is stopped and nothing from it is kept.",
     quote: "Onboarding was chaotic.",
@@ -309,7 +326,7 @@ const INTERVIEW_SCRIPT = {
   },
 };
 const INTERVIEW_TENURES = ["lt_6m", "6m_1y", "1y_3y", "3y_5y", "5y_10y", "gt_10y"];
-const INTERVIEW_FLAGS = ["disabled", "providerDown", "billingDisabled", "expireNext", "rateLimited", "replyRateLimited", "emailUnverified"];
+const INTERVIEW_FLAGS = ["disabled", "providerDown", "billingDisabled", "expireNext", "rateLimited", "replyRateLimited", "emailUnverified", "dynamics", "longDrafts"];
 const interviewState = (a) => (a.interview ??= { credits: 1, session: null, ...Object.fromEntries(INTERVIEW_FLAGS.map((f) => [f, false])), checkouts: 0 });
 /** Checkout sessions the stub has opened, by id: the owner's email and the quantity. Shared by every account. */
 const checkoutSessions = new Map();
@@ -331,13 +348,26 @@ function recordFor(language, interviewId) {
   };
 }
 
-function tilesFor(language) {
+/** A paragraph appended to every draft section under the `longDrafts` switch, so a reviewer sees a draft of realistic length. */
+const LONG_DRAFT_TAIL = {
+  en: "In the first months there was no written plan, so most of what I learned came from asking colleagues between their own tasks. Meetings with the manager were often moved or cancelled, and feedback arrived late, usually at the review. The team itself was patient and generous with time, which made the difference on hard weeks.",
+  pl: "W pierwszych miesiącach nie było spisanego planu, więc większość wiedzy zdobywałem, pytając kolegów między ich własnymi zadaniami. Spotkania z przełożonym często przesuwano albo odwoływano, a informacja zwrotna przychodziła późno, zwykle dopiero przy ocenie. Sam zespół był cierpliwy i nie żałował czasu, co w trudnych tygodniach robiło różnicę.",
+};
+
+function tilesFor(language, long = false) {
   const { items, drafts, notice } = INTERVIEW_SCRIPT[language];
+  const tail = LONG_DRAFT_TAIL[language];
+  const lengthened = long
+    ? drafts.map((d) => {
+        const sections = d.sections.map((x) => (x.key === "title" ? x : { ...x, text: `${x.text} ${tail}` }));
+        return { ...d, sections, copyText: sections.map((x) => x.text).join("\n\n") };
+      })
+    : drafts;
   return {
     items: items.map(([kind, text]) => ({ kind, text })),
     dropped: [{ code: "too_long" }],
     notice,
-    drafts,
+    drafts: lengthened,
   };
 }
 
@@ -433,7 +463,7 @@ async function interviewRoute(req, res, url) {
   }
   if (action === "result" && req.method === "GET") {
     if (s.status !== "completed") return problem(res, 409, "not_completed");
-    return json(res, 200, { record: recordFor(s.language, id), tiles: tilesFor(s.language), usage: { modelCalls: 4, tokensEstimated: 5400 } });
+    return json(res, 200, { record: recordFor(s.language, id), tiles: tilesFor(s.language, st.longDrafts), usage: { modelCalls: 4, tokensEstimated: 5400 } });
   }
   if (action === "reply" && req.method === "POST") {
     if (s.status !== "in_progress" || s.finishing) return problem(res, 409, "interview_ended");
@@ -449,6 +479,7 @@ async function interviewRoute(req, res, url) {
       return problem(res, 410, "gone");
     }
     const script = INTERVIEW_SCRIPT[s.language];
+    const turns = st.dynamics ? script.dynamics : script.turns;
     // Contract (plan §10): the closing and stop turns come back with status still in_progress and no ending; the status turns
     // completed or stopped on the next GET of the state, once the record and tiles are ready.
     if (/\bstop\b/i.test(text)) {
@@ -461,11 +492,11 @@ async function interviewRoute(req, res, url) {
     // A request to finish and keep the record (the agent's FinishRequestCue, ReplySignals.cs: "can we finish", "możemy już
     // skończyć") closes the interview early, like the last reply does.
     const finishRequest = /\bcan\s+we\s+(please\s+)?(finish|wrap\s+up|end)\b|\b(czy\s+)?mo[żz]emy\s+(ju[żz]\s+)?(sko[ńn]czy[ćc]|zako[ńn]czy[ćc])/i;
-    if (s.replies > script.turns.length || (s.replies > 1 && finishRequest.test(text))) {
+    if (s.replies > turns.length || (s.replies > 1 && finishRequest.test(text))) {
       s.finishing = "completed";
       return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: "close", text: script.close }, ending: null });
     }
-    return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: s.replies === 1 ? "topic" : "probe", text: script.turns[s.replies - 1] } });
+    return json(res, 200, { status: "in_progress", turn: { index: s.index, kind: s.replies === 1 ? "topic" : "probe", text: turns[s.replies - 1] } });
   }
   return problem(res, 404, "not_found");
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canFinish, canQuickReply, initialState, reduce, type State } from "./state";
+import { canFinish, canQuickReply, canRate, initialState, isRatingQuestion, reduce, type State } from "./state";
 
 // The page is a small state machine. These tests pin its transitions, in particular the failure statuses (402, 409, 410, 429,
 // 503) that must send the person somewhere sensible, and that deleting empties everything the page holds.
@@ -222,10 +222,34 @@ describe("redesign (phase 2): what the page derives from its state", () => {
     expect(canQuickReply(topic)).toBe(false);
   });
 
+  it("recognises a 1-5 rating question in English and in Polish, and nothing else", () => {
+    expect(isRatingQuestion("On a scale from 1 to 5, where 1 is very bad and 5 very good, how would you rate onboarding?")).toBe(true);
+    expect(isRatingQuestion("W skali od 1 do 5, gdzie 1 to bardzo źle, a 5 bardzo dobrze: jak ocenić wdrożenie?")).toBe(true);
+    expect(isRatingQuestion("We are about halfway. On a scale of 1-5, how was it?")).toBe(true);
+    expect(isRatingQuestion("What shaped that rating most?")).toBe(false);
+    expect(isRatingQuestion("I worked there for 5 years, in 1 team.")).toBe(false);
+    expect(isRatingQuestion("On a large scale. It took 1 year and 5 months.")).toBe(false);
+  });
+
+  it("offers the number buttons after a rating question only, and not while a reply is pending", () => {
+    const opening = chatting();
+    expect(canRate(opening)).toBe(false);
+    const rating = run(opening, { type: "sending", text: "Yes." }, { type: "replied", reply: { status: "in_progress", turn: { index: 1, kind: "topic", text: "On a scale from 1 to 5, how would you rate onboarding?" } } });
+    expect(canRate(rating)).toBe(true);
+    expect(canRate(run(rating, { type: "sending", text: "2" }))).toBe(false);
+    const next = run(rating, { type: "sending", text: "2" }, { type: "replied", reply: { status: "in_progress", turn: { index: 2, kind: "probe", text: "What shaped that rating most?" } } });
+    expect(canRate(next)).toBe(false);
+  });
+
   it("hides the quick answers while a reply is pending, and outside the chat", () => {
     const opening = chatting();
     expect(canQuickReply(run(opening, { type: "sending", text: "Yes." }))).toBe(false);
     expect(canQuickReply(initialState())).toBe(false);
+  });
+
+  it("hides the quick answers once the person has answered, also when that answer failed and waits to be sent again", () => {
+    const failed = run(chatting(), { type: "sending", text: "Yes." }, { type: "failed", failure: { kind: "rate_limited", retryAfter: 30 } });
+    expect(canQuickReply(failed)).toBe(false);
   });
 
   it("remembers when the interview completed, to say until when the result stays readable", () => {

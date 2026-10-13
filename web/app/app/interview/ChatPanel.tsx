@@ -8,7 +8,7 @@ import { ConfirmDialog } from "../_components/ConfirmDialog";
 import { BrandMark, Icon } from "../_components/Icon";
 import styles from "./interview.module.css";
 import { Notice } from "./Notice";
-import { canFinish, canQuickReply, type State } from "./state";
+import { canFinish, canQuickReply, canRate, type State } from "./state";
 import { useCountdown } from "./useCountdown";
 
 interface Props {
@@ -38,12 +38,20 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
   const log = useRef<HTMLDivElement>(null);
 
   const composer = useRef<HTMLFormElement>(null);
+  const first = useRef(true);
 
   // The newest message is always in view: the log scrolls itself to the bottom when a line or the typing indicator arrives, and
-  // the page brings the composer to its own place, so the sticky composer never sits on top of the newest message.
+  // the page brings the composer to its own place, so the sticky composer never sits on top of the newest message. On the first
+  // render the page goes to the top instead: the consent step before it is longer, and its scroll position would leave the title
+  // bar and the opening question out of sight on a phone before anyone has read them.
   useEffect(() => {
     const el = log.current;
     if (el) el.scrollTop = el.scrollHeight;
+    if (first.current) {
+      first.current = false;
+      window.scrollTo({ top: 0 });
+      return;
+    }
     composer.current?.scrollIntoView({ block: "nearest" });
   }, [state.lines.length, state.pending]);
   const waitLeft = useCountdown(notice?.kind === "rate_limited" ? notice.retryAfter : undefined, notice);
@@ -54,6 +62,7 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
   const canSend = trimmed.length > 0 && !tooLong && !state.pending && !waiting;
   const finishable = canFinish(state) && !waiting;
   const quickReplies = canQuickReply(state);
+  const rating = canRate(state);
 
   async function submit() {
     if (!canSend) return;
@@ -89,7 +98,15 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
             {copy.interviewer}
             <span className={styles.aiTag}>AI</span>
           </span>
-          <p className={styles.progress} data-testid="chat-progress">{copy.phase}</p>
+          <p className={styles.progress} data-testid="chat-progress">
+            {/* Each part keeps its "·" on its own line end, so a wrapped line never starts with a dot. The text is unchanged. */}
+            {copy.phase.split(" · ").map((part, i, parts) => (
+              <span key={part}>
+                <span className={styles.phasePart}>{i < parts.length - 1 ? `${part} ·` : part}</span>
+                {i < parts.length - 1 ? " " : ""}
+              </span>
+            ))}
+          </p>
         </div>
         {/* A div, not a list: role="log" replaces the list semantics of an ol, and the lines are not list items for assistive tech.
             Focusable, because it scrolls: a keyboard user must be able to reach and scroll an earlier question (WCAG 2.1.1). */}
@@ -120,8 +137,18 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
       {quickReplies ? (
         <div role="group" aria-label={copy.quickRepliesLabel} className={styles.quickReplies} data-testid="quick-replies">
           {copy.quickReplies.map((reply) => (
-            <button key={reply} type="button" className="secondary" disabled={waiting} onClick={() => quickReply(reply)}>
+            <button key={reply} type="button" className={`secondary ${styles.chip}`} disabled={waiting} onClick={() => quickReply(reply)}>
               {reply}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {rating ? (
+        <div role="group" aria-label={copy.ratingRepliesLabel} className={styles.quickReplies} data-testid="rating-replies">
+          <span className={styles.chipsLabel} aria-hidden="true">{copy.ratingRepliesLabel}</span>
+          {["1", "2", "3", "4", "5"].map((n) => (
+            <button key={n} type="button" className={`secondary ${styles.chip} ${styles.chipNumber}`} disabled={waiting} onClick={() => quickReply(n)}>
+              {n}
             </button>
           ))}
         </div>

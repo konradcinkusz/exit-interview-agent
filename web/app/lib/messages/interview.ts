@@ -71,6 +71,8 @@ const en = {
   // Shown on the consent turn only. Each button sends exactly its text as the person's answer; typing still works.
   quickRepliesLabel: "Quick answers",
   quickReplies: ["Yes", "No"],
+  // Shown under a 1-5 rating question. Each button sends its number as the answer; typing still works.
+  ratingRepliesLabel: "Your rating, from 1 to 5",
   replyLabel: "Your answer",
   replyHint: "Press Enter to send. Shift+Enter starts a new line.",
   replyPlaceholder: "Write in your own words…",
@@ -270,6 +272,7 @@ const pl: InterviewCopy = {
   phase: "Rozmowa · zwykle 10–15 minut · można zakończyć w każdej chwili",
   quickRepliesLabel: "Szybkie odpowiedzi",
   quickReplies: ["Tak", "Tak, per Pani", "Tak, per Pan", "Tak, na Ty", "Nie"],
+  ratingRepliesLabel: "Twoja ocena, od 1 do 5",
   replyLabel: "Twoja odpowiedź",
   replyHint: "Enter wysyła. Shift+Enter zaczyna nowy wiersz.",
   replyPlaceholder: "Napisz własnymi słowami…",

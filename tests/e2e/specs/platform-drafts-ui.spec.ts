@@ -130,6 +130,11 @@ test("English drafts: each platform's risk in words, one copy per section, the h
   await linkedin.getByRole("button", { name: "Copy: LinkedIn" }).click();
   await expect(linkedin.getByRole("status").filter({ hasText: "Copied" })).toHaveCount(1);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("My last year there taught me what I want from a manager.");
+  // Unticking the warning disables the copy again and forgets the copy: ticking it again does not bring "Copied" back.
+  await box.uncheck();
+  await expect(linkedin.getByRole("button", { name: "Copy: LinkedIn" })).toBeDisabled();
+  await box.check();
+  await expect(linkedin.getByRole("status").filter({ hasText: "Copied" })).toHaveCount(0);
 
   // No network leaves the page for a copy, and nothing foreign loads.
   expect(seen.csp).toEqual([]);
