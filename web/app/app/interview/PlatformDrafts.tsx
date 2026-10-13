@@ -33,7 +33,7 @@ export function PlatformDrafts({ copy, language, drafts }: Props) {
       <p className="hint">{copy.draftsIntro}</p>
       <div className={styles.draftList}>{primary.map(card)}</div>
       {others.length > 0 ? (
-        <details>
+        <details className={styles.otherDrafts}>
           <summary>{copy.draftsOther}</summary>
           <div className={styles.draftList}>{others.map(card)}</div>
         </details>

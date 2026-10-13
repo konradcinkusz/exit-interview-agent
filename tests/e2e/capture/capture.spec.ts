@@ -284,6 +284,15 @@ const STATES: State[] = [
     },
   },
   {
+    name: "interview-result-other",
+    lang: "en",
+    run: async (p, r) => {
+      await interview(p, r, "credits=1");
+      await toResult(p);
+      await p.locator("details summary").filter({ hasText: "Other platforms" }).click();
+    },
+  },
+  {
     name: "interview-result-loading",
     lang: "en",
     busy: true,

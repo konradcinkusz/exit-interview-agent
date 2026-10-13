@@ -230,6 +230,21 @@
   .draftActions .copy { justify-content: space-between; }
 }
 
+/* "Other platforms" (markets outside the interview's language): a quiet disclosure row under the main cards, closed by default. */
+.otherDrafts { margin-top: var(--s5); }
+.otherDrafts > summary {
+  display: flex; align-items: center; gap: var(--s2); min-height: var(--control-height); padding: var(--s2) var(--s4); cursor: pointer;
+  list-style: none; font-weight: 650; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+}
+.otherDrafts > summary::-webkit-details-marker { display: none; }
+.otherDrafts > summary::before {
+  content: ""; flex: none; width: 0.45rem; height: 0.45rem; margin: 0 0.2rem; border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+.otherDrafts[open] > summary::before { transform: rotate(45deg); }
+.otherDrafts > summary:hover { background: var(--surface-2); }
+.otherDrafts[open] > summary { margin-bottom: var(--s4); }
+
 /* copy buttons: the status is announced and also shown, briefly, as a small "Copied" next to the button */
 .copy { display: inline-flex; align-items: center; gap: var(--s2); }
 .copy button { margin: 0; }
