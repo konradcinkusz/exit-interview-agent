@@ -202,13 +202,15 @@ credits:
   "drafts":  [ { "platform": "gowork", "name": "GoWork.pl", "family": "structured_review", "risk": "high",
                  "url": "https://www.gowork.pl/", "warning": "…",
                  "sections": [ { "key": "pros", "label": "Plusy", "text": "…" } ],
-                 "copyText": "…", "fieldsOnSite": [ "…" ] } ],
+                 "copyText": "…", "fieldsOnSite": [ "…" ], "primary": true } ],
   "dropped": [ { "code": "too_short" } ],
   "notice":  "…"
 }
 ```
 
-- `Contracts/InterviewContracts.cs`: `InterviewTiles` gains `IReadOnlyList<InterviewPlatformDraft> Drafts`.
+- `Contracts/InterviewContracts.cs`: `InterviewTiles` gains `IReadOnlyList<InterviewPlatformDraft> Drafts`. Each draft carries
+  `primary` (bool): true when the profile's `markets` include the interview's language. The drafts arrive already in that order, from
+  `PlatformDraftBuilder.Build`; the page only splits them.
 - `items` no longer carries platform kinds. The service sends only the generic kinds and facts.
 - The web parser **skips** an item of unknown kind instead of failing the whole result. This fixes research finding 2.
 - The parser treats a missing `drafts` as `[]`.
@@ -218,9 +220,11 @@ credits:
 
 `ResultPanel.tsx` gets a section "Drafts for a platform" / "Szkice dla serwisów", after the generic tiles.
 
-- **Order.** Profiles whose `markets` include the interview language come first, in profile-file order. In PL: gowork,
-  linkedin, facebook_group, wykop, glassdoor, indeed, blind, reddit, x. The others sit inside a `<details>` named "Other
-  platforms" / "Inne serwisy".
+- **Order.** Profiles whose `markets` include the interview language come first, in profile-file order. The others sit inside a
+  `<details>` named "Other platforms" / "Inne serwisy". The example order that stood here (PL: gowork, linkedin, …, glassdoor, indeed, …)
+  does not follow from the shipped markets: every enabled profile lists `pl`, so in Polish all nine are primary, in profile-file order
+  (glassdoor, indeed, gowork, linkedin, facebook_group, reddit, wykop, blind, x). Changing a platform's `markets` is the change that moves
+  it; the order and the split follow without code changes.
 - **One card per draft:**
   - the platform name (`h4`);
   - a **risk label in words** ("Higher risk" / "Wyższe ryzyko"), never colour alone;

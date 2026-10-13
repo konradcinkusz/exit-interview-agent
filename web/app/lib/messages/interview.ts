@@ -149,6 +149,7 @@ const en = {
     for_the_next_person: "For the next person",
   },
   draftsTitle: "Drafts for a platform",
+  draftsOther: "Other platforms",
   draftsIntro:
     "One draft for each platform, in the language of your interview. Each has its own warning. Copy the parts you want, check them, and fill in the rest on the site yourself.",
   risk: { high: "Higher risk", medium: "Medium risk" },
@@ -346,6 +347,7 @@ const pl: InterviewCopy = {
     for_the_next_person: "Dla następnej osoby",
   },
   draftsTitle: "Szkice dla serwisów",
+  draftsOther: "Inne serwisy",
   draftsIntro:
     "Jeden szkic dla każdego serwisu, w języku rozmowy. Każdy ma własne ostrzeżenie. Skopiuj wybrane fragmenty, sprawdź je i resztę uzupełnij w samym serwisie.",
   risk: { high: "Wyższe ryzyko", medium: "Średnie ryzyko" },

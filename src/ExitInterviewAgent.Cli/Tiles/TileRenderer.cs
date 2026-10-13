@@ -188,18 +188,9 @@ internal static class TileRenderer
         return JsonSerializer.Serialize(new TileDocument(w.Notice, set.TilesVersion, set.Language, set.Tiles, set.Dropped, drafts), JsonOptions);
     }
 
-    /// <summary>
-    /// The drafts in the order the page shows them (spec §3.5): the platforms whose markets include the interview's language first, each
-    /// group in profile-file order. The builder never edits a text; this only chooses the order.
-    /// </summary>
-    private static IReadOnlyList<PlatformDraft> OrderedDrafts(TileSet set)
-    {
-        var language = IsPolish(set.Language) ? "pl" : "en";
-        var profiles = PlatformProfiles.Default;
-        return PlatformDraftBuilder.Build(set, profiles, language)
-            .OrderBy(d => profiles.Get(d.Id).Markets.Contains(language, StringComparer.Ordinal) ? 0 : 1)
-            .ToList();
-    }
+    /// <summary>The drafts in the order the page shows them (spec §3.5): the builder's market order, for the interview's language.</summary>
+    private static IReadOnlyList<PlatformDraft> OrderedDrafts(TileSet set) =>
+        PlatformDraftBuilder.Build(set, PlatformProfiles.Default, IsPolish(set.Language) ? "pl" : "en");
 
     /// <summary>A platform draft as the wire carries it (spec §3.4): the same words as the service sends, the texts untouched.</summary>
     private static InterviewPlatformDraft ToWire(PlatformDraft draft) => new(
@@ -211,7 +202,8 @@ internal static class TileRenderer
         draft.Warning,
         draft.Sections.Select(s => new InterviewDraftSection(s.Key, s.Label, s.Text)).ToList(),
         draft.CopyText,
-        draft.FieldsOnSite);
+        draft.FieldsOnSite,
+        draft.Primary);
 
     private static void AppendDraftsText(StringBuilder text, Words w, IReadOnlyList<PlatformDraft> drafts)
     {
