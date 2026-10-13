@@ -98,7 +98,15 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
             {copy.interviewer}
             <span className={styles.aiTag}>AI</span>
           </span>
-          <p className={styles.progress} data-testid="chat-progress">{copy.phase}</p>
+          <p className={styles.progress} data-testid="chat-progress">
+            {/* Each part keeps its "·" on its own line end, so a wrapped line never starts with a dot. The text is unchanged. */}
+            {copy.phase.split(" · ").map((part, i, parts) => (
+              <span key={part}>
+                <span className={styles.phasePart}>{i < parts.length - 1 ? `${part} ·` : part}</span>
+                {i < parts.length - 1 ? " " : ""}
+              </span>
+            ))}
+          </p>
         </div>
         {/* A div, not a list: role="log" replaces the list semantics of an ol, and the lines are not list items for assistive tech.
             Focusable, because it scrolls: a keyboard user must be able to reach and scroll an earlier question (WCAG 2.1.1). */}
