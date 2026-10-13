@@ -76,3 +76,36 @@ test.describe("in Polish", () => {
     await expect(page.getByLabel("Twoja odpowiedź")).toBeFocused();
   });
 });
+
+test.describe("a 1-5 rating question", () => {
+  test.use({ locale: "en-US" });
+
+  test("offers the numbers 1 to 5 as buttons; a press sends the number, and the buttons go with the question", async ({ page, request }) => {
+    const name = accountName("rating");
+    await configure(request, name, "credits=1&dynamics=1");
+    await page.goto("/login?redirect=%2Finterview");
+    await signIn(page, name);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Start the interview" }).click();
+    const log = page.getByRole("log", { name: "Conversation" });
+    await page.getByRole("group", { name: "Quick answers" }).getByRole("button", { name: "Yes", exact: true }).click();
+    await expect(log).toContainText("To start with something easy");
+    // The warm-up is not a rating question: no numbers.
+    await expect(page.getByRole("group", { name: "Your rating, from 1 to 5" })).toHaveCount(0);
+
+    await page.getByLabel("Your answer").fill("I was a developer.");
+    await page.getByLabel("Your answer").press("Enter");
+    await expect(log).toContainText("On a scale from 1 to 5");
+    const rating = page.getByRole("group", { name: "Your rating, from 1 to 5" });
+    await expect(rating.getByRole("button")).toHaveText(["1", "2", "3", "4", "5"]);
+    await expect(page.locator("button.primary")).toHaveText(["Send"]);
+
+    await rating.getByRole("button", { name: "2", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(log).toContainText("You: 2");
+    await expect(log).toContainText("What shaped that rating most?");
+    await expect(rating).toHaveCount(0);
+    await expect(page.getByLabel("Your answer")).toBeFocused();
+  });
+});

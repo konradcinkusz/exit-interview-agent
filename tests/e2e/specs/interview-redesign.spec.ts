@@ -134,7 +134,31 @@ test("Stop and delete opens a modal dialog: Cancel first and focused, focus kept
   await expect(page.getByTestId("deleted-notice")).toContainText("The interview was deleted. Nothing from it is kept.");
   await expect(page.getByTestId("deleted-notice")).toContainText("The credit it used is not returned");
   await expect(page.getByTestId("deleted-notice")).toContainText("To give another interview, buy one below.");
+  // The chat that held the focus is gone: the confirmation takes it and is on screen, not scrolled out of sight.
+  await expect(page.getByTestId("deleted-notice")).toBeFocused();
+  await expect(page.getByTestId("deleted-notice")).toBeInViewport();
   expect(await stubState(request, name)).toEqual({ credits: 0, session: null });
+});
+
+test("when the interview ends, the result's heading takes the focus, and the chat never scrolled the page on its first render", async ({ page, request }) => {
+  const name = accountName("redesign");
+  await configure(request, name, "credits=1");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openInterview(page, name);
+  await start(page);
+  // On a phone the title bar and the opening question are where the person starts reading.
+  await expect(page.getByTestId("chat-progress")).toBeInViewport();
+  await expect(page.getByText("Hello. I am an AI interviewer.")).toBeInViewport();
+
+  const box = page.getByLabel("Your answer");
+  for (const text of ["Yes.", "Onboarding was chaotic.", "My manager was rarely there."]) {
+    await box.fill(text);
+    await box.press("Enter");
+    await expect(page.getByRole("log", { name: "Conversation" })).toContainText(text);
+  }
+  const heading = page.getByRole("heading", { name: "Your record and draft texts" });
+  await expect(heading).toBeFocused();
+  await expect(heading).toBeInViewport();
 });
 
 test("a reply the model could not take is kept, and Send again sends it once the model is back", async ({ page, request }) => {

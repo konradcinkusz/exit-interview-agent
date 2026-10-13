@@ -60,7 +60,7 @@ function DraftCard({ copy, language, draft }: { copy: InterviewCopy; language: I
         {high ? (
           <div className={styles.gate}>
             <label className={`check ${styles.gateCheck}`}>
-              <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
+              <input type="checkbox" checked={acknowledged} aria-describedby={gated ? gateId : undefined} onChange={(event) => setAcknowledged(event.target.checked)} />
               {copy.draftAcknowledge}
             </label>
             {gated ? (
@@ -88,7 +88,7 @@ function DraftCard({ copy, language, draft }: { copy: InterviewCopy; language: I
       </div>
       <footer className={styles.draftFoot}>
         <div className={styles.draftActions}>
-          <CopyButton copy={copy} caption={copy.copyAll} text={draft.copyText} disabled={gated} describedBy={describedBy} />
+          <CopyButton copy={copy} caption={copy.copyAll} label={draft.name} text={draft.copyText} disabled={gated} describedBy={describedBy} />
           <a className={styles.draftLink} href={draft.url} target="_blank" rel="noopener noreferrer">
             {copy.draftOpen(draft.name)} <span className="hint-inline">{copy.opensNewTab}</span>
             <Icon name="external" size={16} />
@@ -132,6 +132,8 @@ export function CopyButton({
   quiet?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "done" | "failed">("idle");
+  // Each copy gets a new status node, so a second copy within the few seconds is announced again (the same text would not be).
+  const [count, setCount] = useState(0);
   // "Copied" is a moment, not a state: it is announced once (role=status) and goes after a few seconds, so an older copy elsewhere on
   // the page does not keep saying "Copied". A failure stays, because it tells the person what to do instead.
   useEffect(() => {
@@ -139,22 +141,25 @@ export function CopyButton({
     const timer = setTimeout(() => setState("idle"), COPIED_MS);
     return () => clearTimeout(timer);
   }, [state]);
+  // A button that is disabled again (the warning unticked) no longer says it copied.
+  const done = state === "done" && !disabled;
   async function copyText() {
     try {
       await navigator.clipboard.writeText(text);
       setState("done");
+      setCount((n) => n + 1);
     } catch {
       setState("failed");
     }
   }
   return (
     <div className={state === "failed" ? `${styles.copy} ${styles.copyFailed}` : styles.copy}>
-      <span role="status" className={state === "done" ? `${styles.copyStatus} ${styles.copyDone}` : styles.copyStatus}>
-        {state === "done" ? (
-          <>
+      <span role="status" className={styles.copyStatus}>
+        {done ? (
+          <span key={count} className={styles.copyDone}>
             <Icon name="check" size={14} />
             {copy.copied}
-          </>
+          </span>
         ) : state === "failed" ? (
           copy.copyFailed
         ) : (
@@ -167,10 +172,10 @@ export function CopyButton({
         aria-label={label ? `${caption}: ${label}` : undefined}
         aria-describedby={describedBy}
         disabled={disabled}
-        data-copied={state === "done" ? "" : undefined}
+        data-copied={done ? "" : undefined}
         onClick={() => void copyText()}
       >
-        <Icon name={state === "done" ? "check" : "copy"} size={16} />
+        <Icon name={done ? "check" : "copy"} size={16} />
         {caption}
       </button>
     </div>

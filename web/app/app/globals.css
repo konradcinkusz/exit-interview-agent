@@ -430,6 +430,8 @@ a.card-title:hover { text-decoration: underline; }
 
 dl.commands dt { margin-top: var(--s3); }
 dl.commands dd { margin: 0.1rem 0 0 0; color: var(--muted); }
+/* A heading or notice that takes the focus by script (tabindex="-1", never a Tab stop) is where reading starts, not a control: no ring. */
+h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, .notice[tabindex="-1"]:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 /* Signals (T10b). No colour carries meaning: the interval bar is one neutral hue, and every state is also text. */

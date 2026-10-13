@@ -104,7 +104,7 @@
 .replyLabel { margin: 0 0 var(--s2); font-size: var(--text-sm); color: var(--muted); }
 .composer textarea { min-height: 4.25rem; max-height: 14rem; field-sizing: content; resize: none; border-radius: var(--radius); }
 .replyMeta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); margin-top: var(--s3); }
-.replyNotes { display: flex; flex-wrap: wrap; gap: 0 var(--s4); min-width: 0; flex: 1 1 14rem; }
+.replyNotes { display: flex; flex-wrap: wrap; gap: 0 var(--s4); min-width: 0; flex: 1 1 8rem; }
 .replyNotes p { margin: 0; }
 .replyMeta button { margin: 0; margin-left: auto; }
 /* On a touch screen there is no Shift+Enter, and on a phone-width window the hint costs two lines above Send. */

@@ -41,13 +41,15 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
   const first = useRef(true);
 
   // The newest message is always in view: the log scrolls itself to the bottom when a line or the typing indicator arrives, and
-  // the page brings the composer to its own place, so the sticky composer never sits on top of the newest message. Not on the
-  // first render: on a phone that would scroll the title bar and the opening question out of sight before anyone has read them.
+  // the page brings the composer to its own place, so the sticky composer never sits on top of the newest message. On the first
+  // render the page goes to the top instead: the consent step before it is longer, and its scroll position would leave the title
+  // bar and the opening question out of sight on a phone before anyone has read them.
   useEffect(() => {
     const el = log.current;
     if (el) el.scrollTop = el.scrollHeight;
     if (first.current) {
       first.current = false;
+      window.scrollTo({ top: 0 });
       return;
     }
     composer.current?.scrollIntoView({ block: "nearest" });
