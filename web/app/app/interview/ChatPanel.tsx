@@ -8,7 +8,7 @@ import { ConfirmDialog } from "../_components/ConfirmDialog";
 import { BrandMark, Icon } from "../_components/Icon";
 import styles from "./interview.module.css";
 import { Notice } from "./Notice";
-import { canFinish, canQuickReply, type State } from "./state";
+import { canFinish, canQuickReply, canRate, type State } from "./state";
 import { useCountdown } from "./useCountdown";
 
 interface Props {
@@ -54,6 +54,7 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
   const canSend = trimmed.length > 0 && !tooLong && !state.pending && !waiting;
   const finishable = canFinish(state) && !waiting;
   const quickReplies = canQuickReply(state);
+  const rating = canRate(state);
 
   async function submit() {
     if (!canSend) return;
@@ -120,8 +121,18 @@ export function ChatPanel({ copy, state, onSend, onFinish, onDelete, notice }: P
       {quickReplies ? (
         <div role="group" aria-label={copy.quickRepliesLabel} className={styles.quickReplies} data-testid="quick-replies">
           {copy.quickReplies.map((reply) => (
-            <button key={reply} type="button" className="secondary" disabled={waiting} onClick={() => quickReply(reply)}>
+            <button key={reply} type="button" className={`secondary ${styles.chip}`} disabled={waiting} onClick={() => quickReply(reply)}>
               {reply}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {rating ? (
+        <div role="group" aria-label={copy.ratingRepliesLabel} className={styles.quickReplies} data-testid="rating-replies">
+          <span className={styles.chipsLabel} aria-hidden="true">{copy.ratingRepliesLabel}</span>
+          {["1", "2", "3", "4", "5"].map((n) => (
+            <button key={n} type="button" className={`secondary ${styles.chip} ${styles.chipNumber}`} disabled={waiting} onClick={() => quickReply(n)}>
+              {n}
             </button>
           ))}
         </div>

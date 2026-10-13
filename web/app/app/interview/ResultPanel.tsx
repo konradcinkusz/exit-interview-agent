@@ -238,7 +238,7 @@ function TilesView({ copy, language, result }: { copy: InterviewCopy; language: 
             <li key={`${i}-${tile.kind}`} className={styles.tile}>
               <div className={styles.tileHead}>
                 <h4>{label}</h4>
-                <CopyButton copy={copy} label={label} text={tileCopyText(tile)} />
+                <CopyButton copy={copy} label={label} text={tileCopyText(tile)} quiet />
               </div>
               <p className={styles.text}>{tile.text}</p>
             </li>
