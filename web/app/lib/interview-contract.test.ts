@@ -36,6 +36,7 @@ const draftSample = (): Record<string, unknown> => ({
   sections: [{ key: "pros", label: "Plusy", text: "Dobry zespół i jasne zasady." }],
   copyText: "Dobry zespół i jasne zasady.",
   fieldsOnSite: ["Status zatrudnienia"],
+  primary: true,
 });
 
 describe("the golden contract samples parse with the BFF parsers", () => {
@@ -120,8 +121,20 @@ describe("tiles: platform drafts", () => {
         sections: [{ key: "pros", label: "Plusy", text: "Dobry zespół i jasne zasady." }],
         copyText: "Dobry zespół i jasne zasady.",
         fieldsOnSite: ["Status zatrudnienia"],
+        primary: true,
       },
     ]);
+  });
+
+  it("primary is read as sent: false keeps the draft in the other platforms", () => {
+    expect(parseDraft({ ...draftSample(), primary: false })?.primary).toBe(false);
+  });
+
+  it("a draft without primary is primary, and so is one whose primary is not a boolean (tolerant, ADR-0083)", () => {
+    const withoutPrimary = draftSample();
+    delete withoutPrimary.primary;
+    expect(parseDraft(withoutPrimary)?.primary).toBe(true);
+    expect(parseDraft({ ...draftSample(), primary: "no" })?.primary).toBe(true);
   });
 
   it.each([

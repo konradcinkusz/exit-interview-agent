@@ -58,6 +58,7 @@ public sealed record InterviewDraftSection(string Key, string Label, string Text
 /// <summary>
 /// A draft for one platform (ADR-0083, platform-drafts-spec §3.4). <c>Platform</c> is the profile id, <c>Family</c> and <c>Risk</c> are
 /// wire words, <c>Url</c> is the profile URL with no parameters, and <c>CopyText</c> is the sections in the platform's order.
+/// <c>Primary</c> is true when the platform's markets include the interview's language; the others are shown under "Other platforms".
 /// </summary>
 public sealed record InterviewPlatformDraft(
     string Platform,
@@ -68,7 +69,8 @@ public sealed record InterviewPlatformDraft(
     string Warning,
     IReadOnlyList<InterviewDraftSection> Sections,
     string CopyText,
-    IReadOnlyList<string> FieldsOnSite);
+    IReadOnlyList<string> FieldsOnSite,
+    bool Primary);
 
 /// <summary>
 /// The tiles, the platform drafts and the legal notice, in the interview's language. <c>Items</c> carry the generic kinds only; <c>Drafts</c>

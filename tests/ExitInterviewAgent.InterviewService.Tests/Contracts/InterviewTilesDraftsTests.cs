@@ -36,7 +36,8 @@ public class InterviewTilesDraftsTests
             Warning: "Szkic, nie fakt.",
             Sections: [new InterviewDraftSection("pros", "Plusy", "Dobry zespół.")],
             CopyText: "Dobry zespół.",
-            FieldsOnSite: ["Status zatrudnienia"]);
+            FieldsOnSite: ["Status zatrudnienia"],
+            Primary: true);
 
         var json = Serialize(new InterviewTiles([], [], "Notice.", [draft]));
         var first = json["drafts"]![0]!;
@@ -49,6 +50,17 @@ public class InterviewTilesDraftsTests
         Assert.Equal("Dobry zespół.", first["sections"]![0]!["text"]!.GetValue<string>());
         Assert.Equal("Plusy", first["sections"]![0]!["label"]!.GetValue<string>());
         Assert.Equal("Status zatrudnienia", first["fieldsOnSite"]![0]!.GetValue<string>());
+        Assert.True(first["primary"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void A_draft_outside_the_interview_language_carries_primary_false()
+    {
+        var draft = new InterviewPlatformDraft("gowork", "GoWork.pl", "structured_review", "high", "https://www.gowork.pl/", "Szkic.", [], "", [], Primary: false);
+
+        var json = Serialize(new InterviewTiles([], [], "Notice.", [draft]));
+
+        Assert.False(json["drafts"]![0]!["primary"]!.GetValue<bool>());
     }
 
     [Fact]

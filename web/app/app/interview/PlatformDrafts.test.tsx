@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { draftsEn, draftsPl, glassdoorDraftEn, goWorkDraftPl } from "@/lib/interview-drafts.fixtures";
+import { draftsEn, draftsPl, glassdoorDraftEn, goWorkDraftEn, goWorkDraftPl, xDraftPl } from "@/lib/interview-drafts.fixtures";
 import { interviewCopy } from "@/lib/messages/interview";
 import { PlatformDrafts } from "./PlatformDrafts";
 
@@ -86,6 +86,27 @@ describe("PlatformDrafts", () => {
     expect(tagWith(html, 'aria-label="Copy: Glassdoor, Pros"')).not.toContain("disabled");
     expect(tagWith(html, "Copy all")).not.toContain("disabled");
     expect(html).not.toContain("I have read this warning");
+  });
+
+  it("shows the primary drafts first and the others inside a closed 'Other platforms' list, whatever order they arrive in", () => {
+    const html = render([goWorkDraftEn, glassdoorDraftEn], "en");
+    const details = html.indexOf("<details");
+    expect(details).toBeGreaterThan(0);
+    expect(html.slice(details)).toContain("<summary>Other platforms</summary>");
+    expect(html).not.toMatch(/<details[^>]* open/);
+    expect(html.indexOf(">Glassdoor</h4>")).toBeLessThan(details);
+    expect(html.indexOf(">GoWork.pl</h4>")).toBeGreaterThan(details);
+  });
+
+  it("names the other platforms in Polish in a Polish interview", () => {
+    const html = render([{ ...goWorkDraftPl, primary: false }, xDraftPl], "pl");
+    expect(html).toContain("<summary>Inne serwisy</summary>");
+    expect(html.indexOf(">X</h4>")).toBeLessThan(html.indexOf("<details"));
+  });
+
+  it("has no Other platforms list when every draft is primary", () => {
+    expect(render(draftsPl, "pl")).not.toContain("<details");
+    expect(render(draftsEn, "en")).not.toContain("<details");
   });
 
   it("carries no Google card and no script", () => {

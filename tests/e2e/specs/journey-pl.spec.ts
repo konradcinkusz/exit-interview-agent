@@ -71,9 +71,9 @@ test("sign in, start, chat, result, delete: the whole journey in Polish @smoke",
   await expect(page.getByTestId("result-warning")).toContainText("Szkice, nie fakty");
   await expect(page.getByTestId("tiles-notice")).toContainText("To są propozycje tekstów, nie fakty.");
   await expect(page.getByTestId("not-discussed")).toContainText("Nie poruszono:");
-  // The drafts (spec §3.5, ADR-0083): one per enabled platform, in the order the service sends them (profile-file order; the market
-  // order and the "Other platforms" split of spec §3.5 are not built yet, see the PR). No Google card; the high-risk gate on each
-  // high-risk card; a link to the exact site in a new tab; and a copy starts no request.
+  // The drafts (spec §3.5, ADR-0083): in the market order. Every enabled profile lists `pl`, so all three are primary and the
+  // profile-file order stands. No Google card; the high-risk gate on each high-risk card; a link to the exact site in a new tab; and
+  // a copy starts no request.
   const drafts = page.getByRole("region", { name: "Szkice dla serwisów" });
   await expect(drafts.getByRole("heading", { level: 4 })).toHaveText(["Glassdoor", "GoWork.pl", "LinkedIn"]);
   await expect(drafts).not.toContainText(/google/i);
