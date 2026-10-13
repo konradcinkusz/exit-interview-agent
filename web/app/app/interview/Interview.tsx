@@ -27,6 +27,15 @@ export function Interview({ devHints = false }: { devHints?: boolean }) {
   const copy: InterviewCopy = interviewCopy[siteLocale];
   const journey = useMessages().journey;
   const resultRequested = useRef(false);
+  const deletedNotice = useRef<HTMLDivElement>(null);
+
+  // After a deletion the page the person was on is gone. The confirmation is at the top: bring it into view and give it the focus,
+  // so the one sign that the deletion happened is neither off-screen nor silent.
+  useEffect(() => {
+    if (!state.deleted || state.phase !== "start") return;
+    window.scrollTo({ top: 0 });
+    deletedNotice.current?.focus({ preventScroll: true });
+  }, [state.deleted, state.phase]);
 
   useEffect(() => {
     dispatch({ type: "language", language: siteLocale });
@@ -140,7 +149,7 @@ export function Interview({ devHints = false }: { devHints?: boolean }) {
       {/* Signed in already; the interview is the current step until the record is shown. */}
       <Stepper label={journey.label} steps={journey.steps} current={state.phase === "result" ? 2 : 1} words={journey} compact />
       {state.deleted && state.phase === "start" ? (
-        <div className="notice ok" role="status" data-testid="deleted-notice">
+        <div className="notice ok" role="status" data-testid="deleted-notice" ref={deletedNotice} tabIndex={-1}>
           <p>{copy.deleted}</p>
           <p>{copy.deletedCredit}</p>
           {balance !== null ? <p>{balance > 0 ? copy.nextWithCredit : copy.nextWithoutCredit}</p> : null}

@@ -247,6 +247,11 @@ describe("redesign (phase 2): what the page derives from its state", () => {
     expect(canQuickReply(initialState())).toBe(false);
   });
 
+  it("hides the quick answers once the person has answered, also when that answer failed and waits to be sent again", () => {
+    const failed = run(chatting(), { type: "sending", text: "Yes." }, { type: "failed", failure: { kind: "rate_limited", retryAfter: 30 } });
+    expect(canQuickReply(failed)).toBe(false);
+  });
+
   it("remembers when the interview completed, to say until when the result stays readable", () => {
     const s = run(chatting(), { type: "replied", reply: { status: "completed" }, at: 1_700_000_000_000 });
     expect(s.phase).toBe("result");

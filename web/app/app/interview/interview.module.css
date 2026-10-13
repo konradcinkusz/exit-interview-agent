@@ -107,8 +107,8 @@
 .replyNotes { display: flex; flex-wrap: wrap; gap: 0 var(--s4); min-width: 0; flex: 1 1 14rem; }
 .replyNotes p { margin: 0; }
 .replyMeta button { margin: 0; margin-left: auto; }
-/* On a touch screen there is no Shift+Enter; the hint would only confuse. */
-@media (hover: none) and (pointer: coarse) { .keysHint { display: none; } }
+/* On a touch screen there is no Shift+Enter, and on a phone-width window the hint costs two lines above Send. */
+@media (hover: none) and (pointer: coarse), (max-width: 30rem) { .keysHint { display: none; } }
 .countOver { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--danger); }
 .endActions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--s4) var(--s5); margin: var(--s6) 0 0; }
 .endActions > div { padding: var(--s4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
@@ -242,3 +242,9 @@
 /* A per-field copy is lighter than "Copy all": no fill, a thinner outline, the same 3:1 border. */
 .copyQuiet { box-shadow: none; }
 .copyQuiet[data-copied], .copy button[data-copied] { color: var(--ok); border-color: var(--ok); }
+
+/* ended without a record: one card, the outcome with an icon, the way on */
+.ended > h2:first-child { margin-top: 0; }
+.endedLine { display: flex; gap: var(--s2); align-items: flex-start; margin: 0 0 var(--s4); }
+.endedLine :global(.icon) { flex: none; margin-top: 0.2rem; color: var(--accent-ink); }
+.ended :global(.actions) { margin-bottom: 0; }
